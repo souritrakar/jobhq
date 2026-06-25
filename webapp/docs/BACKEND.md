@@ -189,6 +189,48 @@ hand. Deleting a job cascade-deletes its reminders.
 - The global `/dashboard/reminders` page reads `listReminders` directly (server component); the
   feed groups by `createdAt` and surfaces the due-date label when present.
 
+**Delivery (reminders actually fire).** See [`docs/REMINDERS.md`](REMINDERS.md) for the full
+architecture. In short:
+
+- A dated, not-done reminder is scheduled on create/update via **Upstash QStash** (one-shot
+  `publishJSON` with `notBefore`); the message id is stored on the row so an edit/delete can
+  cancel or reschedule it (`lib/reminders/scheduler.ts`, wired into the service).
+- `POST /api/reminders/fire` is the **QStash-signed worker** (NOT `withRoute`; uses
+  `verifySignatureAppRouter`). It calls `fireReminder` (`lib/server/reminder-delivery.ts`), whose
+  atomic `updateMany ... WHERE deliveredAt IS NULL AND NOT done` claim makes a QStash retry a
+  no-op (at-most-once). It then fans out to channels (`lib/server/notification-dispatch.ts`):
+  **email** (Resend, `lib/email/*`), **in-app** (a `Notification` row), and the **extension**
+  delivers locally (no server push).
+- `SYSTEM` reminders are auto-generated: an **interview** reminder per job, kept in sync with
+  `Job.interviewAt` (24h lead) via `upsertInterviewReminder` and a `@@unique([jobId, systemKey])`
+  guard (`lib/server/system-reminders.ts`).
+- `GET /api/reminders` — full list, or `?upcoming=1&days=30` for not-done reminders due in the
+  next N days (the extension's local-alarm sync reads this).
+- `GET /api/reminders` aside, `POST /api/reminders` creates a standalone reminder; per-job CRUD is
+  `GET|POST /api/jobs/:id/reminders` and `PATCH|DELETE /api/reminders/:id`.
+
+**Cron:** `POST /api/cron/reminders-digest` (QStash-signed) runs a **daily** "jobs needing
+attention" digest — every user with `SAVED` jobs untouched ≥ 3 days gets one in-app + email
+summary. v1 uses **hardcoded defaults** (no per-user `NotificationPreference` yet — that table
+exists but is unused; `resolveChannels(null)` defaults all channels on). Register the schedule
+once per environment with `npm run qstash:setup`.
+
+### Notifications
+
+In-app notification surface for fired reminders + the digest. A `Notification`
+(`prisma/schema.prisma`) is `userId`-scoped with `kind` (`REMINDER_DUE|INTERVIEW|DIGEST`),
+`title`, optional `body`/`href`, an optional `reminderId` (SetNull) + `jobId`, and `readAt`
+(null = unread).
+
+- Service `lib/server/notifications.ts`: `createNotification`, `listNotifications`,
+  `unreadCount`, `markRead`, `markAllRead`, and `toClientNotification` (the serializer →
+  `lib/notifications/types.ts`; browser helpers in `lib/notifications/client.ts`).
+- Routes: `GET /api/notifications` (newest first), `PATCH /api/notifications/:id` (mark one read),
+  `POST /api/notifications/read-all`.
+- The dashboard header **bell** (`components/dashboard/notifications-bell.tsx`) is server-seeded
+  (the dashboard layout fetches `listNotifications` + `unreadCount`) and revalidates on window
+  focus + dropdown open — deliberately **no polling**.
+
 ### Documents
 
 User-uploaded files (resumes, cover letters, …) — the app is deliberately agnostic about what a
