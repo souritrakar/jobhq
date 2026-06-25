@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>JobTracker</title>
+  </head>
+  <body>
+    <header class="header">
+      <span class="logo">★</span>
+      <h1>JobTracker</h1>
+      <span id="count" class="count">0</span>
+    </header>
+
+    <div class="capture">
+      <button id="capture-current" class="btn-primary">
+        Save current tab as job
+      </button>
+    </div>
+
+    <div id="loader" class="loader" role="status" aria-live="polite">
+      <span class="spinner" aria-hidden="true"></span>Loading saved jobs…
+    </div>
+
+    <ul id="list" class="list" aria-live="polite"></ul>
+    <p id="empty" class="empty hidden">No saved jobs yet. Visit a job posting and hit
+      <strong>★ Save to JobTracker</strong>, or save the current tab above.</p>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

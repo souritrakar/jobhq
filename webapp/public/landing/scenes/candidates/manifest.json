@@ -1,0 +1,51 @@
+[
+  {
+    "slug": "hills-river-pixel",
+    "src": "/landing/scenes/candidates/hills-river-pixel.webp",
+    "w": 4096,
+    "h": 3072,
+    "ar": 1.33
+  },
+  {
+    "slug": "valley-river-clouds",
+    "src": "/landing/scenes/candidates/valley-river-clouds.webp",
+    "w": 4096,
+    "h": 3072,
+    "ar": 1.33
+  },
+  {
+    "slug": "green-hills-pixel",
+    "src": "/landing/scenes/candidates/green-hills-pixel.webp",
+    "w": 4096,
+    "h": 3072,
+    "ar": 1.33
+  },
+  {
+    "slug": "meadow-dunes-pixel",
+    "src": "/landing/scenes/candidates/meadow-dunes-pixel.webp",
+    "w": 4096,
+    "h": 3072,
+    "ar": 1.33
+  },
+  {
+    "slug": "grassy-stream-photo",
+    "src": "/landing/scenes/candidates/grassy-stream-photo.webp",
+    "w": 1487,
+    "h": 1058,
+    "ar": 1.41
+  },
+  {
+    "slug": "candidate-c78",
+    "src": "/landing/scenes/candidates/candidate-c78.webp",
+    "w": 1487,
+    "h": 1058,
+    "ar": 1.41
+  },
+  {
+    "slug": "mountains-illustration",
+    "src": "/landing/scenes/candidates/mountains-illustration.webp",
+    "w": 1263,
+    "h": 848,
+    "ar": 1.49
+  }
+]

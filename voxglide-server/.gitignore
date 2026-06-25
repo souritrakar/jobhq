@@ -1,0 +1,4 @@
+node_modules/
+.env
+# Runtime-generated build-mode tools
+server/functions/

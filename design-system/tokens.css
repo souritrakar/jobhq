@@ -1,0 +1,154 @@
+/* ============================================================================
+   JobTracker — Design Tokens (CANONICAL SOURCE OF TRUTH)
+   ----------------------------------------------------------------------------
+   These are the raw design variables shared by BOTH the web app and the Chrome
+   extension. Framework-agnostic plain CSS — no Tailwind, no build step required.
+
+   • Web app:   imported by webapp/app/globals.css (which maps these into the
+                Tailwind v4 @theme).
+   • Extension: import or copy this file into the popup / side-panel stylesheet.
+
+   Edit colors / radius / etc. HERE, in one place. Do not fork these values into
+   component CSS. See ./DESIGN.md for the why and the usage rules.
+   ============================================================================ */
+
+:root {
+  /* Inverted surfaces — a clean WHITE canvas (primary surface) with CREAM panels
+     (cards, popovers, sidebar) sitting on top. The warm tone now lives on the
+     raised surfaces instead of the page background. */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.21 0.012 155);
+  /* Raised panels are a PURE-NEUTRAL near-white (no hue) — the earlier cool hue-248 tint read
+     as a bluish grey, so surfaces are now achromatic and sit just off pure white. Fern is the
+     system's only color note; every surface, hairline, and quiet text is neutral grey. */
+  --card: oklch(0.986 0 0);
+  --card-foreground: oklch(0.21 0.012 155);
+  --popover: oklch(0.986 0 0);
+  --popover-foreground: oklch(0.21 0.012 155);
+
+  /* Fern — a grounded, friendly leaf green (NOT the cliché emerald/mint/teal) */
+  --primary: oklch(0.58 0.13 150);
+  --primary-foreground: oklch(0.99 0.01 145);
+
+  /* Secondary / muted surfaces — neutral greys a touch deeper than cards (no hue tint) */
+  --secondary: oklch(0.968 0 0);
+  --secondary-foreground: oklch(0.32 0 0);
+  --muted: oklch(0.973 0 0);
+  /* Secondary text — neutral gray. Kept at L 0.47 so 13px metadata still clears WCAG AA
+     (~4.6:1) on the card / white surfaces. */
+  --muted-foreground: oklch(0.47 0 0);
+  --accent: oklch(0.93 0.04 145);
+  --accent-foreground: oklch(0.33 0.06 155);
+  --destructive: oklch(0.58 0.2 25);
+  /* Hairlines, deliberately near-invisible (neutral) — separation comes from whitespace, not a
+     visible gray line. `--input` is a touch stronger so fields keep their affordance. */
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.903 0 0);
+  --ring: oklch(0.58 0.13 150);
+
+  /* Pipeline status — LOW-saturation, warm-leaning fill + readable foreground pairs, so
+     they sit in the paper world (not cool UI blues/ambers). The foreground also drives the
+     leading dot. Consumed via the `bg-status-*` / `text-status-*-foreground` utilities. */
+  --status-saved: oklch(0.95 0.018 150);
+  --status-saved-foreground: oklch(0.45 0.07 152);
+  --status-applied: oklch(0.95 0.02 85);
+  --status-applied-foreground: oklch(0.47 0.065 80);
+  --status-interviewing: oklch(0.94 0.03 65);
+  --status-interviewing-foreground: oklch(0.48 0.085 55);
+  --status-offer: oklch(0.93 0.03 155);
+  --status-offer-foreground: oklch(0.43 0.09 154);
+  --status-rejected: oklch(0.95 0.022 35);
+  --status-rejected-foreground: oklch(0.5 0.1 33);
+  --status-archived: oklch(0.95 0.004 90);
+  --status-archived-foreground: oklch(0.52 0.01 110);
+
+  /* Supporting brand tones */
+  --fern-50: oklch(0.97 0.025 145);
+  --fern-100: oklch(0.93 0.05 145);
+  --fern-600: oklch(0.52 0.13 150);
+  --fern-700: oklch(0.43 0.11 152);
+  --pine: oklch(0.3 0.06 158);
+  --sun: oklch(0.84 0.13 85);
+
+  /* Data viz */
+  --chart-1: oklch(0.58 0.13 150);
+  --chart-2: oklch(0.7 0.1 145);
+  --chart-3: oklch(0.43 0.11 152);
+  --chart-4: oklch(0.84 0.13 85);
+  --chart-5: oklch(0.3 0.06 158);
+
+  /* Geometry — one base radius drives the whole scale */
+  --radius: 0.85rem;
+
+  /* Type weight — confident, not heavy. Display tops out at 700, UI headings sit at 600,
+     body at 400. Extrabold (800) is intentionally NOT in the product scale (a small-UI slop
+     tell); marketing/landing surfaces may still go heavier. Applied via the matching
+     Tailwind named weights (font-normal/medium/semibold/bold); this is the documented source. */
+  --weight-body: 400;
+  --weight-medium: 500;
+  --weight-heading: 600;
+  --weight-display: 700;
+
+  /* Sidebar / app chrome — a clean neutral near-white panel against the white canvas. Kept a
+     touch lighter than --secondary so the neutral active-row fill still reads on it. */
+  --sidebar: oklch(0.989 0 0);
+  --sidebar-foreground: oklch(0.21 0.012 155);
+  --sidebar-primary: oklch(0.58 0.13 150);
+  --sidebar-primary-foreground: oklch(0.99 0.01 145);
+  --sidebar-accent: oklch(0.93 0.04 145);
+  --sidebar-accent-foreground: oklch(0.33 0.06 155);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.58 0.13 150);
+}
+
+.dark {
+  /* NOTE: dark mode is currently a neutral baseline and does NOT yet carry the
+     fern/paper identity. Treat as provisional — see ./DESIGN.md "Dark mode". */
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+
+  /* Status — provisional dark values (dark mode itself is provisional, see DESIGN.md §7).
+     Darker fills + light foregrounds; same warm hues, kept low-chroma. */
+  --status-saved: oklch(0.28 0.04 152);
+  --status-saved-foreground: oklch(0.82 0.08 152);
+  --status-applied: oklch(0.28 0.035 85);
+  --status-applied-foreground: oklch(0.84 0.07 85);
+  --status-interviewing: oklch(0.3 0.05 65);
+  --status-interviewing-foreground: oklch(0.85 0.09 70);
+  --status-offer: oklch(0.3 0.05 155);
+  --status-offer-foreground: oklch(0.84 0.1 154);
+  --status-rejected: oklch(0.3 0.05 33);
+  --status-rejected-foreground: oklch(0.82 0.1 33);
+  --status-archived: oklch(0.3 0.005 110);
+  --status-archived-foreground: oklch(0.78 0.01 110);
+
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}

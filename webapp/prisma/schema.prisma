@@ -1,0 +1,360 @@
+// Prisma schema for the JobTracker backend.
+// Shared by the Chrome extension (capture surface) and the web app (command center).
+//
+// Conventions:
+// - Postgres on Neon. Connection URLs live in `prisma.config.ts` (Prisma 7 moved them
+//   out of this file): DATABASE_URL is the POOLED runtime connection used via the Neon
+//   driver adapter; DIRECT_URL is the unpooled connection the CLI uses for migrations.
+// - Every user-owned row carries a `userId` FK so queries can always be scoped to the
+//   authenticated user. The service layer (lib/server/*) is responsible for that scoping.
+// - Enums model the application pipeline so status is validated at the DB level.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// A person using JobTracker. Auth is handled by an external provider later (e.g. Clerk);
+/// for now `id` is the stable key the extension and web app both reference.
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  jobs                   Job[]
+  jobApplications        JobApplication[]
+  applicationAnswers     JobApplicationAnswer[]
+  extractionLogs         ExtractionLog[]
+  reminders              Reminder[]
+  documents              Document[]
+  notifications          Notification[]
+  notificationPreference NotificationPreference?
+
+  @@map("users")
+}
+
+/// The pipeline stage of a saved job. Mirrors EXTENSION_PRODUCT_GOALS.md:
+/// saved -> applied -> interviewing -> outcome.
+enum JobStatus {
+  SAVED
+  APPLIED
+  INTERVIEWING
+  OFFER
+  REJECTED
+  ARCHIVED
+}
+
+/// A job posting captured by the extension and tracked in the web app.
+model Job {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Captured from the posting
+  title       String
+  company     String
+  url         String?
+  location    String?
+  description String?
+  logoUrl     String? // company logo image URL, captured deterministically from the page
+  source      String? // where it was captured from, e.g. "linkedin", "greenhouse", "manual"
+
+  // Structured details extracted by the LLM. Kept as free-form strings (already
+  // normalized/formatted at extraction time) so they render directly in the app —
+  // salary as a compact "$160K - $300K/yr", the two enums in their canonical casing.
+  salary         String?
+  employmentType String? // Full-time, Part-time, Contract, Internship, Temporary, Freelance, Volunteer, Apprenticeship
+  workplaceType  String? // Remote, Hybrid, On-site
+
+  // Tracking
+  status      JobStatus @default(SAVED)
+  deadline    DateTime?
+  interviewAt DateTime? // scheduled interview time; drives the auto "interview" SYSTEM reminder
+  notes       String?
+
+  // The resume the user picked for THIS job — the document whose text tailors a cover letter or
+  // drafted answers. Optional (most jobs have none chosen). onDelete: SetNull so deleting the
+  // document just clears the choice rather than cascading into the job.
+  resumeDocumentId String?
+  resumeDocument   Document? @relation(fields: [resumeDocumentId], references: [id], onDelete: SetNull)
+
+  // The posting's application form, captured only when the user opts to extract it.
+  // Optional 1:1 — absent unless application questions were saved with the job.
+  application JobApplication?
+
+  // Follow-up reminders the user set for this posting (0:N). Cascade-deleted with the job.
+  reminders   Reminder[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Hot paths: list a user's jobs, filter by status, sort by deadline.
+  @@index([userId, status])
+  @@index([userId, deadline])
+  @@map("jobs")
+}
+
+/// The application FORM for a job — the questions a candidate must answer, captured by the
+/// extension when the user opts to extract them (optional; many jobs have none). One row per
+/// job (1:1). The questions are stored as a validated JSON array rather than relational rows:
+/// they are a bounded, heterogeneous set, always read/written together and never queried per
+/// question across jobs, so a JSON aggregate is both the right model and the cheaper read.
+/// `schemaVersion` guards forward changes to that JSON shape; an AI step will later read the
+/// questions (each carries a stable `id`) to draft answers.
+model JobApplication {
+  id     String @id @default(cuid())
+  jobId  String @unique
+  job    Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  userId String // denormalized from the job's owner so reads stay userId-scoped without a join
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Typed question array. Each element: { id, order, label, type, required?, placeholder?,
+  // helpText?, options?, flagged? } — see lib/validations/job.ts for the validated shape.
+  // `flagged` is a user-set star marking a question for later review.
+  questions     Json
+  questionCount Int @default(0) // denormalized count so the UI needn't parse the JSON
+  flaggedCount  Int @default(0) // denormalized count of user-flagged questions (review/reminders)
+  schemaVersion Int @default(1) // bump when the questions JSON shape changes (now at 2: added flagged)
+
+  // The user's (or AI-drafted) answers, one row per answered question. Kept OUT of the
+  // `questions` JSON on purpose: answers are edited frequently and independently, so storing
+  // them as their own rows makes a single-answer save a one-row upsert (no rewrite of the whole
+  // questions blob, no read-modify-write race) — the read/write-efficient shape for hot edits.
+  answers JobApplicationAnswer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("job_applications")
+}
+
+/// One answer to one application question. Separated from the `questions` JSON (which is the
+/// rarely-changing FORM structure) because answers are the frequently-edited VALUES: a save is a
+/// single-row upsert keyed by (applicationId, questionId), never a rewrite of the question array.
+/// `questionId` is the stable slug id the service assigns each question — the join key between a
+/// question and its answer. `value` holds the text (free-text/AI-drafted answers today).
+model JobApplicationAnswer {
+  id            String         @id @default(cuid())
+  applicationId String
+  application   JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  userId        String // denormalized from the application's owner so reads stay userId-scoped
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  questionId String // stable slug id of the question this answers (see shapeStoredQuestions)
+  value      String @db.Text // the answer text (AI-drafted or user-edited)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // One answer per question per application — the upsert target for a single-answer save.
+  @@unique([applicationId, questionId])
+  @@index([userId])
+  @@map("job_application_answers")
+}
+
+/// Outcome of extracting a document's plain text (parsed once, at upload). PENDING is the
+/// pre-extraction default (also what legacy rows uploaded before this feature carry, so the
+/// reader knows to backfill them lazily). READY = usable text stored; EMPTY = parsed but no
+/// usable text (e.g. a scanned/image-only PDF); UNSUPPORTED = a format we don't parse
+/// (legacy .doc/.odt); FAILED = the parse threw. Anything but READY means "no resume text".
+enum DocumentTextStatus {
+  PENDING
+  READY
+  EMPTY
+  UNSUPPORTED
+  FAILED
+}
+
+/// A file the user uploaded — a resume, cover letter, transcript, etc. We are deliberately
+/// agnostic about what the document IS; it's just a file with a title.
+///
+/// Neon's recommended "split-storage" pattern: the file BYTES live in an external object
+/// store, addressed by `storageKey`; this row holds only the METADATA. `storageProvider`
+/// records WHICH backend holds the bytes (e.g. "s3", "r2", "vercel-blob") so a later
+/// migration between providers can be done per-row. All access is mediated by the
+/// DocumentStorage interface (lib/server/storage/document-storage.ts) — see that file to
+/// wire a real provider; until then uploads use a stub that fails loudly.
+model Document {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title           String // user-facing name; defaults to the original filename (sans extension)
+  fileName        String // original filename as uploaded, e.g. "resume_2026.pdf"
+  mimeType        String // e.g. "application/pdf"
+  size            Int    // bytes
+  storageKey      String // opaque key/path the storage provider uses to address the bytes
+  storageProvider String // which backend holds the bytes ("unconfigured" until a provider is wired)
+
+  // Extracted plain text, parsed ONCE at upload (PDF via unpdf, DOCX via mammoth, …) and stored
+  // so every later AI use (cover letter, answer drafting) reads it straight from the DB — the
+  // bytes are never re-downloaded from R2 or re-parsed. A Document's bytes never change (a new
+  // upload makes a new row), so this text is immutable and needs no invalidation.
+  extractedText String?            @db.Text
+  textStatus    DocumentTextStatus @default(PENDING)
+  extractedAt   DateTime? // when extraction last ran (null until first attempted)
+
+  // Jobs that selected this document as the resume to tailor their application (see Job).
+  resumeForJobs Job[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Hot path: list a user's documents, newest first.
+  @@index([userId, createdAt])
+  @@map("documents")
+}
+
+/// One LLM extraction request, logged for cost/perf analysis. Written every time the
+/// extension asks /api/extract to read a posting — independent of whether the user
+/// then saves the job (extraction happens on button click, save is a later step).
+/// Token counts come from the provider's `usage` block; contextChars/durationMs let
+/// us correlate input size and latency with token spend when tuning the pipeline.
+model ExtractionLog {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  source       String? // hostname the posting came from, e.g. "linkedin.com"
+  url          String?
+  model        String // provider model id used, e.g. "llama-3.1-8b-instant"
+  inputTokens  Int    @default(0)
+  outputTokens Int    @default(0)
+  totalTokens  Int    @default(0)
+  contextChars Int? // size of the scoped page text sent to the model
+  durationMs   Int? // provider round-trip latency
+  success      Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("extraction_logs")
+}
+
+/// Who created a reminder. USER reminders are the ones a person set themselves (everything this
+/// feature creates today); SYSTEM is reserved for future auto-generated nudges (deadlines we
+/// notice, follow-ups we infer) — see docs/BACKEND.md on background workers.
+enum ReminderType {
+  SYSTEM
+  USER
+}
+
+/// A follow-up reminder. Usually about a specific posting (`jobId` set), but can be standalone
+/// (`jobId` null) — the global Reminders feed renders both. The reminder stores only its own
+/// fields; company/role/logo are read from the linked job, so there's nothing to attach by hand.
+model Reminder {
+  id     String       @id @default(cuid())
+  userId String
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId  String?
+  job    Job?         @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  title   String       // free text, e.g. "Follow up with Anthropic"
+  type    ReminderType @default(USER)
+  dueAt   DateTime? // when the reminder is due
+  hasTime Boolean      @default(false) // true = dueAt carries a meaningful time-of-day; false = date-only
+  done    Boolean      @default(false)
+
+  // --- delivery (reminders-delivery feature) ---
+  // When a dated reminder is saved we schedule a one-shot QStash message to call the worker at
+  // dueAt; this stores that message id so an edit/delete can cancel or reschedule it. Null = not
+  // scheduled (scheduler disabled, or the reminder has no dueAt / is done).
+  qstashMessageId String?
+  // Set atomically the first time the worker delivers this reminder. The `WHERE deliveredAt IS
+  // NULL` claim on it is the idempotency guard against duplicate QStash retries (see
+  // lib/server/reminder-delivery.ts). Cleared when a reminder is rescheduled so it can fire again.
+  deliveredAt     DateTime?
+  // For SYSTEM reminders only: a stable key identifying the auto-generated reminder for a job
+  // (e.g. "interview"). Combined with jobId in a unique constraint so regenerating is an idempotent
+  // upsert rather than a duplicate. Null for ordinary USER reminders.
+  systemKey       String?
+
+  // In-app notifications produced when this reminder fired (SetNull on delete keeps the history).
+  notifications Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Exactly one system reminder of a given kind per job (e.g. one "interview" reminder). NULLs are
+  // distinct in Postgres, so ordinary USER reminders (systemKey = null) are unconstrained.
+  @@unique([jobId, systemKey])
+  // Hot paths: list a user's reminders, sort by due date, find a job's reminders.
+  @@index([userId, done])
+  @@index([userId, dueAt])
+  @@index([jobId])
+  @@map("reminders")
+}
+
+/// How often a user wants the "jobs needing attention" digest. OFF disables it entirely (the
+/// per-channel toggles still gate individual reminder deliveries).
+enum DigestFrequency {
+  DAILY
+  WEEKLY
+  OFF
+}
+
+/// What a Notification is about — drives the icon/label in the in-app bell and keeps the
+/// notification queryable by kind.
+enum NotificationKind {
+  REMINDER_DUE // a dated reminder reached its due time
+  INTERVIEW // an interview reminder fired (lead time before Job.interviewAt)
+  DIGEST // the periodic "needs attention" summary
+}
+
+/// An in-app notification shown in the dashboard bell. Written by the delivery worker / digest
+/// sweep when a reminder fires (one of the channels), independent of email/extension delivery.
+/// User-scoped; `readAt` null = unread. `href` deep-links to the relevant job or feed.
+model Notification {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Optional provenance: which reminder produced this (SetNull so deleting the reminder keeps the
+  // notification) and which job it concerns (plain id; no FK needed for the deep link).
+  reminderId String?
+  reminder   Reminder? @relation(fields: [reminderId], references: [id], onDelete: SetNull)
+  jobId      String?
+
+  kind  NotificationKind
+  title String
+  body  String? @db.Text
+  href  String? // deep link, e.g. /dashboard/jobs/:id
+
+  readAt    DateTime? // null = unread
+  createdAt DateTime  @default(now())
+
+  // Hot paths: unread count + newest-first feed, both user-scoped.
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+/// A user's notification settings: per-channel switches, the digest cadence, and the timezone used
+/// to honor a local digest hour. Created lazily with defaults on first read (getOrCreatePreferences).
+model NotificationPreference {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  timezone         String  @default("UTC") // IANA tz, e.g. "America/New_York"
+  emailEnabled     Boolean @default(true)
+  inAppEnabled     Boolean @default(true)
+  extensionEnabled Boolean @default(true)
+
+  digestEnabled   Boolean         @default(true)
+  digestFrequency DigestFrequency @default(DAILY)
+  digestHour      Int             @default(8) // local hour 0-23 the digest should arrive
+  staleAfterDays  Int             @default(3) // SAVED + untouched >= this many days -> "needs attention"
+  lastDigestAt    DateTime? // last time a digest was sent (guards against double-send within a window)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("notification_preferences")
+}

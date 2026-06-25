@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "JobTracker (Demo)",
+  "version": "0.1.0",
+  "description": "Capture and track job postings while you browse. Demo scaffold for the JobTracker extension.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "JobTracker",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": ["http://localhost:3100/*"],
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": [
+        "parsers/clean-dom.js",
+        "parsers/capture.js",
+        "ui/button.js",
+        "ui/application.js",
+        "ui/modal.js",
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["fonts/*.woff2"],
+      "matches": ["http://*/*", "https://*/*"]
+    }
+  ]
+}

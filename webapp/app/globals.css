@@ -1,0 +1,324 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* ── Shared design system (single source of truth for the web app AND the
+   Chrome extension). Edit values in design-system/, not here.
+   See ../../design-system/DESIGN.md + README.md. ──
+   tokens.css → raw CSS variables (:root / .dark)
+   theme.css  → Tailwind v4 @theme mapping (shadcn-compatible utilities) */
+@import "../../design-system/tokens.css";
+@import "../../design-system/theme.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv01", "ss01";
+  }
+  html {
+    @apply font-sans;
+    scroll-behavior: smooth;
+  }
+  ::selection {
+    background: var(--fern-100);
+    color: var(--pine);
+  }
+}
+
+@layer utilities {
+  /* Soft fern glow used behind hero / CTAs */
+  .glow-fern {
+    background:
+      radial-gradient(60% 50% at 50% 0%, var(--fern-100) 0%, transparent 70%);
+  }
+
+  /* ── Brand gradient style-system ──────────────────────────────────────────
+     One consistent gradient language for every product mockup / abstract-UI
+     illustration (the way aiapply.co reuses its purple→orange wash). Built only
+     from our tokens: fern green + sun gold + pine, on warm paper. Use
+     `.brand-surface` as the card backdrop and float abstract UI on top. The
+     `-warm` / `-cool` variants shift the emphasis so adjacent cards differ
+     without breaking the system. */
+  /* Each card = one rich, deep fern diagonal (our brand green), with a soft
+     gloss highlight top-left for the "lit" aiapply/grammarly look. Deep enough
+     that the white mockups floating on top pop. Single-hue per card = clean,
+     never muddy. -cool leans cooler/lime, -warm adds a sun-gold glow corner —
+     all still fern-dominant. */
+  .brand-surface {
+    background:
+      radial-gradient(85% 65% at 16% 6%, rgba(255, 255, 255, 0.5), transparent 58%),
+      linear-gradient(150deg, oklch(0.78 0.14 151) 0%, oklch(0.64 0.15 153) 52%, oklch(0.5 0.13 158) 100%);
+  }
+  .brand-surface-cool {
+    background:
+      radial-gradient(85% 65% at 16% 6%, rgba(255, 255, 255, 0.5), transparent 58%),
+      linear-gradient(150deg, oklch(0.8 0.13 156) 0%, oklch(0.66 0.15 145) 50%, oklch(0.55 0.14 132) 100%);
+  }
+  .brand-surface-warm {
+    background:
+      radial-gradient(80% 70% at 88% 12%, color-mix(in oklch, var(--sun) 80%, white) 0%, transparent 52%),
+      linear-gradient(150deg, oklch(0.78 0.14 150) 0%, oklch(0.64 0.15 152) 55%, oklch(0.52 0.13 158) 100%);
+  }
+  /* Deep pine variant for dark mockup chrome (e.g. reminder/CTA panels). */
+  .brand-surface-deep {
+    background:
+      radial-gradient(90% 80% at 12% 0%, oklch(0.5 0.13 158) 0%, transparent 60%),
+      linear-gradient(150deg, oklch(0.36 0.07 158) 0%, oklch(0.26 0.05 160) 100%);
+  }
+  /* Calm, neutral inset that holds a product mockup — the antidote to the
+     saturated "vibe-coded" gradient stages. Soft paper depth + hairline frame,
+     so the mock itself (not the background) carries the eye. */
+  .mock-stage {
+    background:
+      radial-gradient(120% 90% at 50% 0%, color-mix(in oklch, var(--secondary) 65%, var(--background)) 0%, var(--background) 72%);
+  }
+  /* Signature tile — deep pine with a soft fern aurora, used ONCE for emphasis
+     (the one bold thing, à la Typefully's single glowing bento cell). */
+  .glow-cell {
+    background:
+      radial-gradient(85% 70% at 16% 0%, oklch(0.55 0.13 158 / 0.55), transparent 58%),
+      radial-gradient(75% 80% at 102% 104%, oklch(0.64 0.14 150 / 0.4), transparent 55%),
+      linear-gradient(158deg, oklch(0.3 0.06 158), oklch(0.21 0.045 162));
+  }
+  /* Sun accent rule — a short gold underline used under asymmetric headings
+     in place of a kicker chip. */
+  .accent-rule {
+    background: linear-gradient(90deg, var(--sun), color-mix(in oklch, var(--sun) 30%, transparent));
+  }
+  /* Faint dotted-paper texture for section backdrops */
+  .paper-dots {
+    background-image: radial-gradient(
+      var(--border) 1px,
+      transparent 1px
+    );
+    background-size: 22px 22px;
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+  /* Recolor monochrome scribble SVGs to any currentColor via masking */
+  .scribble {
+    background-color: currentColor;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+  }
+  /* Faint warm paper grain — sits over surfaces for hand-made texture */
+  .paper-grain {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  }
+  /* Fade a layer out top & bottom (for atmospheric image bands) */
+  .mask-fade-y {
+    -webkit-mask-image: linear-gradient(to bottom, transparent, black 14%, black 82%, transparent);
+    mask-image: linear-gradient(to bottom, transparent, black 14%, black 82%, transparent);
+  }
+  .mask-fade-edges {
+    -webkit-mask-image: radial-gradient(75% 75% at 50% 50%, black 55%, transparent);
+    mask-image: radial-gradient(75% 75% at 50% 50%, black 55%, transparent);
+  }
+  /* Editorial outline numeral / kicker */
+  .text-outline {
+    -webkit-text-stroke: 1.5px var(--primary);
+    color: transparent;
+  }
+  /* Framed illustration "postcard" — warm ink border + soft lift. Presents the
+     illustrated scenes as deliberate, FEATURED artwork (not faint wallpaper). */
+  .scene-frame {
+    box-shadow:
+      0 0 0 1px color-mix(in oklch, var(--pine) 16%, transparent),
+      0 1px 0 0 rgba(255, 255, 255, 0.45) inset,
+      0 34px 64px -30px rgba(20, 40, 25, 0.5);
+  }
+  /* Marquee track — duplicate children inside, this scrolls one full set */
+  .marquee-track {
+    display: flex;
+    width: max-content;
+    animation: marquee 38s linear infinite;
+  }
+  .marquee-mask {
+    -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+    mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+  }
+  .pause-on-hover:hover .marquee-track {
+    animation-play-state: paused;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--tw-rotate, 0));
+  }
+  50% {
+    transform: translateY(-10px) rotate(var(--tw-rotate, 0));
+  }
+}
+
+@keyframes draw-in {
+  from {
+    stroke-dashoffset: var(--dash, 200);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes float-tilt {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1.5deg);
+  }
+  50% {
+    transform: translateY(-12px) rotate(1.5deg);
+  }
+}
+
+@keyframes aurora-pan {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes blink-caret {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Progress rail under the active product-demo chapter. */
+@keyframes demo-progress {
+  from {
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+  to {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+}
+
+/* One attention pulse on the injected Save button. */
+@keyframes pulse-once {
+  0%,
+  100% {
+    box-shadow: 0 10px 24px -10px rgba(20, 80, 40, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in oklch, var(--primary) 22%, transparent);
+  }
+}
+.animate-pulse-once {
+  animation: pulse-once 2.4s ease-in-out infinite;
+}
+
+.animate-fade-up {
+  opacity: 0;
+  animation: fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.animate-float-slow {
+  animation: float-slow 6s ease-in-out infinite;
+}
+.animate-float-tilt {
+  animation: float-tilt 7s ease-in-out infinite;
+}
+/* Draws an SVG path when the element scrolls into view (add via .is-drawn) */
+.draw-path {
+  stroke-dasharray: var(--dash, 1200);
+  stroke-dashoffset: var(--dash, 1200);
+  transition: stroke-dashoffset 1.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.draw-path.is-drawn {
+  stroke-dashoffset: 0;
+}
+
+.site-header {
+  background-color: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: blur(0);
+  backdrop-filter: blur(0);
+}
+
+@supports (animation-timeline: scroll()) {
+  .site-header {
+    animation: site-header-haze linear both;
+    animation-range: 0 96px;
+    animation-timeline: scroll(root block);
+  }
+}
+
+@keyframes site-header-haze {
+  from {
+    background-color: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    -webkit-backdrop-filter: blur(0);
+    backdrop-filter: blur(0);
+  }
+  to {
+    background-color: transparent;
+    border-color: color-mix(in oklch, var(--border) 65%, transparent);
+    box-shadow: 0 14px 34px -28px color-mix(in oklch, var(--pine) 30%, transparent);
+    -webkit-backdrop-filter: blur(18px) saturate(1.12);
+    backdrop-filter: blur(18px) saturate(1.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .animate-fade-up {
+    opacity: 1;
+  }
+  .marquee-track,
+  .animate-float-tilt {
+    animation: none !important;
+  }
+  .draw-path {
+    stroke-dashoffset: 0 !important;
+  }
+}

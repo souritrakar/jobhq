@@ -1,0 +1,257 @@
+/* Satoshi — the single product typeface, shared with the web app
+ * (webapp/app/fonts/satoshi.woff2) so extension + site read as one product.
+ * Single variable woff2 spanning the 300–900 weight range. Keep in sync with
+ * content.js (injectFont) and ui/modal.js's --font token. */
+@font-face {
+  font-family: "Satoshi";
+  font-style: normal;
+  font-weight: 300 900;
+  font-display: swap;
+  src: url("../fonts/satoshi.woff2") format("woff2");
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * Extension UI tokens — the EXTENSION surface treatment.
+ *
+ * The product's web app keeps the warm-paper + hand-drawn identity
+ * (design-system/tokens.css). The extension intentionally runs a
+ * cleaner, more neutral "modern SaaS" surface: near-white panels,
+ * neutral-gray text/hairlines, restrained weights — with Fern kept as
+ * the single brand accent. See design-system/DESIGN.md §"Extension
+ * surface". modal.js / button.js mirror these values inline; keep in
+ * sync when changing them.
+ * ────────────────────────────────────────────────────────────── */
+:root {
+  /* Color — neutral surfaces, Fern accent */
+  --background: oklch(0.985 0.002 250);  /* near-white app chrome */
+  --foreground: oklch(0.28 0.015 250);   /* near-black neutral ink */
+  --card: oklch(1 0 0);                   /* white panels */
+  --primary: oklch(0.58 0.13 150);       /* Fern — the one accent */
+  --primary-foreground: oklch(0.99 0.01 145);
+  --primary-hover: oklch(0.52 0.13 150);
+  --secondary: oklch(0.97 0.003 250);    /* quiet gray surface */
+  --muted: oklch(0.97 0.003 250);
+  --muted-foreground: oklch(0.55 0.012 250);
+  --accent: oklch(0.95 0.035 150);       /* soft fern tint */
+  --accent-foreground: oklch(0.43 0.09 152);
+  --border: oklch(0.91 0.004 250);       /* light neutral hairline */
+  --border-strong: oklch(0.82 0.006 250);
+  --ring: oklch(0.58 0.13 150);
+  --destructive: oklch(0.58 0.2 25);
+
+  /* Typography — lighter; reserve bold for the few true emphases */
+  --font: "Satoshi", "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* Shape & elevation */
+  --radius: 0.85rem;
+  --radius-sm: 0.5rem;
+  --radius-pill: 999px;
+  --shadow: 0 4px 16px oklch(0.28 0.02 250 / 0.08); /* soft neutral */
+
+  /* Focus ring (keyboard accessibility) — fern */
+  --focus-ring: 0 0 0 2px var(--card), 0 0 0 4px var(--ring);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  width: 360px;
+  margin: 0;
+  font-family: var(--font);
+  font-feature-settings: "cv01", "ss01";
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.logo { color: var(--primary); font-size: 18px; line-height: 1; }
+.header h1 {
+  font-size: 16px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
+  margin: 0;
+  flex: 1;
+}
+.count {
+  background: var(--secondary);
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: var(--weight-semibold);
+  min-width: 22px;
+  text-align: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+}
+
+.capture { padding: 16px 20px; }
+.btn-primary {
+  width: 100%;
+  padding: 11px 14px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font);
+  font-weight: var(--weight-semibold);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
+.btn-primary:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.btn-primary:active { transform: translateY(0); }
+
+.list { list-style: none; margin: 0; padding: 0 12px 12px; max-height: 380px; overflow-y: auto; }
+.item {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 11px 12px;
+  margin: 8px 0;
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+.item:hover {
+  border-color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+/* Leading anchor — company monogram / fallback glyph */
+.avatar {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: var(--accent-foreground);
+  font-size: 15px;
+  font-weight: var(--weight-bold);
+  line-height: 1;
+}
+.avatar svg { width: 18px; height: 18px; }
+
+.item-body { flex: 1; min-width: 0; }
+.item-title {
+  font-size: 14px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
+  margin: 0 0 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.item-title a {
+  color: var(--foreground);
+  text-decoration: none;
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.item-title a:hover { color: var(--primary); }
+.item-title a:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.ext-icon { width: 12px; height: 12px; opacity: 0; transition: opacity 0.15s ease; flex: 0 0 auto; }
+.item:hover .ext-icon { opacity: 0.7; }
+
+.item-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px 10px;
+  margin: 0;
+  min-width: 0;
+}
+.meta-company,
+.meta-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-size: 11.5px;
+  line-height: 1.3;
+}
+.meta-company {
+  font-weight: var(--weight-medium);
+  color: var(--foreground);
+}
+.meta-company > span:last-child {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+.meta-date { color: var(--muted-foreground); }
+.meta-icon { width: 13px; height: 13px; flex: 0 0 auto; opacity: 0.7; }
+
+.del {
+  align-self: flex-start;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 6px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.del svg { width: 15px; height: 15px; }
+.del:hover { color: var(--destructive); background: var(--secondary); }
+.del:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 34px 20px;
+  font-size: 12.5px;
+  font-weight: var(--weight-medium);
+  color: var(--muted-foreground);
+}
+.loader.hidden { display: none; }
+.spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.empty {
+  padding: 10px 20px 22px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  line-height: 1.6;
+}
+.empty strong { color: var(--foreground); font-weight: var(--weight-semibold); }
+.empty.hidden { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-primary,
+  .item { transition: background 0.15s ease, border-color 0.15s ease; }
+  .btn-primary:hover,
+  .item:hover { transform: none; }
+  .spinner { animation-duration: 1.4s; }
+}

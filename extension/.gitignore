@@ -1,0 +1,6 @@
+# OS / editor junk
+.DS_Store
+*.pem
+
+# Dependencies (extension is build-free vanilla JS; none expected, but guard anyway)
+node_modules/

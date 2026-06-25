@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "qmd": {
+      "command": "/home/s7kar/.local/bin/qmd",
+      "args": [
+        "mcp"
+      ]
+    }
+  }
+}
