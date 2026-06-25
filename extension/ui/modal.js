@@ -695,10 +695,27 @@
       notesInput,
     ]);
 
+    // ---- reminders (only meaningful for a SAVED posting — the section gates itself otherwise) ----
+    // A ruled block matching Description / Your notes. The list + add form are rendered by the
+    // sibling ui/reminders.js module, handed the saved job id (or null → "save first" gate).
+    const remindersBox = el("div", { class: "reminders-box" });
+    const remindersWrap = el("div", { class: "notes-wrap" }, [
+      el("span", { class: "eyebrow", text: "Reminders" }),
+      remindersBox,
+    ]);
+    function renderReminders() {
+      if (root.JTReminders && typeof root.JTReminders.render === "function") {
+        root.JTReminders.render(remindersBox, {
+          jobId: savedJob && savedJob.id ? savedJob.id : null,
+          host,
+        });
+      }
+    }
+
     const detailsPane = el(
       "div",
       { class: "pane", id: "jt-pane-details", role: "tabpanel", "aria-labelledby": "jt-tab-details" },
-      [detailsBar, identity, props, meta, descWrap, notesWrap],
+      [detailsBar, identity, props, meta, descWrap, notesWrap, remindersWrap],
     );
 
     // ---- Application pane (blank until user extracts; never auto-runs) ----
@@ -1179,6 +1196,8 @@
       try {
         const result = await opts.onConfirm(finalJob);
         if (result && result.viewUrl) savedJob = { id: result.id, viewUrl: result.viewUrl };
+        // The posting now has an id → the reminders section can leave its "save first" gate.
+        renderReminders();
         showSuccess(finalJob);
       } catch (err) {
         Array.from(actionsRow.children).forEach((c) => (c.disabled = false));
@@ -1269,6 +1288,8 @@
       if (panelEl) panelEl.classList.add("open");
       updateDescClamp();
     };
+    // Paint the reminders section now that savedJob is initialized (gates itself if unsaved).
+    renderReminders();
     if (reduceMotion) {
       reveal();
     } else {

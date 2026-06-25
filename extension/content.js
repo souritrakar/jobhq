@@ -98,6 +98,13 @@
       }
     }
 
+    // For an already-saved posting, refresh the cached reminders into the anchored record (best
+    // effort, fire-and-forget). The modal's reminders section fetches its own live list on open;
+    // this just keeps the local-first record in step so it carries `reminders` like details/questions.
+    if (record && record.saved && record.saved.id) {
+      refreshReminders(anchorId, record.saved.id);
+    }
+
     // Seed the modal with what we have before any extraction (url, a title hint). The restored
     // record (if any) fills the rest; otherwise the user triggers extraction or types manually.
     const initial = {
@@ -423,6 +430,18 @@
     delete next.saved;
     await setJobRecord(anchorId, next);
     return next;
+  }
+
+  // Cache the saved job's reminders into its anchored record (best effort). The reminders UI in
+  // the modal reads its live list straight from the worker; this keeps the local-first record in
+  // step so `reminders` rides alongside details/questions/answers. Never blocks panel open.
+  function refreshReminders(anchorId, jobId) {
+    try {
+      chrome.runtime.sendMessage({ type: "LIST_JOB_REMINDERS", jobId }, (res) => {
+        if (chrome.runtime.lastError || !res || !res.ok) return;
+        mergeJobRecord(anchorId, { reminders: Array.isArray(res.reminders) ? res.reminders : [] });
+      });
+    } catch (_) {}
   }
 
   // Re-scope the current DOM and ask the worker (→ backend → Groq) for the application

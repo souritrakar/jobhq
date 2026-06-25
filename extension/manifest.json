@@ -31,6 +31,7 @@
         "ui/button.js",
         "ui/application.js",
         "ui/modal.js",
+        "ui/reminders.js",
         "content.js"
       ],
       "run_at": "document_idle"
