@@ -18,6 +18,11 @@ function dlog(...a) {
   if (DEBUG) console.log("[JobTracker:bg]", ...a);
 }
 
+// Local reminder delivery (chrome.alarms + chrome.notifications). Loaded into THIS service-worker
+// scope so it can reuse apiFetch + API_BASE above. Defines self.syncReminderAlarms /
+// self.handleReminderAlarm / self.REM_PREFIX / self.SYNC_ALARM.
+importScripts("lib/reminder-alarms.js");
+
 // Central message handler. Return true to keep the channel open for async sendResponse.
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === "EXTRACT_JOB") {
@@ -229,6 +234,38 @@ function updateBadge(count) {
   chrome.action.setBadgeText({ text: count ? String(count) : "" });
 }
 
+// --- Local reminder delivery wiring -----------------------------------------------------------
+// Daily background sync of alarms (deliberate, once a day — NOT browse-time polling), plus a sync
+// on install/startup so alarms exist after the worker (re)spins up.
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.alarms.create(self.SYNC_ALARM, { periodInMinutes: 1440 });
+  syncReminderAlarms().catch(() => {});
+});
+chrome.runtime.onStartup.addListener(() => {
+  syncReminderAlarms().catch(() => {});
+});
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === self.SYNC_ALARM) {
+    syncReminderAlarms().catch(() => {});
+    return;
+  }
+  if (alarm.name.startsWith(self.REM_PREFIX)) {
+    handleReminderAlarm(alarm.name).catch(() => {});
+  }
+});
+
+// Click an OS notification → open the stored deep link (job page or reminders feed).
+chrome.notifications.onClicked.addListener(async (notifId) => {
+  const links = (await chrome.storage.local.get("jt:notifLinks"))["jt:notifLinks"] || {};
+  const url = links[notifId];
+  if (url) chrome.tabs.create({ url });
+  chrome.notifications.clear(notifId);
+});
+
 // Keep badge in sync on startup. Swallow errors (server may be down) so the worker
 // doesn't throw on boot.
 getJobs().catch(() => updateBadge(0));
+// Register alarms whenever the worker spins up (covers the common case where neither onInstalled
+// nor onStartup fired this session, e.g. the worker was revived by an event).
+syncReminderAlarms().catch(() => {});
