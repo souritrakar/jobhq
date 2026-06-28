@@ -34,9 +34,12 @@ the reminders API (below). `/dashboard/reminders` is the global feed of all remi
 Clicking a job in the dashboard or saved list navigates here (in-app), not to the original
 posting — that stays reachable via "Open original" on the detail page.
 
-**Built but not done:** real auth (stub only — see below), interactive dashboard
+**Built but not done:** extension auth (the webapp now uses Neon Auth — see Auth; the extension
+still rides the dev `x-user-id` seam), interactive dashboard
 (no add/edit UI yet), background workers that *fire* reminders / monitor postings (the reminders
-data + CRUD exist; nothing schedules notifications yet).
+data + CRUD exist; nothing schedules notifications yet). The **Settings page**
+(`/dashboard/settings`) is now persisted — a `UserProfile` autofill form saved via
+`GET|PUT /api/profile`; see [`SETTINGS.md`](SETTINGS.md).
 
 ---
 
@@ -75,6 +78,7 @@ Error:   `{ "error": { "code": "NOT_FOUND", "message": "...", "details"?: ... } 
 | GET    | `/api/health`    | —                                     | Liveness + DB check      |
 | GET    | `/api/jobs`      | `?status=&limit=&cursor=`             | List current user's jobs |
 | POST   | `/api/jobs`      | `{ title, company, url?, ... }`       | Create a job             |
+| PATCH  | `/api/jobs`      | `{ changes: [{ id, status }] }`       | Bulk-move pipeline status (Kanban board batched save) |
 | GET    | `/api/jobs/:id`  | —                                     | Get one job              |
 | PATCH  | `/api/jobs/:id`  | any subset of job fields              | Update a job             |
 | DELETE | `/api/jobs/:id`  | —                                     | Delete a job             |
@@ -84,6 +88,7 @@ Error:   `{ "error": { "code": "NOT_FOUND", "message": "...", "details"?: ... } 
 | POST   | `/api/jobs/:id/application` | `{ url }`                   | Attach a separate apply page's form to a saved job |
 | PUT    | `/api/jobs/:id/application/answers` | `{ answers: [{ questionId, value }] }` | Batch save (or clear) the changed answers |
 | POST   | `/api/jobs/:id/application/draft` | `{ questionId }`       | AI-draft one question's answer (JSON, not a stream) |
+| POST   | `/api/jobs/:id/application/autofill-match` | `{ fields: [{ id, label, kind, options? }] }` | Match saved answers → the live page's input fields (extension Autofill) |
 | GET    | `/api/jobs/:id/reminders` | —                          | List a job's reminders   |
 | POST   | `/api/jobs/:id/reminders` | `{ title, dueAt?, hasTime? }` | Create a reminder for a job |
 | POST   | `/api/reminders` | `{ title, dueAt?, hasTime? }`          | Create a standalone reminder (no job) |
@@ -94,6 +99,8 @@ Error:   `{ "error": { "code": "NOT_FOUND", "message": "...", "details"?: ... } 
 | POST   | `/api/documents` | multipart: `file`, optional `title`    | Upload a document        |
 | DELETE | `/api/documents/:id` | —                                  | Delete a document (metadata + bytes) |
 | GET    | `/api/documents/:id/raw` | `?download=1`                  | Stream a document's bytes (other features fetch this) |
+| GET    | `/api/profile`   | —                                      | Current user's autofill profile (or `null`); also the extension's autofill source |
+| PUT    | `/api/profile`   | any subset of `ProfileSettings` fields | Create/replace the user's autofill profile |
 
 Job fields: `title`, `company`, `url`, `location`, `description`, `source`,
 `salary`, `employmentType`, `workplaceType`,
@@ -137,9 +144,14 @@ blob, and has no read-modify-write race between fields. The service verifies eve
 belongs to that job's form before writing — a bogus id rejects the whole batch (the transaction
 rolls back, so a valid sibling answer is left untouched). The page loads all of a form's answers in
 one indexed query (`getApplicationAnswers`) and seeds the controls; `GET /api/jobs/:id` also
-includes `application.answers` so the extension can populate the read-only view. Today the UI
-persists the **text-entry** fields (textarea + single-line typed inputs); choice/upload fields
-remain a preview (a later pass).
+includes `application.answers` so the extension can populate the read-only view. The UI persists
+**text-entry** fields (textarea + single-line typed inputs) AND **choice** fields
+(`select`/`radio`/`checkbox`/`multi_select` + the bare consent checkbox) — the choice controls are
+controlled and flow through the same `{ questionId, value }` save path. The single `value` column
+encodes the answer per the shared `lib/application/answer-codec.ts`: single-value answers store the
+chosen option as a plain string; multi-value answers (`checkbox`/`multi_select`) store a JSON string
+array (e.g. `["Remote","Hybrid"]`), read back by the question's `type`. Only **file** fields remain a
+preview (out of scope: not persisted or autofilled).
 
 **AI draft** (`POST /api/jobs/:id/application/draft` `{ questionId }` →
 `lib/server/answer-draft.ts`) writes a first-person answer to ONE question, grounded in the job +
@@ -167,6 +179,47 @@ job's `resumeDocumentId` (chosen in the rail's Resume card).
   in `cleanDraftedAnswer`), and output is the bare answer (no preamble/markdown/quotes/placeholders).
 - **No usage logging yet** (the cover letter doesn't either) — a `DraftLog` could follow if cost
   tuning needs it.
+
+### Application autofill (extension)
+
+The extension's one-click **Autofill** fills a live application page from the job's saved answers,
+without an LLM page-scan or per-site selectors. Flow: the extension harvests the page's fillable input
+fields (deterministic, in `extension/ui/application.js` — robust ARIA/HTML label resolution, radios/
+checkboxes grouped by `name`, sends only labels/kinds/option-labels) and posts them to
+`POST /api/jobs/:id/application/autofill-match` `{ fields }`. The server matches each **saved question
+→ its field on the page** (direction matters: a page/application that changed since saving degrades
+gracefully) and returns a plan
+`{ matched: [{ questionId, fieldId, value, optionValues, isDefault, source, score }], unmatched: [{ questionId, label }] }`.
+The extension then fills each field deterministically (native value setters + dispatched events so
+React/Vue register), highlights filled fields (fern = saved answer, dashed amber = placeholder), and
+offers **Undo**; `unmatched` questions surface in an in-page result card.
+
+- **Semantic match, not string match.** `lib/server/autofill.ts` loads the questions (`getJob`) +
+  answers (`getApplicationAnswers`, reloaded server-side — the request carries no answer values), then
+  `lib/application/field-matching.ts` embeds both sides (`lib/llm/embeddings.ts`, OpenAI
+  `text-embedding-3-small`, `OPENAI_API_KEY` server-side only) and runs an in-memory cosine + greedy
+  one-to-one assignment with a confidence floor. No vector DB — it's a one-shot ≤N×≤M match.
+- **The embedder is the single swap seam.** `embed(texts)` is the only place the provider is named;
+  moving to a self-hosted FastEmbed service later is a one-file change.
+- **Deterministic direct-match is written but disabled.** `directMatch` (exact normalized labels) is
+  implemented and commented out at the call site; the intended future pipeline is "direct first,
+  embeddings for the leftovers." Today it's pure embeddings.
+- **Two layers: per-job answers, then profile.** `buildAutofillPlan` runs Layer 1 (saved per-job
+  answers → fields, as above) first; those fields are **claimed**. Layer 2 then matches the page fields
+  Layer 1 *didn't* claim against the user's standing **autofill profile** (`getProfile`) — each non-empty
+  profile field (name, email, phone, address, links, work auth, EEO self-ID, …) becomes a pseudo-question
+  (`PROFILE_AUTOFILL_FIELDS` in `lib/server/autofill.ts`) fed through the **same** embedding matcher. Each
+  instruction carries `source: "answer" | "profile"`. Precedence (saved answer > profile) falls out of
+  ordering — no conflict-resolution code. The profile read is best-effort: a failure logs and leaves the
+  Layer-1 plan intact. **Not done in v1:** a profile value overriding a Layer-1 *placeholder* (an
+  unanswered per-job question still wins its field as a placeholder).
+- **No saved answer → typed default.** A per-job question with no answer is filled with a
+  `defaultValueForType` stand-in (flagged `isDefault`, highlighted distinctly). Standing identity values
+  now come from the profile (Layer 2) for fields without a per-job question. **Files are out of scope**
+  (never harvested, persisted, or filled).
+- **Choice resolution stays deterministic.** For a matched dropdown/radio/checkbox, `resolveChoice`
+  maps the saved answer to the page's actual option value(s) by normalized match (the embedding
+  fallback there is written but disabled).
 
 ### Reminders
 
@@ -287,16 +340,32 @@ and sends it here. The server makes **one** Groq call (`lib/llm/*`, key in `GROQ
 returns every field plus the cleaned description as a single JSON object, normalizes it,
 and returns `{ data: { fields, description?, usage } }`.
 
-`GROQ_MODEL` runs in JSON mode at temperature 0 and returns `title`, `company`,
+`GROQ_MODEL` (default `openai/gpt-oss-20b`) runs in JSON mode at temperature 0, with
+`reasoning_effort: "low"` (GPT-OSS bills reasoning as output, so low keeps the JSON
+deterministic and off the `max_tokens` budget), and returns `title`, `company`,
 `location`, `salary`, `employmentType`, `workplaceType`, and `description`.
 `normalizeExtractedFields()` is a thin safety net: it keeps only those keys, trims
 values, and drops empty/sentinel values (so a hallucinated `"null"`/`"N/A"` can't leak).
 The cleaned `description` is split out of the result and returned alongside `fields`.
 
-This is deliberately the simplest thing that works — no per-site scoping, no second
-model, no deterministic backstops. Each call writes one `ExtractionLog` row (token
-counts, context size, latency, success) for cost/perf tuning. All DB access is
-`userId`-scoped.
+**Prompt caching (the page is the cached prefix).** GPT-OSS is cache-eligible on Groq,
+and both extraction prompts are laid out so the captured page is the *shared cached
+prefix*: render order is `system → user`, and the prompt is
+`[SHARED_EXTRACTION_SYSTEM] + [pageBlock(page)] + [task-specific instructions]` — the
+system text and `pageBlock()` are single-sourced in `extraction.ts` and imported by
+`application-extraction.ts`, so the prefix is **byte-identical** across the details and
+application calls; only the wording after the page differs. On a single-page posting
+(Greenhouse-style), the details call writes the page to cache and the application call
+on the same posting **reads** it at 50% off — and cached input tokens don't count toward
+Groq's per-minute (TPM) limit. A different/changed page just misses the cache (same cost
+as before), so it degrades gracefully — no detection or gating needed. The seam is best-
+effort; `lib/llm/groq.ts` surfaces `usage.cachedInputTokens` and the services log a cache
+hit. **Keep `SHARED_EXTRACTION_SYSTEM` and `pageBlock()` identical across both modules —
+any drift silently breaks the cache.**
+
+This is deliberately simple — no per-site scoping, no second model, no deterministic
+backstops. Each call writes one `ExtractionLog` row (token counts, context size, latency,
+success) for cost/perf tuning. All DB access is `userId`-scoped.
 
 ### Application-question extraction (`POST /api/extract-application`)
 
@@ -307,8 +376,11 @@ the form's questions as a typed array, normalizes it, and returns
 `{ data: { questions, usage } }`. Each question is `{ label, type, required?, placeholder?,
 helpText?, options? }` where `type` is one of the 12 `APPLICATION_FIELD_TYPES`.
 `normalizeApplicationQuestions()` clamps counts/lengths, coerces `type` to the allowed set,
-drops labelless entries, and keeps `options` only for choice types. Like `/api/extract` it
-writes one `ExtractionLog` row and is `userId`-scoped. **Answers are not handled here** — the
+drops labelless entries, and keeps `options` only for choice types. It shares the same
+page-first prompt layout as `/api/extract`, so when both run on the same posting/DOM this
+call **reads** the page from Groq's cache instead of re-paying for it (see the prompt-caching
+note above). Like `/api/extract` it writes one `ExtractionLog` row and is `userId`-scoped.
+**Answers are not handled here** — the
 extension renders the questions as fillable controls only; persisting the *questions* with a
 job is via the optional `application` field on `POST /api/jobs` (above).
 
@@ -369,7 +441,10 @@ token limits, so a transient **429** is common on large pages — and Groq often
 (`RETRY_BACKOFF_MS × attempt`), and only after exhausting the attempts (or when the server
 asks for a long wait) throws `ApiError("RATE_LIMITED")` → HTTP **429** with a user-facing
 message the extension shows in its retry state. Note: Groq rate limits are **per account/org,
-not per key** — rotating `GROQ_API_KEY` does not reset them.
+not per key** — rotating `GROQ_API_KEY` does not reset them. Prompt caching also eases this:
+cached input tokens (the reused page on the second call — see the caching note above) **don't
+count toward the per-minute token limit**, so the application call on a co-present posting is
+much less likely to trip a 429.
 
 ### AI cover letter (`POST /api/cover-letter`)
 
@@ -411,14 +486,21 @@ live.
   `POST /api/jobs/import` as the sidebar "Save a job" button, so it's saved to the DB as a new job and
   then selected — no separate ingestion.
 
-## Auth (temporary)
+## Auth
 
-⚠️ There is **no real auth yet.** `lib/auth/current-user.ts#getUserId` trusts an
-`x-user-id` request header, falling back to `DEV_USER_ID` from `.env` in development.
-This exists only so CRUD can be tested before auth is built. **It is not secure.**
+The **webapp** authenticates with **Neon Auth** (Better Auth) — email/password + email-code
+verification + Google. Full details in [`AUTH.md`](AUTH.md). The single seam is still
+`lib/auth/current-user.ts`, now async:
 
-When real auth lands (planned: Clerk), implement verification inside `getUserId` and
-nothing else changes — every route already calls it. This is the single seam.
+- `getServerUserId()` / `getSessionUser()` — dashboard server components. Read the Neon Auth
+  session (redirect to `/auth/sign-in` if absent) and bridge the identity into `public.users`.
+- `getUserId(req)` — API route handlers. Prefer the Neon Auth session (the webapp, via its cookie);
+  fall back **in non-production only** to the `x-user-id` header / `DEV_USER_ID` so the **extension**
+  and curl keep working until the extension gets its own auth. Throws `ApiError.unauthorized()`
+  otherwise.
+
+⚠️ The `x-user-id` / `DEV_USER_ID` fallback is a **dev-only** seam (never honored in production) and
+is **not secure** — it's there for the extension, which is out of scope for this auth iteration.
 
 ## CORS
 

@@ -1,7 +1,7 @@
 # Profile-sourced autofill — design
 
 **Date:** 2026-06-28
-**Status:** Approved, ready for implementation plan
+**Status:** Implemented (2026-06-28) — server-side in `lib/server/autofill.ts`, EEO included, extension unchanged. Tests in `lib/server/autofill.test.ts`.
 
 ## Problem
 
