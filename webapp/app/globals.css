@@ -3,12 +3,15 @@
 @import "shadcn/tailwind.css";
 
 /* ── Shared design system (single source of truth for the web app AND the
-   Chrome extension). Edit values in design-system/, not here.
-   See ../../design-system/DESIGN.md + README.md. ──
+   Chrome extension). Canonical source: ../../design-system/ (repo root). These
+   files are a VENDORED COPY under webapp/design-system/ so CLI/serverless builds
+   — whose upload root is webapp/ — can resolve them. Do NOT hand-edit the copy;
+   edit the canonical ../../design-system/ and run `npm run sync:tokens` (also run
+   automatically by prebuild). See ../../design-system/DESIGN.md + README.md. ──
    tokens.css → raw CSS variables (:root / .dark)
    theme.css  → Tailwind v4 @theme mapping (shadcn-compatible utilities) */
-@import "../../design-system/tokens.css";
-@import "../../design-system/theme.css";
+@import "../design-system/tokens.css";
+@import "../design-system/theme.css";
 
 @custom-variant dark (&:is(.dark *));
 

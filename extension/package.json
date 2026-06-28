@@ -1,0 +1,14 @@
+{
+  "name": "jobtracker-extension",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Build-free vanilla-JS Chrome extension. This package.json exists ONLY to run the unit tests for DOM-interaction logic (the autofill fill engine); the extension itself ships no node_modules and is loaded as classic content scripts.",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.1",
+    "vitest": "^4.1.9"
+  }
+}

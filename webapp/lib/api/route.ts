@@ -63,14 +63,21 @@ function errorResponse(err: unknown): NextResponse {
     )
   }
   if (err instanceof ZodError) {
+    // Name the first offending field(s) in the message so the client can show something actionable
+    // ("Validation failed — linkedinUrl: Invalid URL") instead of a bare, undebuggable "Validation
+    // failed". The full per-field map still rides along in `details`.
+    const flat = err.flatten()
+    const fieldErrors = Object.entries(
+      flat.fieldErrors as Record<string, string[] | undefined>,
+    )
+      .filter(([, msgs]) => msgs && msgs.length > 0)
+      .map(([field, msgs]) => `${field}: ${msgs![0]}`)
+    const message =
+      fieldErrors.length > 0
+        ? `Validation failed — ${fieldErrors.slice(0, 3).join("; ")}`
+        : "Validation failed"
     return NextResponse.json(
-      {
-        error: {
-          code: "BAD_REQUEST",
-          message: "Validation failed",
-          details: err.flatten(),
-        },
-      },
+      { error: { code: "BAD_REQUEST", message, details: flat } },
       { status: 400 },
     )
   }

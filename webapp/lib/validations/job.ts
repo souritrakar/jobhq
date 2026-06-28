@@ -86,6 +86,18 @@ export const updateJobSchema = createJobSchema.partial().refine(
   { message: "Provide at least one field to update" },
 )
 
+// One card's new stage, as the Kanban board sends it in a batched save.
+export const jobStatusChangeSchema = z.object({
+  id: z.string().trim().min(1).max(64),
+  status: jobStatusSchema,
+})
+
+// Bulk status update for the board: a non-empty set of {id, status} moves, capped so a single
+// request can't ask the DB to touch an unbounded number of rows.
+export const bulkStatusUpdateSchema = z.object({
+  changes: z.array(jobStatusChangeSchema).min(1).max(200),
+})
+
 export const listJobsQuerySchema = z.object({
   status: jobStatusSchema.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
@@ -96,4 +108,6 @@ export type CreateJobInput = z.infer<typeof createJobSchema>
 export type UpdateJobInput = z.infer<typeof updateJobSchema>
 export type ApplicationInput = z.infer<typeof applicationInputSchema>
 export type ApplicationQuestionInput = z.infer<typeof applicationQuestionSchema>
+export type JobStatusChange = z.infer<typeof jobStatusChangeSchema>
+export type BulkStatusUpdateInput = z.infer<typeof bulkStatusUpdateSchema>
 export type ListJobsQuery = z.infer<typeof listJobsQuerySchema>

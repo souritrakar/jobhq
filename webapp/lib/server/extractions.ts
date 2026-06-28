@@ -41,6 +41,7 @@ export async function extractJob(
     result = await groqChat(buildExtractionMessages(input.text), {
       model: env.GROQ_MODEL,
       maxTokens: 6000,
+      reasoningEffort: "low",
     })
   } catch (err) {
     await logExtraction({
@@ -59,6 +60,12 @@ export async function extractJob(
 
   const parsed = normalizeExtractedFields(result.content)
   const { description, ...fields } = parsed
+
+  if (result.usage.cachedInputTokens > 0) {
+    console.log(
+      `[extractions] prompt cache hit: ${result.usage.cachedInputTokens}/${result.usage.inputTokens} input tokens reused`,
+    )
+  }
 
   await logExtraction({
     userId,

@@ -40,6 +40,22 @@ export function createStandaloneReminder(fields: {
   return request("/api/reminders", { method: "POST", body: JSON.stringify(fields) })
 }
 
+/**
+ * Attach (or change) a due date on an existing reminder — the "turn this to-do into a reminder"
+ * convert flow. Setting a dueAt is what makes a row fire and surface on the Reminders page; the
+ * service's updateReminder schedules the delivery off the back of this PATCH. Returns the updated
+ * reminder.
+ */
+export function setReminderDue(
+  id: string,
+  due: { dueAt: string; hasTime: boolean },
+): Promise<Reminder> {
+  return request(`/api/reminders/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(due),
+  })
+}
+
 /** Toggle a reminder's done state. Returns the updated reminder. */
 export function toggleReminder(id: string, done: boolean): Promise<Reminder> {
   return request(`/api/reminders/${id}`, {

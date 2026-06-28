@@ -12,7 +12,7 @@ import { extractInputSchema } from "@/lib/validations/extract"
 // Returns { data: { fields, usage } }. `description` is not extracted here — the
 // extension captures it from the page and sends it directly to POST /api/jobs on save.
 export const POST = withRoute(async (req: NextRequest) => {
-  const userId = getUserId(req)
+  const userId = await getUserId(req)
   const input = extractInputSchema.parse(await req.json())
   const result = await extractJob(userId, input)
   return ok(result)

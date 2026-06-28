@@ -1,9 +1,11 @@
 // Save panel — a right-anchored, non-modal drawer rendered in a Shadow DOM. It slides in from
 // the edge, leaves the page fully interactive, and is dismissed only via its own controls
-// (X closes; chevron collapses to a reopen handle; Esc closes). Two tabs:
+// (X closes; chevron collapses to a reopen handle; Esc closes). Three tabs:
 //   • Details     — the parsed job, shown as an editable identity + property list and a clean
 //                   rendered description (progressive disclosure). Auto-extracts on open.
 //   • Application — the form's questions, a user-triggered, progress-tracked review.
+//   • Resume      — the user's documents (placeholder) with upload, plus stalled "generate
+//                   tailored resume / cover letter" actions (UI/seam only; no backend yet).
 // Exposes JobTracker.ui.modal.open(job, { onConfirm, dashboardUrl, extraction, ... }).
 // Isolated-world global. The dynamic application fields live in ui/application.js.
 (function (root) {
@@ -39,6 +41,14 @@
     flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/>',
     alert:
       '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+    file:
+      '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>',
+    upload:
+      '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/>',
+    wand:
+      '<path d="M15 4V2"/><path d="M15 16v-2"/><path d="M8 9h2"/><path d="M20 9h2"/><path d="M17.8 11.8 19 13"/><path d="M15 9h.01"/><path d="M17.8 6.2 19 5"/><path d="m3 21 9-9"/><path d="M12.2 6.2 11 5"/>',
+    penLine:
+      '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
   };
 
   let host = null;
@@ -271,17 +281,101 @@
       .apphead-row{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;}
       .apphead-label{display:flex;align-items:baseline;gap:8px;min-width:0;}
       .apphead-title{font-size:13px;font-weight:600;color:var(--ink);}
-      .apphead-count{font-size:12px;font-weight:500;color:var(--ink-3);}
+      .apphead-count{font-size:12px;font-weight:500;color:var(--ink-3);white-space:nowrap;}
       .apphead-flagged{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;
         color:var(--star-ink);}
       .apphead-flagged svg{width:13px;height:13px;fill:currentColor;stroke:currentColor;}
-      .reextract{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;
-        background:none;border:none;cursor:pointer;font-family:var(--font);font-size:12px;
-        font-weight:600;color:var(--ink-3);border-radius:6px;
+      /* Re-extract is the secondary action — icon-only (tooltip labels it) so the primary Autofill
+         button has room and the toolbar stays uncrowded in a narrow panel. */
+      .reextract{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;
+        padding:0;background:none;border:none;cursor:pointer;color:var(--ink-3);border-radius:6px;
         transition:background .12s ease,color .12s ease;}
       .reextract:hover{background:var(--bg-hover);color:var(--ink);}
-      .reextract svg{width:14px;height:14px;}
+      .reextract svg{width:15px;height:15px;}
       .reextract:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
+
+      /* Autofill: the primary action of the saved-answer view — a compact filled accent button
+         beside Re-extract. Result + Undo render in a card under the toolbar. */
+      .apphead-actions{display:flex;align-items:center;gap:6px;flex:0 0 auto;}
+      .appfill{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;
+        background:var(--accent);border:none;cursor:pointer;font-family:var(--font);font-size:12px;
+        font-weight:600;color:var(--accent-fg);border-radius:6px;
+        transition:background .12s ease,opacity .12s ease;}
+      .appfill:hover{background:var(--accent-press);}
+      .appfill svg{width:14px;height:14px;}
+      .appfill:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+      .appfill.loading,.appfill[disabled]{opacity:.7;cursor:default;}
+
+      /* Autofill result card: a quiet summary under the toolbar (counts + not-found list + Undo). */
+      .afresult{margin:12px 0 2px;padding:12px 13px;border:1px solid var(--line);border-radius:10px;
+        background:var(--bg-sunken);display:flex;flex-direction:column;gap:7px;}
+      .afresult.err{border-color:var(--danger);}
+      .afresult-row{display:flex;align-items:flex-start;gap:8px;}
+      .afresult-row svg{width:16px;height:16px;flex:0 0 auto;margin-top:1px;color:var(--accent-ink);}
+      .afresult.err .afresult-row svg{color:var(--danger);}
+      .afresult-msg{margin:0;flex:1 1 auto;font-size:13px;font-weight:600;color:var(--ink);line-height:1.4;}
+      .afresult-sub{margin:0;font-size:12px;line-height:1.45;color:var(--ink-3);}
+      .afresult-list{margin:0;padding-left:18px;font-size:12px;line-height:1.5;color:var(--ink-2);
+        display:flex;flex-direction:column;gap:1px;}
+      .afresult-actions{display:flex;gap:8px;margin-top:3px;}
+      .afbtn{height:30px;padding:0 12px;border-radius:6px;font-family:var(--font);font-size:12px;
+        font-weight:600;cursor:pointer;border:1px solid var(--line-strong);background:var(--bg);
+        color:var(--ink);transition:background .12s ease,border-color .12s ease;}
+      .afbtn:hover{background:var(--bg-hover);}
+      .afbtn--ghost{border-color:transparent;background:none;color:var(--ink-3);}
+      .afbtn--ghost:hover{background:var(--bg-hover);color:var(--ink);}
+      .afbtn:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
+
+      /* ---- Resume tab: document list (single surface, hairline rows) + generate actions ---- */
+      .resgroup{display:flex;flex-direction:column;gap:9px;}
+      .resgroup + .resgroup{padding-top:16px;border-top:1px solid var(--line);}
+      /* One surface, rows separated by hairlines — mirrors the web app's resume picker. */
+      .doclist{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r2);
+        overflow:hidden;background:var(--bg);}
+      .docrow{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:10px 12px;
+        background:none;border:none;border-top:1px solid var(--line);cursor:pointer;font-family:var(--font);
+        transition:background .12s ease;}
+      .docrow:first-child{border-top:none;}
+      .docrow:hover{background:var(--bg-hover);}
+      .docrow[aria-pressed="true"]{background:var(--accent-bg);}
+      .docrow:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;}
+      .doc-ic{display:flex;align-items:center;justify-content:center;flex:0 0 auto;width:34px;height:34px;
+        border-radius:9px;background:var(--bg-sunken);color:var(--ink-3);}
+      .doc-ic svg{width:17px;height:17px;}
+      .docrow[aria-pressed="true"] .doc-ic{background:var(--accent);color:var(--accent-fg);}
+      .doc-body{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px;}
+      .doc-name{font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;
+        text-overflow:ellipsis;}
+      .doc-meta{font-size:11.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .doc-check{display:flex;align-items:center;justify-content:center;flex:0 0 auto;width:20px;height:20px;
+        border-radius:50%;border:1.5px solid var(--line-strong);color:transparent;transition:all .12s ease;}
+      .doc-check svg{width:12px;height:12px;stroke-width:3;}
+      .docrow:hover .doc-check{border-color:var(--ink-3);}
+      .docrow[aria-pressed="true"] .doc-check{border-color:var(--accent);background:var(--accent);
+        color:var(--accent-fg);}
+      /* Upload is a quiet ghost row at the foot of the same list. */
+      .docrow--upload{color:var(--ink-3);font-size:12.5px;font-weight:600;}
+      .docrow--upload:hover{color:var(--ink);}
+      .docrow--upload .doc-ic{background:none;border:1px dashed var(--line-strong);color:var(--ink-3);}
+      .docrow--upload[disabled]{cursor:default;opacity:.7;}
+
+      /* Generate actions — present but stalled; a "Soon" pill sets the expectation. */
+      .gen-actions{display:flex;flex-direction:column;gap:8px;}
+      .gen-btn{display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:11px 13px;
+        border-radius:var(--r2);border:1px solid var(--line);background:var(--bg);cursor:pointer;
+        font-family:var(--font);transition:border-color .14s ease,background .14s ease;}
+      .gen-btn:hover{border-color:var(--line-strong);background:var(--bg-hover);}
+      .gen-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+      .gen-ic{display:flex;align-items:center;justify-content:center;flex:0 0 auto;width:32px;height:32px;
+        border-radius:9px;background:var(--accent-bg);color:var(--accent-ink);}
+      .gen-ic svg{width:17px;height:17px;}
+      .gen-txt{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px;}
+      .gen-title{font-size:13px;font-weight:600;color:var(--ink);}
+      .gen-sub{font-size:11.5px;color:var(--ink-3);}
+      .soon{flex:0 0 auto;font-size:9.5px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;
+        padding:2px 7px;border-radius:999px;background:var(--bg-sunken);color:var(--ink-3);}
+      .gen-hint{display:flex;align-items:flex-start;gap:6px;font-size:11.5px;line-height:1.5;color:var(--ink-3);}
+      .gen-hint svg{width:13px;height:13px;flex:0 0 auto;margin-top:2px;}
 
       /* ---- action bar (one fixed region: status → AI toggle → buttons) ---- */
       .actionbar{flex:0 0 auto;border-top:1px solid var(--line);background:var(--bg);}
@@ -521,10 +615,29 @@
   }
 
   // open(job, { onConfirm, dashboardUrl, extraction, onExtractApplication, loadApplication,
-  //             onApplicationExtracted })
+  //             onApplicationExtracted, onAutofillMatch })
+  // onAutofillMatch(fields) → Promise<{ matched, unmatched }>: present only for a saved job; when
+  // set, the saved-answer view shows an "Autofill" button that fills the live page from saved answers.
+  // The Satoshi @font-face lives in the document <head> (content.js injectFont). Some host pages
+  // (e.g. Greenhouse) replace the entire <html> on client takeover, wiping it — which drops the
+  // drawer to a heavier fallback font (everything looks "bold"). Re-inject it on open so the panel
+  // always renders in Satoshi, identical to every other surface.
+  function ensureFont() {
+    if (document.getElementById("jobtracker-font")) return;
+    try {
+      const s = document.createElement("style");
+      s.id = "jobtracker-font";
+      s.textContent =
+        '@font-face{font-family:"Satoshi";font-style:normal;font-weight:300 900;font-display:swap;' +
+        'src:url("' + chrome.runtime.getURL("fonts/satoshi.woff2") + '") format("woff2");}';
+      (document.head || document.documentElement).appendChild(s);
+    } catch (_) {}
+  }
+
   function open(job, opts) {
     opts = opts || {};
     if (host) removeHost();
+    ensureFont();
     lastFocus = document.activeElement;
     reduceMotion =
       typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -798,8 +911,10 @@
       const answers = (viewOpts && viewOpts.answers) || null;
       const readOnly = !!(viewOpts && viewOpts.readOnly);
       clearApp();
-      const reBtn = el("button", { class: "reextract", type: "button", title: "Extract again" });
-      reBtn.append(icon(ICON.refresh), el("span", { text: "Re-extract" }));
+      const reBtn = el("button", {
+        class: "reextract", type: "button", title: "Re-extract questions", "aria-label": "Re-extract questions",
+      });
+      reBtn.append(icon(ICON.refresh));
       reBtn.addEventListener("click", runAppExtraction);
       const count = questions.length + (questions.length === 1 ? " question" : " questions");
 
@@ -815,6 +930,7 @@
         flaggedBadge.style.display = n ? "" : "none";
       }
 
+      const headActions = el("div", { class: "apphead-actions" }, [reBtn]);
       const header = el("div", { class: "apphead" }, [
         el("div", { class: "apphead-row" }, [
           el("div", { class: "apphead-label" }, [
@@ -822,7 +938,7 @@
             el("span", { class: "apphead-count", text: count }),
             flaggedBadge,
           ]),
-          reBtn,
+          headActions,
         ]),
       ]);
       // Persist on every flag toggle so the star survives reopen AND rides along on save
@@ -842,20 +958,136 @@
             })
           : el("p", { class: "apphelp", text: "Renderer unavailable." });
       appPane.append(header);
-      // In the read-only answer view, a quiet caption tells the user these are their saved values
-      // (mirrored from the web app) and where to edit them — so the disabled fields don't read as broken.
-      if (readOnly) {
-        appPane.append(
-          el("p", {
-            class: "apphint",
-            text: "Your saved answers, mirrored from the web app (read-only). Copy from here, or edit in the dashboard.",
-          }),
-        );
-      }
       appPane.append(grid);
       updateFlagged();
       // Application questions now exist for this page → the AI-prep toggle becomes meaningful.
       if (aiCard) aiCard.style.display = "";
+
+      // ---- Autofill (saved-answer view only) ----
+      // The key action of the saved view: fill the LIVE page's application form from the saved
+      // answers. Harvest + fill run in ui/application.js (host-page DOM); matching is server-side via
+      // the onAutofillMatch hook. Result + Undo render in a card under the toolbar.
+      if (readOnly && typeof opts.onAutofillMatch === "function" && UI.autofill) {
+        let afCard = null;
+        const removeResult = () => {
+          if (afCard) { afCard.remove(); afCard = null; }
+        };
+        const dismissBtn = () => {
+          const b = el("button", { class: "afbtn afbtn--ghost", type: "button", text: "Dismiss" });
+          // Dismiss keeps the filled values (the user accepted them); just clear the highlights.
+          b.addEventListener("click", () => {
+            if (UI.autofill) UI.autofill.clear();
+            removeResult();
+          });
+          return b;
+        };
+        const showResult = (s) => {
+          removeResult();
+          const card = el("div", { class: "afresult" });
+          if (s.empty || s.error) {
+            card.classList.add("err");
+            card.append(
+              el("div", { class: "afresult-row" }, [
+                icon(s.error ? ICON.x : ICON.clipboard),
+                el("p", {
+                  class: "afresult-msg",
+                  text:
+                    s.error ||
+                    "No fillable fields found on this page. Open the application form, then try again.",
+                }),
+              ]),
+              el("div", { class: "afresult-actions" }, [dismissBtn()]),
+            );
+            afCard = card;
+            appPane.insertBefore(card, header.nextSibling);
+            return;
+          }
+          const total = s.real + s.def;
+          card.append(
+            el("div", { class: "afresult-row" }, [
+              icon(total ? ICON.check : ICON.clipboard),
+              el("p", {
+                class: "afresult-msg",
+                text: total ? `Filled ${total} ${total === 1 ? "field" : "fields"}` : "Nothing to fill",
+              }),
+            ]),
+          );
+          if (s.def)
+            card.append(
+              el("p", {
+                class: "afresult-sub",
+                text: `${s.def} filled with a placeholder default — review before submitting.`,
+              }),
+            );
+          if (s.failedCount)
+            card.append(
+              el("p", { class: "afresult-sub", text: `${s.failedCount} couldn't be filled automatically.` }),
+            );
+          if (s.unmatched && s.unmatched.length) {
+            card.append(
+              el("p", {
+                class: "afresult-sub",
+                text: `Couldn't find a field on this page for ${s.unmatched.length}:`,
+              }),
+            );
+            const ul = el("ul", { class: "afresult-list" });
+            s.unmatched.slice(0, 8).forEach((u) => ul.append(el("li", { text: u.label || u.questionId })));
+            if (s.unmatched.length > 8)
+              ul.append(el("li", { text: `…and ${s.unmatched.length - 8} more` }));
+            card.append(ul);
+          }
+          const actions = el("div", { class: "afresult-actions" });
+          if (total) {
+            const undo = el("button", { class: "afbtn", type: "button", text: "Undo" });
+            undo.addEventListener("click", () => {
+              if (UI.autofill) UI.autofill.undo();
+              card.replaceChildren(
+                el("div", { class: "afresult-row" }, [
+                  icon(ICON.check),
+                  el("p", { class: "afresult-msg", text: "Reverted." }),
+                ]),
+                el("div", { class: "afresult-actions" }, [dismissBtn()]),
+              );
+            });
+            actions.append(undo);
+          }
+          actions.append(dismissBtn());
+          card.append(actions);
+          afCard = card;
+          appPane.insertBefore(card, header.nextSibling);
+        };
+        const afBtn = el("button", {
+          class: "appfill",
+          type: "button",
+          title: "Autofill this application from your saved answers",
+        });
+        afBtn.append(icon(ICON.sparkles), el("span", { text: "Autofill" }));
+        const runAutofill = async () => {
+          if (afBtn.disabled) return;
+          afBtn.disabled = true;
+          afBtn.classList.add("loading");
+          const span = afBtn.querySelector("span");
+          if (span) span.textContent = "Autofilling…";
+          removeResult();
+          try {
+            const harvest = UI.autofill.harvest();
+            if (!harvest.fields.length) {
+              showResult({ empty: true });
+              return;
+            }
+            const plan = await opts.onAutofillMatch(harvest.fields);
+            showResult(await UI.autofill.apply(plan));
+          } catch (e) {
+            showResult({ error: (e && e.message) || "Autofill failed." });
+          } finally {
+            afBtn.disabled = false;
+            afBtn.classList.remove("loading");
+            if (span) span.textContent = "Autofill";
+          }
+        };
+        afBtn.addEventListener("click", runAutofill);
+        headActions.insertBefore(afBtn, reBtn);
+      }
     }
 
     // Guards the async restore below from clobbering a fresh extraction already in flight.
@@ -902,6 +1134,134 @@
         .catch(() => {});
     }
 
+    // ---- Resume pane (documents list + tailored-generation actions) ----
+    // Generation is intentionally stalled: the documents are placeholder rows and the two
+    // "generate" actions are wired to no-ops (a quiet "Soon" pill sets the expectation). The
+    // job here is to land the layout, hierarchy, and affordances so the real backend can drop in.
+    const resumePane = el("div", {
+      class: "pane respane",
+      id: "jt-pane-resume",
+      role: "tabpanel",
+      "aria-labelledby": "jt-tab-resume",
+      hidden: "",
+    });
+
+    // Placeholder documents — same shape as the web app's resume picker (name + type·size·date).
+    const resumeDocs = [
+      { id: "r1", name: "Souritra_Kar_Resume.pdf", meta: "PDF · 182 KB · Updated Jun 2026" },
+      { id: "r2", name: "Resume — Product.docx", meta: "DOCX · 96 KB · Updated May 2026" },
+    ];
+    let selectedDocId = resumeDocs.length ? resumeDocs[0].id : null;
+
+    const docList = el("div", { class: "doclist" });
+    const resumeFileInput = el("input", {
+      type: "file",
+      accept: ".pdf,.doc,.docx",
+      style: "display:none",
+    });
+
+    function docRow(doc) {
+      const selected = doc.id === selectedDocId;
+      const row = el(
+        "button",
+        { class: "docrow", type: "button", "aria-pressed": selected ? "true" : "false" },
+        [
+          (() => {
+            const ic = el("div", { class: "doc-ic" });
+            ic.append(icon(ICON.file));
+            return ic;
+          })(),
+          el("div", { class: "doc-body" }, [
+            el("div", { class: "doc-name", text: doc.name }),
+            el("div", { class: "doc-meta", text: doc.meta }),
+          ]),
+          (() => {
+            const ck = el("div", { class: "doc-check" });
+            ck.append(icon(ICON.check));
+            return ck;
+          })(),
+        ],
+      );
+      row.addEventListener("click", () => {
+        selectedDocId = selectedDocId === doc.id ? null : doc.id;
+        renderDocList();
+      });
+      return row;
+    }
+
+    function renderDocList() {
+      docList.replaceChildren();
+      resumeDocs.forEach((doc) => docList.append(docRow(doc)));
+      // Quiet ghost "upload" row at the foot of the same surface.
+      const uploadRow = el("button", { class: "docrow docrow--upload", type: "button" }, [
+        (() => {
+          const ic = el("div", { class: "doc-ic" });
+          ic.append(icon(ICON.upload));
+          return ic;
+        })(),
+        el("span", { text: "Upload a resume" }),
+      ]);
+      uploadRow.addEventListener("click", () => resumeFileInput.click());
+      docList.append(uploadRow);
+    }
+
+    // Upload is local-only for now (no backend): the picked file just joins the placeholder list
+    // and becomes the selection, so the affordance feels real without claiming to do more.
+    resumeFileInput.addEventListener("change", () => {
+      const file = resumeFileInput.files && resumeFileInput.files[0];
+      resumeFileInput.value = "";
+      if (!file) return;
+      const ext = (file.name.split(".").pop() || "file").toUpperCase();
+      const kb = file.size / 1024;
+      const size = kb < 1024 ? Math.round(kb) + " KB" : (kb / 1024).toFixed(1) + " MB";
+      const id = "u" + resumeDocs.length + "-" + file.size;
+      resumeDocs.unshift({ id, name: file.name, meta: ext + " · " + size + " · Just added" });
+      selectedDocId = id;
+      renderDocList();
+    });
+
+    function genBtn(iconPaths, title, sub) {
+      const btn = el("button", { class: "gen-btn", type: "button" }, [
+        (() => {
+          const ic = el("div", { class: "gen-ic" });
+          ic.append(icon(iconPaths));
+          return ic;
+        })(),
+        el("div", { class: "gen-txt" }, [
+          el("div", { class: "gen-title", text: title }),
+          el("div", { class: "gen-sub", text: sub }),
+        ]),
+        el("span", { class: "soon", text: "Soon" }),
+      ]);
+      // Stalled: clicking does nothing yet. The handler is the seam for the real generator.
+      btn.addEventListener("click", () => {
+        /* TODO: kick off tailored generation for `selectedDocId` + this job */
+      });
+      return btn;
+    }
+
+    renderDocList();
+    resumePane.append(
+      el("div", { class: "resgroup" }, [
+        el("span", { class: "eyebrow", text: "Your documents" }),
+        docList,
+        resumeFileInput,
+      ]),
+      el("div", { class: "resgroup" }, [
+        el("span", { class: "eyebrow", text: "Tailor for this job" }),
+        el("div", { class: "gen-actions" }, [
+          genBtn(ICON.wand, "Generate tailored resume", "Reworked to match this role"),
+          genBtn(ICON.penLine, "Generate cover letter", "A draft written for this job"),
+        ]),
+        el("div", { class: "gen-hint" }, [
+          icon(ICON.alert),
+          el("span", {
+            text: "Pick a document above, then generate a version tuned to this posting. Coming soon.",
+          }),
+        ]),
+      ]),
+    );
+
     // ---- tabs ----
     function makeTab(key, labelText, iconPaths, selected) {
       const t = el("button", {
@@ -916,32 +1276,39 @@
       t.append(icon(iconPaths), el("span", { text: labelText }));
       return t;
     }
-    const tabDetails = makeTab("details", "Details", ICON.text, true);
-    const tabApp = makeTab("app", "Application", ICON.clipboard, false);
-    const tabs = el("div", { class: "tabs", role: "tablist", "aria-label": "Panel sections" }, [
-      tabDetails,
-      tabApp,
-    ]);
+    // Tab registry — one entry per pane. Selection, roving tabindex, and arrow-key navigation
+    // all derive from this list, so adding a pane (e.g. Resume) is a one-line change.
+    const tabDefs = [
+      { key: "details", label: "Details", icon: ICON.text, pane: detailsPane },
+      { key: "app", label: "Application", icon: ICON.clipboard, pane: appPane },
+      { key: "resume", label: "Resume", icon: ICON.file, pane: resumePane },
+    ];
+    tabDefs.forEach((t, i) => (t.tab = makeTab(t.key, t.label, t.icon, i === 0)));
+    const tabs = el(
+      "div",
+      { class: "tabs", role: "tablist", "aria-label": "Panel sections" },
+      tabDefs.map((t) => t.tab),
+    );
     function selectTab(which) {
-      const onDetails = which === "details";
-      tabDetails.setAttribute("aria-selected", onDetails ? "true" : "false");
-      tabApp.setAttribute("aria-selected", onDetails ? "false" : "true");
-      tabDetails.tabIndex = onDetails ? 0 : -1;
-      tabApp.tabIndex = onDetails ? -1 : 0;
-      detailsPane.hidden = !onDetails;
-      appPane.hidden = onDetails;
+      tabDefs.forEach((t) => {
+        const on = t.key === which;
+        t.tab.setAttribute("aria-selected", on ? "true" : "false");
+        t.tab.tabIndex = on ? 0 : -1;
+        t.pane.hidden = !on;
+      });
     }
-    tabDetails.addEventListener("click", () => selectTab("details"));
-    tabApp.addEventListener("click", () => selectTab("app"));
+    tabDefs.forEach((t) => t.tab.addEventListener("click", () => selectTab(t.key)));
     tabs.addEventListener("keydown", (e) => {
       if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
       e.preventDefault();
-      const toApp = e.key === "ArrowRight";
-      selectTab(toApp ? "app" : "details");
-      (toApp ? tabApp : tabDetails).focus();
+      const cur = tabDefs.findIndex((t) => t.tab.getAttribute("aria-selected") === "true");
+      const delta = e.key === "ArrowRight" ? 1 : -1;
+      const next = tabDefs[(cur + delta + tabDefs.length) % tabDefs.length];
+      selectTab(next.key);
+      next.tab.focus();
     });
 
-    const body = el("div", { class: "body" }, [detailsPane, appPane]);
+    const body = el("div", { class: "body" }, [detailsPane, appPane, resumePane]);
 
     // ---- Details fields: fill (from extraction/restore), persist (debounced), extract on demand ----
     const edited = new Set();
@@ -1281,7 +1648,9 @@
     updateFieldWarnings();
 
     shadow.append(style, overlayEl);
-    document.body.appendChild(host);
+    // Attach to <html> (outside the host page's React/SPA root) so a re-render of <body> can't drop
+    // the open drawer mid-use, the way it does to body-attached overlays on Greenhouse et al.
+    (document.documentElement || document.body).appendChild(host);
 
     // Slide in, then measure the description so the clamp/"Show more" is accurate.
     const reveal = () => {

@@ -1,0 +1,100 @@
+/* ============================================================================
+   JobTracker — Tailwind v4 theme mapping (shadcn-compatible)
+   ----------------------------------------------------------------------------
+   Maps the raw variables from ./tokens.css into Tailwind v4 @theme so you get
+   utilities like `bg-primary`, `text-muted-foreground`, `border-border`,
+   `rounded-lg`, `font-heading`, `bg-fern-100`, etc. — and so shadcn components
+   (which expect these exact color/radius tokens) work out of the box.
+
+   For a Tailwind + shadcn app, import BOTH files after Tailwind:
+       @import "tailwindcss";
+       @import ".../design-system/tokens.css";   // raw values (:root / .dark)
+       @import ".../design-system/theme.css";     // this Tailwind mapping
+
+   Font utilities below expect these CSS vars to exist (the web app sets them via
+   next/font in app/layout.tsx): --font-plus-jakarta-sans, --font-inter,
+   --font-geist-mono, --font-dm-sans.
+
+   Plain (non-Tailwind) consumers like the Chrome extension only need tokens.css.
+   ============================================================================ */
+
+@theme inline {
+  /* Surfaces & text */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  /* Brand / semantic */
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Brand scale */
+  --color-fern-50: var(--fern-50);
+  --color-fern-100: var(--fern-100);
+  --color-fern-600: var(--fern-600);
+  --color-fern-700: var(--fern-700);
+  --color-pine: var(--pine);
+  --color-sun: var(--sun);
+
+  /* Pipeline status — fill + foreground per stage (foreground also drives the dot) */
+  --color-status-saved: var(--status-saved);
+  --color-status-saved-foreground: var(--status-saved-foreground);
+  --color-status-applied: var(--status-applied);
+  --color-status-applied-foreground: var(--status-applied-foreground);
+  --color-status-interviewing: var(--status-interviewing);
+  --color-status-interviewing-foreground: var(--status-interviewing-foreground);
+  --color-status-offer: var(--status-offer);
+  --color-status-offer-foreground: var(--status-offer-foreground);
+  --color-status-rejected: var(--status-rejected);
+  --color-status-rejected-foreground: var(--status-rejected-foreground);
+  --color-status-archived: var(--status-archived);
+  --color-status-archived-foreground: var(--status-archived-foreground);
+
+  /* Data viz */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Sidebar / app chrome */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Type — ONE typeface everywhere: Google Sans for body, UI, headings, labels,
+     and mockups (loaded in app/layout.tsx). Single voice across the product.
+     EXPERIMENT — revert to var(--font-rethink-sans) to restore Rethink Sans. */
+  --font-sans: var(--font-google-sans);
+  --font-heading: var(--font-google-sans);
+  --font-display: var(--font-google-sans);
+  --font-body: var(--font-google-sans);
+  --font-mono: var(--font-google-sans);
+
+  /* Radius — whole scale derives from --radius (shadcn uses --radius-sm/md/lg) */
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}

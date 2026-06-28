@@ -18,7 +18,7 @@ export const maxDuration = 120
 // questions }` (an apply page with no job identity — the client then supplies the posting URL,
 // passing the questions back as `carryQuestions`). "Found neither" is a 400.
 export const POST = withRoute(async (req: NextRequest) => {
-  const userId = getUserId(req)
+  const userId = await getUserId(req)
   const { url, carryQuestions } = importJobSchema.parse(await req.json())
   const result = await importJobFromUrl(userId, url, carryQuestions)
   return ok(result)

@@ -20,7 +20,7 @@
   "background": {
     "service_worker": "background.js"
   },
-  "permissions": ["storage", "activeTab", "alarms", "notifications"],
+  "permissions": ["storage", "activeTab", "scripting", "alarms", "notifications"],
   "host_permissions": ["http://localhost:3100/*"],
   "content_scripts": [
     {
@@ -28,6 +28,7 @@
       "js": [
         "parsers/clean-dom.js",
         "parsers/capture.js",
+        "lib/field-adapters.js",
         "ui/button.js",
         "ui/application.js",
         "ui/modal.js",

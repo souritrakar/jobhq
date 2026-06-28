@@ -1,6 +1,9 @@
 import { DashboardShell } from "@/components/dashboard/dashboard-shell"
-import { getServerUserId } from "@/lib/auth/current-user"
+import { getSessionUser } from "@/lib/auth/current-user"
 import { listNotifications, unreadCount } from "@/lib/server/notifications"
+import { countOpenReminders } from "@/lib/server/reminders"
+
+export const dynamic = "force-dynamic"
 
 export const metadata = {
   title: "Dashboard — JobTracker",
@@ -11,14 +14,22 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const userId = getServerUserId()
-  const [notifications, unread] = await Promise.all([
-    listNotifications(userId, { limit: 20 }),
-    unreadCount(userId),
+  // Gate + identity in one read: redirects to sign-in when unauthenticated, and bridges the Neon
+  // Auth user into our local `users` table so downstream userId FKs are satisfied (see docs/AUTH.md).
+  const user = await getSessionUser()
+  const [notifications, unread, openReminders] = await Promise.all([
+    listNotifications(user.id, { limit: 20 }),
+    unreadCount(user.id),
+    countOpenReminders(user.id),
   ])
 
   return (
-    <DashboardShell initialNotifications={notifications} initialUnread={unread}>
+    <DashboardShell
+      user={{ name: user.name?.trim() || user.email, email: user.email }}
+      initialNotifications={notifications}
+      initialUnread={unread}
+      openReminders={openReminders}
+    >
       {children}
     </DashboardShell>
   )

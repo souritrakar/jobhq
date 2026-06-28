@@ -1,64 +1,24 @@
 "use client"
 
 import { useState, type ReactNode } from "react"
+import { Popover } from "@base-ui/react/popover"
 import { Loader2 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Menu } from "./menu"
+import { ReminderSchedule } from "@/components/dashboard/reminder-schedule"
+import { buildDue, type ChipKey } from "@/lib/reminders/schedule"
 
 /** The fields a saved reminder carries; `dueAt` is an ISO string when a date was picked. */
 export type ReminderDraft = { title: string; dueAt?: string; hasTime?: boolean }
 
-// Quick-pick chips. Each maps to a whole number of days from today; "custom" reveals a date input.
-const CHIPS = [
-  { key: "tomorrow", label: "Tomorrow", days: 1 },
-  { key: "in3", label: "In 3 days", days: 3 },
-  { key: "nextweek", label: "Next week", days: 7 },
-  { key: "custom", label: "Custom", days: null },
-] as const
-
-type ChipKey = (typeof CHIPS)[number]["key"]
-
-function startOfDayPlus(days: number): Date {
-  const d = new Date()
-  d.setHours(0, 0, 0, 0)
-  d.setDate(d.getDate() + days)
-  return d
-}
-
-// Resolve the selected chip + optional custom date + optional time into a due timestamp.
-// Date-only reminders default to 9am local so day-bucketing stays stable away from midnight.
-function buildDue(
-  chip: ChipKey | null,
-  customDate: string,
-  time: string,
-): { dueAt?: string; hasTime?: boolean } {
-  let base: Date | null = null
-  const picked = CHIPS.find((c) => c.key === chip)
-  if (picked && picked.days !== null) base = startOfDayPlus(picked.days)
-  else if (chip === "custom" && customDate) {
-    const [y, m, d] = customDate.split("-").map(Number)
-    base = new Date(y, m - 1, d)
-  }
-  if (!base) return {} // no due date — allowed
-  const hasTime = Boolean(time)
-  if (hasTime) {
-    const [h, min] = time.split(":").map(Number)
-    base.setHours(h, min, 0, 0)
-  } else {
-    base.setHours(9, 0, 0, 0)
-  }
-  return { dueAt: base.toISOString(), hasTime }
-}
-
 /**
- * The shared "add a reminder" popover, opened from both the rail's "+ Add reminder" row and the
- * header's "Remind me" button. Built on the `Menu` primitive (anchored panel + outside-click /
- * Escape dismissal). Deliberately lightweight: a prefilled text field, relative quick-pick date
- * chips, an optional time, and Save. The form remounts fresh each open (Menu only renders its
- * children while open), so there's no reset to manage.
+ * The shared "add a reminder" popover, opened from both the card's "+ Add reminder" row and the
+ * header's "Remind me" button. Built on Base UI's Popover so the panel renders in a portal — it
+ * floats above the page and is never clipped by an ancestor's `overflow-hidden` (the job page's
+ * panel cards), and outside-click / Escape dismissal come for free. The caller renders the trigger
+ * (a real focusable button) and receives `open` for styling; Base UI wires the click + aria.
  */
 export function ReminderPopover({
   renderTrigger,
@@ -66,15 +26,144 @@ export function ReminderPopover({
   onSubmit,
   align = "end",
 }: {
-  renderTrigger: (api: { open: boolean; toggle: () => void }) => ReactNode
+  renderTrigger: (api: { open: boolean }) => ReactNode
   company?: string
   onSubmit: (draft: ReminderDraft) => Promise<void>
   align?: "start" | "end"
 }) {
+  const [open, setOpen] = useState(false)
+
   return (
-    <Menu renderTrigger={renderTrigger} align={align} panelClassName="w-72 p-3">
-      {({ close }) => <PopoverForm company={company} onSubmit={onSubmit} onDone={close} />}
-    </Menu>
+    <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Trigger render={renderTrigger({ open }) as React.ReactElement} />
+      <Popover.Portal>
+        <Popover.Positioner
+          side="bottom"
+          align={align}
+          sideOffset={6}
+          className="z-50 outline-none"
+        >
+          <Popover.Popup
+            className={cn(
+              "w-72 rounded-md border border-border bg-background p-3 shadow-lg shadow-foreground/[0.08] outline-none",
+              "transition-[opacity,transform] duration-150 ease-out",
+              "data-[starting-style]:scale-95 data-[starting-style]:opacity-0",
+              "data-[ending-style]:scale-95 data-[ending-style]:opacity-0",
+              "motion-reduce:scale-100 motion-reduce:transition-none",
+            )}
+          >
+            <PopoverForm
+              company={company}
+              onSubmit={onSubmit}
+              onDone={() => setOpen(false)}
+            />
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
+  )
+}
+
+/** A resolved due date — what the schedule popover hands back. Always dated (a reminder must fire). */
+export type ScheduledDue = { dueAt: string; hasTime: boolean }
+
+/**
+ * A schedule-only popover — the same floating panel as ReminderPopover but with no title field,
+ * just the "when?" controls. The title lives elsewhere (the To-do panel's inline input, or an
+ * existing to-do row), so this only resolves a due date. Used to (a) add a dated reminder from the
+ * inline composer's bell and (b) convert an existing to-do into a reminder. Save stays disabled
+ * until a date is chosen, so it can never produce a dateless row.
+ */
+export function SchedulePopover({
+  renderTrigger,
+  onPick,
+  align = "end",
+}: {
+  renderTrigger: (api: { open: boolean }) => ReactNode
+  onPick: (due: ScheduledDue) => Promise<void>
+  align?: "start" | "end"
+}) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Trigger render={renderTrigger({ open }) as React.ReactElement} />
+      <Popover.Portal>
+        <Popover.Positioner
+          side="bottom"
+          align={align}
+          sideOffset={6}
+          className="z-50 outline-none"
+        >
+          <Popover.Popup
+            className={cn(
+              "w-72 rounded-md border border-border bg-background p-3 shadow-lg shadow-foreground/[0.08] outline-none",
+              "transition-[opacity,transform] duration-150 ease-out",
+              "data-[starting-style]:scale-95 data-[starting-style]:opacity-0",
+              "data-[ending-style]:scale-95 data-[ending-style]:opacity-0",
+              "motion-reduce:scale-100 motion-reduce:transition-none",
+            )}
+          >
+            <ScheduleForm onPick={onPick} onDone={() => setOpen(false)} />
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
+  )
+}
+
+function ScheduleForm({
+  onPick,
+  onDone,
+}: {
+  onPick: (due: ScheduledDue) => Promise<void>
+  onDone: () => void
+}) {
+  const [chip, setChip] = useState<ChipKey | null>(null)
+  const [customDate, setCustomDate] = useState("")
+  const [time, setTime] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const due = buildDue(chip, customDate, time)
+  const canSave = due.dueAt !== undefined && !saving
+
+  async function save() {
+    if (due.dueAt === undefined || saving) return
+    setSaving(true)
+    setError(null)
+    try {
+      await onPick({ dueAt: due.dueAt, hasTime: due.hasTime ?? false })
+      onDone()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't set the reminder")
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <ReminderSchedule
+        chip={chip}
+        onChipChange={setChip}
+        customDate={customDate}
+        onCustomDateChange={setCustomDate}
+        time={time}
+        onTimeChange={setTime}
+      />
+
+      {error && <p className="text-[11.5px] text-destructive">{error}</p>}
+
+      <div className="flex justify-end gap-2">
+        <Button variant="ghost" size="xs" onClick={onDone} disabled={saving}>
+          Cancel
+        </Button>
+        <Button size="xs" onClick={() => void save()} disabled={!canSave}>
+          {saving && <Loader2 className="size-3 animate-spin" />}
+          Remind me
+        </Button>
+      </div>
+    </div>
   )
 }
 
@@ -116,6 +205,7 @@ function PopoverForm({
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         onFocus={(e) => e.currentTarget.select()}
+        maxLength={300} // mirrors createReminderSchema's cap (lib/validations/reminder.ts)
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault()
@@ -126,45 +216,14 @@ function PopoverForm({
         aria-label="Reminder text"
       />
 
-      <div className="flex flex-wrap gap-1.5">
-        {CHIPS.map((c) => (
-          <button
-            key={c.key}
-            type="button"
-            aria-pressed={chip === c.key}
-            onClick={() => setChip((cur) => (cur === c.key ? null : c.key))}
-            className={cn(
-              "cursor-pointer rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
-              chip === c.key
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground",
-            )}
-          >
-            {c.label}
-          </button>
-        ))}
-      </div>
-
-      {chip === "custom" && (
-        <Input
-          type="date"
-          value={customDate}
-          onChange={(e) => setCustomDate(e.target.value)}
-          aria-label="Custom date"
-          className="h-8 text-[13px]"
-        />
-      )}
-
-      <label className="flex items-center justify-between gap-2 text-[13px] text-muted-foreground">
-        Time
-        <Input
-          type="time"
-          value={time}
-          onChange={(e) => setTime(e.target.value)}
-          aria-label="Reminder time (optional)"
-          className="h-8 w-28 text-[13px]"
-        />
-      </label>
+      <ReminderSchedule
+        chip={chip}
+        onChipChange={setChip}
+        customDate={customDate}
+        onCustomDateChange={setCustomDate}
+        time={time}
+        onTimeChange={setTime}
+      />
 
       {error && <p className="text-[11.5px] text-destructive">{error}</p>}
 

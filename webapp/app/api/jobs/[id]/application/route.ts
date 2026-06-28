@@ -14,7 +14,7 @@ type Ctx = { params: Promise<{ id: string }> }
 // already saved (the "the apply form is on a separate page" case). ONE Firecrawl scrape reads
 // just the form; the questions are upserted onto the job. Keys stay server-side.
 export const POST = withRoute(async (req: NextRequest, { params }: Ctx) => {
-  const userId = getUserId(req)
+  const userId = await getUserId(req)
   const { id } = await params
   const { url } = attachApplicationSchema.parse(await req.json())
   const job = await attachApplicationFromUrl(userId, id, url)

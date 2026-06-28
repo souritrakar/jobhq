@@ -13,7 +13,7 @@ import { applicationExtractInputSchema } from "@/lib/validations/extract"
 // Returns { data: { questions, usage } }. Answers are not persisted here — the extension
 // renders the questions as fillable controls only (for now).
 export const POST = withRoute(async (req: NextRequest) => {
-  const userId = getUserId(req)
+  const userId = await getUserId(req)
   const input = applicationExtractInputSchema.parse(await req.json())
   const result = await extractApplication(userId, input)
   return ok(result)

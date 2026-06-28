@@ -84,6 +84,8 @@ Error:   `{ "error": { "code": "NOT_FOUND", "message": "...", "details"?: ... } 
 | DELETE | `/api/jobs/:id`  | —                                     | Delete a job             |
 | POST   | `/api/extract`   | `{ text, source?, url? }`             | LLM-extract job fields   |
 | POST   | `/api/extract-application` | `{ text, source?, url? }`   | LLM-extract application questions |
+| POST   | `/api/extract/tiered` | `{ signals: { jsonLd, meta, segments, h1?, titleHint? }, source?, url? }` | NON-LLM job fields (structured data + embeddings) |
+| POST   | `/api/extract-application/tiered` | `{ fields: [{ id, label, kind, inputType?, options?, required? }], source?, url? }` | NON-LLM application questions (DOM harvest + embeddings gate) |
 | POST   | `/api/jobs/import` | `{ url, carryQuestions? }`          | Save a job from a posting URL (web app, no extension) |
 | POST   | `/api/jobs/:id/application` | `{ url }`                   | Attach a separate apply page's form to a saved job |
 | PUT    | `/api/jobs/:id/application/answers` | `{ answers: [{ questionId, value }] }` | Batch save (or clear) the changed answers |
@@ -383,6 +385,42 @@ note above). Like `/api/extract` it writes one `ExtractionLog` row and is `userI
 **Answers are not handled here** — the
 extension renders the questions as fillable controls only; persisting the *questions* with a
 job is via the optional `application` field on `POST /api/jobs` (above).
+
+### Tiered (non-LLM) extraction (`POST /api/extract/tiered` + `/api/extract-application/tiered`)
+
+A **drop-in, plug-and-play alternative** to the two Groq routes above that uses deterministic
+structured-data parsing + embeddings instead of a generation model — cutting token cost to ~zero
+and latency to a structured-data parse plus (at most) one cheap embeddings batch. It lives in
+`lib/extraction/*`, returns the **exact same response shapes** (`{ fields, description?, usage }` /
+`{ questions, usage }`), and **does not touch the LLM path** — both stay live so they can be A/B'd.
+The extension picks which to call via its `EXTRACTION_MODE` flag (default `"llm"`).
+
+- **No generation LLM, ever (pure non-LLM).** The existing LLM routes remain the manual fallback to
+  switch to where the tiered path underperforms. `usage` is zero; each call logs one `ExtractionLog`
+  row with `model: "tiered:<tiers>"` (e.g. `tiered:jsonld+embeddings`) so cost/coverage compare
+  directly against the LLM rows.
+- **Job details — two tiers** (`details-tiered.ts`). Tier 1: parse JSON-LD `schema.org/JobPosting`
+  (`structured-data.ts`) → microdata/`{key,value}` segments → OG/meta, mapping to our fields with
+  the schema's controlled `employmentType` vocab and `TELECOMMUTE → Remote`. Tier 2 (only for
+  attribute fields tier 1 missed): embed the page's segment **keys**, match them to the field
+  prototypes (`prototypes.ts`) with the shared autofill `MIN_SCORE`, and snap free-text enums to the
+  vocab (stricter `TIERED_ENUM_MIN_SCORE`, else drop). A page whose JSON-LD is complete makes **zero**
+  embed calls. Title/company/description fall back to JSON-LD → meta → `h1` — never fabricated, so a
+  field the structured path can't fill comes back **absent**, firing the extension's existing
+  blank-title/company/description warnings exactly as a failed LLM call would.
+- **Application questions — two tiers** (`questions-tiered.ts`). Tier 1: the extension harvests every
+  form control (`harvestQuestions()`, reusing the autofill label heuristics; **includes file inputs**
+  and carries the native input type) and we map DOM kind + type → our 12-type vocab. Tier 2: an
+  embeddings **inclusion gate** keeps a field iff its label is semantically closer to the question
+  prototypes than to the noise prototypes (search/login/newsletter/cookie) — structurally-strong
+  fields (choice/file/long-text/required) only need to beat noise; weak free-text fields must also
+  clear `TIERED_QUESTION_KEEP_FLOOR` and beat noise by `TIERED_NOISE_MARGIN`. An empty form returns
+  `{ questions: [] }` (the "no application form" state) with **no** embed call. The kept questions
+  pass through the same `normalizeApplicationQuestions()` sieve as the LLM path.
+- **Prototypes are embedded once** (`prototype-embeddings.ts`, process-memoized) — there is no vector
+  DB; this is tens of vectors matched in-memory exactly like the autofill matcher. Embeddings reuse
+  the single `embed()` seam (`lib/llm/embeddings.ts`, `EMBEDDINGS_MODEL`), so a swap to a local model
+  is a one-file change. All thresholds are env-overridable (`TIERED_*` in `lib/env.ts`).
 
 ### Import from a URL (`POST /api/jobs/import`)
 

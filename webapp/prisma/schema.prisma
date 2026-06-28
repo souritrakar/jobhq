@@ -34,8 +34,70 @@ model User {
   documents              Document[]
   notifications          Notification[]
   notificationPreference NotificationPreference?
+  profile                UserProfile?
 
   @@map("users")
+}
+
+/// The user's autofill profile: the personal details they save once on /dashboard/settings so the
+/// repetitive parts of job-application forms (name, contact, location, work eligibility, links, EEO
+/// self-ID) can be prefilled later by the extension. Deliberately a SEPARATE 1:1 table, not columns
+/// on `User`: auth-sync (Neon Auth → `ensureUser`) only upserts identity onto `User`, so keeping
+/// app-owned profile data in its own table means an auth resync can never clobber it. Every field is
+/// optional/nullable — a brand-new user starts empty and fills in only what they want. Constrained
+/// fields (pronouns, work auth, remote pref, EEO, …) are plain strings validated by Zod against the
+/// `*_OPTIONS` sets (lib/validations/profile.ts) rather than DB enums, since those lists will evolve.
+model UserProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Personal details (firstName/lastName/email are app-owned but seeded from the auth identity)
+  firstName     String?
+  lastName      String?
+  preferredName String?
+  pronouns      String?
+  email         String?
+  phone         String?
+
+  // Location & address
+  country       String?
+  state         String?
+  city          String?
+  postalCode    String?
+  streetAddress String?
+  addressLine2  String?
+
+  // Work eligibility
+  workAuthorization   String?
+  requiresSponsorship Boolean @default(false)
+  visaStatus          String?
+
+  // Professional links
+  linkedinUrl  String?
+  portfolioUrl String?
+  githubUrl    String?
+
+  // Job preferences
+  currentTitle      String?
+  currentCompany    String?
+  desiredSalary     String?
+  salaryCurrency    String?
+  noticePeriod      String?
+  earliestStartDate String? // YYYY-MM-DD calendar label, stored as a string — no TZ math
+  remotePreference  String?
+  openToRelocation  Boolean @default(false)
+
+  // Voluntary self-identification (EEO — optional, opt-in)
+  gender           String?
+  raceEthnicity    String?
+  veteranStatus    String?
+  disabilityStatus String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("user_profiles")
 }
 
 /// The pipeline stage of a saved job. Mirrors EXTENSION_PRODUCT_GOALS.md:

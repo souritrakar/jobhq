@@ -103,7 +103,8 @@ export async function runDigest(now: Date): Promise<{ usersNotified: number }> {
   let usersNotified = 0
   for (const [userId, { email, jobs }] of byUser) {
     try {
-      const copy = digestCopy({ count: jobs.length, sample: jobs.slice(0, DIGEST_SAMPLE) })
+      const sample = jobs.slice(0, DIGEST_SAMPLE)
+      const copy = digestCopy({ count: jobs.length, sample })
       await createNotification(userId, {
         kind: "DIGEST",
         title: copy.title,
@@ -113,7 +114,7 @@ export async function runDigest(now: Date): Promise<{ usersNotified: number }> {
       await sendEmail({
         to: email,
         subject: copy.title,
-        html: digestEmail(copy, "/dashboard/saved"),
+        html: digestEmail(copy, sample, jobs.length - sample.length, "/dashboard/saved"),
       })
       usersNotified++
     } catch (err) {

@@ -415,4 +415,557 @@
   }
 
   UI.applicationForm = { render, css };
+
+  // ===========================================================================================
+  // Autofill engine — harvest the LIVE application page's input fields, then fill them from the
+  // plan the backend returns (semantic match of saved questions → page fields). This runs in the
+  // content-script world, so `document` is the HOST page (the drawer is in a shadow root, so a
+  // document-level query never sees the extension's own controls). All DOM-writing lives here;
+  // the backend owns matching, this owns harvesting + filling. Files are out of scope (never
+  // harvested or filled).
+  // ===========================================================================================
+
+  const MAX_FIELDS = 200; // bound a pathological page (backend also caps at 300)
+  const MAX_OPTIONS = 60;
+  const LABEL_CAP = 120;
+
+  // Input types we never autofill: structural/non-answer, file (out of scope), and password (never).
+  const NON_FILLABLE_INPUT = new Set([
+    "hidden", "submit", "button", "image", "reset", "file", "password", "color", "range",
+  ]);
+
+  // A custom choice widget (segmented control, pill group, button radios) renders its options as
+  // clickable elements, not native inputs — and often backs them with a hidden, id-less proxy input.
+  // We treat a small LABELLED cluster of these as a choice field and fill by CLICKING the option,
+  // which drives whatever state the page's framework manages. Generic — no per-site selectors.
+  const OPTION_SELECTOR = "button, [role=button], [role=radio], [role=option]";
+  const MAX_GROUP_OPTIONS = 12; // a labelled cluster larger than this isn't one question
+  const GROUP_CLIMB = 4; // how far to climb to find an option's tightest group container
+
+  // Opaque tokens (UUIDs, hashes, all-digits) make useless labels — skip them so resolution falls
+  // through to real text (proximity) instead of labelling a field "20bb1c7e 73a3 4031".
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  function looksOpaque(s) {
+    return !s || UUID_RE.test(s) || !/[a-z]/i.test(s) || /^[0-9a-f]{16,}$/i.test(s);
+  }
+
+  // One autofill cycle's state. `harvestMap` maps a per-scan field id → a fill descriptor (live
+  // element(s) + a stable cross-scan key). `undoByKey` maps a field's stable key → the closure that
+  // restores its pre-autofill state, captured the first time we filled it (so Undo survives repeat
+  // Autofills and reverts the right fields). `registry` persists "what we wrote" across re-scans so a
+  // repeat Autofill is idempotent and can tell our own value from content the user typed. All DOM
+  // reads/writes are delegated to the tested fill engine at UI.fill (lib/field-adapters.js).
+  let harvestMap = null;
+  let undoByKey = new Map();
+  let registry = null;
+
+  // ---- text helpers ----
+  function textOf(node) {
+    return ((node && node.textContent) || "").replace(/\s+/g, " ").trim();
+  }
+  function cap(s) {
+    s = String(s == null ? "" : s).replace(/\s+/g, " ").trim();
+    return s.length > LABEL_CAP ? s.slice(0, LABEL_CAP) : s;
+  }
+  function humanize(s) {
+    return String(s)
+      .replace(/\[[^\]]*\]/g, " ") // drop array-ish suffixes like field[name]
+      .replace(/[_\-.]+/g, " ")
+      .replace(/([a-z0-9])([A-Z])/g, "$1 $2") // split camelCase
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+  function cssEsc(s) {
+    return root.CSS && CSS.escape ? CSS.escape(s) : String(s).replace(/["\\]/g, "\\$&");
+  }
+  function idsText(ids) {
+    return ids
+      .split(/\s+/)
+      .map((id) => {
+        const n = document.getElementById(id);
+        return n ? textOf(n) : "";
+      })
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+  }
+
+  // Nearest preceding <label>/<legend>/heading within the control's field wrapper. Forms put the
+  // question text in a sibling/heading above the control — especially custom widgets that have no
+  // linked label — so this DOM-proximity pass recovers it generally, with no per-site selectors.
+  function proximityLabel(el) {
+    let node = el;
+    for (let up = 0; up < 6 && node; up++) {
+      const parent = node.parentElement;
+      if (!parent) break;
+      let found = "";
+      for (const ch of parent.children) {
+        if (ch === node || ch.contains(node)) {
+          if (found) return cap(found);
+          break;
+        }
+        if (/^(LABEL|LEGEND|H[1-6])$/.test(ch.tagName) || ch.getAttribute("role") === "heading") {
+          const t = textOf(ch);
+          if (t) found = t; // keep the closest heading/label that sits above the control
+        }
+      }
+      if (found) return cap(found);
+      node = parent;
+    }
+    return "";
+  }
+
+  // ---- label resolution (standard ARIA/HTML semantics + DOM proximity — no per-site selectors) ----
+  // Priority: aria-labelledby → aria-label → <label for=id|name> → wrapping <label> → nearest
+  // preceding label/heading → placeholder → title → humanized (non-opaque) name/id. Returns "" when
+  // nothing legible is found (the field is then dropped).
+  function labelForControl(el) {
+    const ll = el.getAttribute && el.getAttribute("aria-labelledby");
+    if (ll) { const t = idsText(ll); if (t) return cap(t); }
+    const al = el.getAttribute && el.getAttribute("aria-label");
+    if (al && al.trim()) return cap(al);
+    // A custom widget often links its <label for> to the control's `name` (its hidden proxy has no id).
+    const idName = el.id || (el.getAttribute && el.getAttribute("name"));
+    if (idName) {
+      const lab = document.querySelector(`label[for="${cssEsc(idName)}"]`);
+      if (lab) { const t = textOf(lab); if (t) return cap(t); }
+    }
+    const wrap = el.closest && el.closest("label");
+    if (wrap) { const t = textOf(wrap); if (t) return cap(t); }
+    const prox = proximityLabel(el);
+    if (prox) return prox;
+    const ph = el.getAttribute && el.getAttribute("placeholder");
+    if (ph && ph.trim()) return cap(ph);
+    const ti = el.getAttribute && el.getAttribute("title");
+    if (ti && ti.trim()) return cap(ti);
+    const nm = (el.getAttribute && el.getAttribute("name")) || el.id;
+    if (nm && !looksOpaque(nm)) return cap(humanize(nm));
+    return "";
+  }
+
+  // Group label for a native radio/checkbox set: fieldset legend, aria-labelled wrapping group,
+  // nearest preceding label/heading, then the shared input name (only if legible).
+  function groupLabel(inputs) {
+    const first = inputs[0];
+    const fs = first.closest && first.closest("fieldset");
+    if (fs) { const lg = fs.querySelector("legend"); if (lg) { const t = textOf(lg); if (t) return cap(t); } }
+    const grp = first.closest && first.closest("[role=radiogroup],[role=group],[aria-labelledby],[aria-label]");
+    if (grp) {
+      const ll = grp.getAttribute("aria-labelledby");
+      if (ll) { const t = idsText(ll); if (t) return cap(t); }
+      const al = grp.getAttribute("aria-label");
+      if (al && al.trim()) return cap(al);
+    }
+    const prox = proximityLabel(first);
+    if (prox) return prox;
+    if (first.name && !looksOpaque(first.name)) return cap(humanize(first.name));
+    return "";
+  }
+
+  // Label for a custom option-cluster container: its own aria label, else nearest preceding text.
+  function containerLabel(container) {
+    const al = container.getAttribute("aria-label");
+    if (al && al.trim()) return cap(al);
+    const ll = container.getAttribute("aria-labelledby");
+    if (ll) { const t = idsText(ll); if (t) return cap(t); }
+    return proximityLabel(container);
+  }
+
+  // The label for one option (a single radio/checkbox), preferring its own associated label text.
+  function optionLabel(input) {
+    return labelForControl(input) || input.value || "";
+  }
+
+  // The selectable, non-placeholder options of a <select>, as { value, label }.
+  function selectOptions(sel) {
+    const out = [];
+    for (const o of sel.options) {
+      if (o.disabled) continue;
+      if (o.value === "") continue; // a "" value is the placeholder/empty row
+      out.push({ value: o.value, label: textOf(o) || o.value });
+      if (out.length >= MAX_OPTIONS) break;
+    }
+    return out;
+  }
+
+  // ---- visibility / fillability ----
+  function isVisible(el) {
+    if (!el) return false;
+    const style = root.getComputedStyle ? getComputedStyle(el) : null;
+    if (style && (style.display === "none" || style.visibility === "hidden" || style.visibility === "collapse"))
+      return false;
+    if (el.getClientRects && el.getClientRects().length === 0) return false; // not rendered
+    return true;
+  }
+  // A custom dropdown (ARIA combobox / react-select / Greenhouse "flyout"): role=combobox, or an
+  // input that pops a listbox/menu, or one with list autocomplete. Filled by driving the widget.
+  function isCombobox(el) {
+    if (el.getAttribute("role") === "combobox") return true;
+    const hp = (el.getAttribute("aria-haspopup") || "").toLowerCase();
+    if (hp === "listbox" || hp === "menu" || hp === "tree" || hp === "grid" || hp === "true") return true;
+    const ac = (el.getAttribute("aria-autocomplete") || "").toLowerCase();
+    return ac === "list" || ac === "both";
+  }
+
+  function isFillable(el) {
+    if (el.isContentEditable) return isVisible(el);
+    const tag = el.tagName;
+    if (tag === "TEXTAREA") return !el.disabled && !el.readOnly && isVisible(el);
+    if (tag === "SELECT") return !el.disabled && isVisible(el);
+    if (tag === "INPUT") {
+      const t = (el.type || "text").toLowerCase();
+      if (NON_FILLABLE_INPUT.has(t)) return false;
+      if (el.disabled) return false;
+      // Keep readonly comboboxes (selection-only dropdowns); exclude other readonly text inputs.
+      if (el.readOnly && t !== "checkbox" && t !== "radio" && !isCombobox(el)) return false;
+      return isVisible(el);
+    }
+    return false;
+  }
+
+  function pushGroup(map, key, el) {
+    const arr = map.get(key);
+    if (arr) arr.push(el);
+    else map.set(key, [el]);
+  }
+
+  // Walk the host page and emit the fillable fields as DomField descriptors. Builds `harvestMap`
+  // (id → live element[s]) for the subsequent fill. Returns { fields, total } — `fields` carries
+  // only labels/kinds/option-labels (no HTML, no values), so the embedding payload stays tiny.
+  function harvestFields() {
+    clearHighlights();
+    harvestMap = new Map();
+    const fields = [];
+    let seq = 0;
+    const nextFid = () => "f" + ++seq;
+
+    // ---- Phase 1: custom option groups (button / role-based choice widgets) ----
+    // A labelled cluster of >=2 clickable "option" elements is a choice field we fill by clicking.
+    // Catches segmented Yes/No, pill selectors, and button radios that aren't native inputs.
+    const consumedContainers = [];
+    const optionCandidates = Array.from(document.querySelectorAll(OPTION_SELECTOR))
+      .filter((el) => isVisible(el))
+      .filter((el) => { const t = textOf(el); return t && t.length <= 40; })
+      .filter((el) => !el.querySelector(OPTION_SELECTOR)); // leaf options only (not a wrapper)
+    const candSet = new Set(optionCandidates);
+    const countOptionsIn = (node) => {
+      let c = 0;
+      for (const o of candSet) if (node.contains(o)) { c++; if (c > MAX_GROUP_OPTIONS + 1) break; }
+      return c;
+    };
+    // The tightest non-<form> ancestor holding >=2 option candidates is the group container.
+    const groupContainerOf = (el) => {
+      let node = el.parentElement;
+      for (let up = 0; up < GROUP_CLIMB && node; up++) {
+        if (node.tagName === "FORM") return null;
+        if (countOptionsIn(node) >= 2) return node;
+        node = node.parentElement;
+      }
+      return null;
+    };
+    const byContainer = new Map(); // object-keyed by identity
+    for (const o of optionCandidates) {
+      const c = groupContainerOf(o);
+      if (c) pushGroup(byContainer, c, o);
+    }
+    // Smallest clusters first, so a tight Yes/No claims its buttons before a looser ancestor cluster.
+    const clusters = Array.from(byContainer.entries())
+      .map(([container, options]) => ({ container, options }))
+      .sort((a, b) => a.options.length - b.options.length);
+    const consumedOpt = new Set();
+    for (const { container, options } of clusters) {
+      const live = options.filter((o) => !consumedOpt.has(o));
+      if (live.length < 2 || live.length > MAX_GROUP_OPTIONS) continue;
+      const label = containerLabel(container);
+      if (!label) continue; // no question label → not a field (nav/action button clusters)
+      live.forEach((o) => consumedOpt.add(o));
+      consumedContainers.push(container);
+      const fid = nextFid();
+      const bopts = live.map((el) => ({ el, label: textOf(el) }));
+      harvestMap.set(fid, { kind: "buttons", options: bopts, key: fieldKey("buttons", label, null, bopts.map((o) => o.label)) });
+      // Reported to the backend as a single-choice field (kind stays within the validated enum).
+      fields.push({
+        id: fid,
+        label,
+        kind: "radio",
+        options: live.map((el) => { const t = textOf(el); return { value: t, label: t }; }).slice(0, MAX_OPTIONS),
+      });
+    }
+    const inConsumed = (el) => consumedContainers.some((c) => c.contains(el));
+
+    // ---- Phase 2: native controls (skip hidden proxies inside an option widget) ----
+    const candidates = Array.from(
+      document.querySelectorAll("input, textarea, select, [contenteditable]"),
+    ).filter((el) => isFillable(el) && !inConsumed(el));
+
+    // Group radios by name (mutually exclusive); group checkboxes only when 2+ share a name
+    // ("select all that apply"). A lone checkbox is its own consent-style field.
+    const radiosByName = new Map();
+    const checksByName = new Map();
+    const consumed = new Set();
+    for (const el of candidates) {
+      if (el.tagName !== "INPUT") continue;
+      const t = (el.type || "").toLowerCase();
+      if (t === "radio") pushGroup(radiosByName, el.name || "__r" + nextFid(), el);
+      else if (t === "checkbox" && el.name) pushGroup(checksByName, el.name, el);
+    }
+
+    const emitGroup = (inputs, kind) => {
+      const fid = nextFid();
+      const glabel = groupLabel(inputs);
+      // Carry the live input alongside its value+label so the adapter can click the right option.
+      const opts = inputs.map((i) => ({ el: i, value: i.value, label: optionLabel(i) }));
+      harvestMap.set(fid, { kind, options: opts, key: fieldKey(kind, glabel, inputs[0], opts.map((o) => o.label)) });
+      fields.push({
+        id: fid,
+        label: glabel,
+        kind,
+        options: opts.map((o) => ({ value: o.value, label: o.label })).slice(0, MAX_OPTIONS),
+        required: inputs.some((i) => i.required),
+      });
+      inputs.forEach((i) => consumed.add(i));
+    };
+    for (const [, inputs] of radiosByName) if (inputs.length) emitGroup(inputs, "radio");
+    for (const [, inputs] of checksByName) if (inputs.length >= 2) emitGroup(inputs, "checkbox");
+
+    // Singles: text/textarea/select/contenteditable, plus any standalone checkbox (consent-style).
+    for (const el of candidates) {
+      if (consumed.has(el)) continue;
+      let kind = null;
+      let options;
+      if (el.isContentEditable) kind = "contenteditable";
+      else if (el.tagName === "TEXTAREA") kind = "textarea";
+      else if (el.tagName === "SELECT") { kind = "select"; options = selectOptions(el); }
+      else if (el.tagName === "INPUT") {
+        const t = (el.type || "text").toLowerCase();
+        if (t === "checkbox") { kind = "checkbox"; options = []; } // standalone consent toggle
+        else if (isCombobox(el)) kind = "combobox"; // custom dropdown (ARIA combobox), not free text
+        else kind = "text";
+      }
+      if (!kind) continue;
+      const fid = nextFid();
+      const flabel = labelForControl(el);
+      harvestMap.set(fid, { kind, el, key: fieldKey(kind, flabel, el, options && options.map((o) => o.label)) });
+      // A combobox is filled by driving the widget (open → pick the matching option). The backend
+      // just matches it like any field and hands back the answer text, so report it as "text".
+      const f = { id: fid, label: flabel, kind: kind === "combobox" ? "text" : kind };
+      if (options) f.options = options;
+      if (el.required) f.required = true;
+      fields.push(f);
+    }
+
+    // Drop unlabelled fields (nothing to match on) and bound the count.
+    const cleaned = fields.filter((f) => f.label && f.label.trim()).slice(0, MAX_FIELDS);
+    return { fields: cleaned, total: cleaned.length };
+  }
+
+  // ---- fill: delegate every DOM write to the tested fill engine (UI.fill / lib/field-adapters.js) ----
+  // harvestFields() built `harvestMap` (per-scan fieldId → descriptor). For each backend match we
+  // build the matching FieldAdapter and hand it to fillField, which speaks each framework's protocol
+  // (native setter + real events, click for choices, open+pick for comboboxes), is idempotent (skips
+  // already-correct fields, never clobbers user edits), verifies the write stuck, and returns a
+  // restore closure for Undo. No raw write logic lives here anymore.
+
+  // Stable, cross-scan identity for a field so the registry survives re-renders (best-effort:
+  // kind + label + name/id + option labels). Purely structural — no per-site selectors.
+  function fieldKey(kind, label, el, optionLabels) {
+    const N = UI.fill.norm;
+    const name = el && el.getAttribute ? el.getAttribute("name") || el.id || "" : "";
+    const optsig = optionLabels && optionLabels.length ? optionLabels.map(N).join("|") : "";
+    return [kind, N(label), N(name), optsig].join("::");
+  }
+
+  // Highlights were removed; kept as a no-op so the modal's clear() hook and harvest can call it.
+  function clearHighlights() {}
+
+  // Apply a backend plan to the harvested page. Sequential (await) because a combobox opens a flyout
+  // and picks an option — one widget at a time avoids cross-widget races. Returns the summary the
+  // modal renders: `real`/`def` = fields now holding a real answer / a placeholder default (whether
+  // written this pass or already correct); `skipped` = left as the user had them; `failedCount` = the
+  // write didn't stick.
+  async function applyAutofillPlan(plan) {
+    registry = registry || new UI.fill.FilledRegistry();
+    let real = 0;
+    let def = 0;
+    let skipped = 0;
+    let failed = 0;
+    const matched = (plan && plan.matched) || [];
+    for (const m of matched) {
+      const entry = harvestMap && harvestMap.get(m.fieldId);
+      const adapter = entry && UI.fill.createAdapter(entry);
+      if (!adapter) {
+        failed++;
+        continue;
+      }
+      const key = (entry && entry.key) || "__" + m.fieldId;
+      let res;
+      try {
+        res = await UI.fill.fillField(adapter, m, { registry, key: entry.key });
+      } catch (_) {
+        res = { status: "failed" };
+      }
+      switch (res.status) {
+        case "filled":
+          // Keep the FIRST restore for a field (its pre-autofill state), so Undo still reverts it
+          // after a repeat Autofill where the field comes back "already" (no new closure).
+          if (res.undo && !undoByKey.has(key)) undoByKey.set(key, res.undo);
+          m.isDefault ? def++ : real++;
+          break;
+        case "already":
+          m.isDefault ? def++ : real++;
+          break;
+        case "skipped-user":
+          undoByKey.delete(key); // the user owns this field now — Undo must not revert their edit
+          skipped++;
+          break;
+        case "empty-target":
+          break; // nothing to write for this match
+        default:
+          failed++;
+      }
+    }
+    return { real, def, skipped, failedCount: failed, unmatched: (plan && plan.unmatched) || [] };
+  }
+
+  // Undo everything autofill currently owns: run each field's pre-autofill restore (captured the
+  // first time we filled it) and forget them. Persists across repeat Autofills; fields the user has
+  // since edited were dropped from the set above, so their edits survive Undo.
+  function undoAutofill() {
+    for (const restore of undoByKey.values()) {
+      try {
+        restore();
+      } catch (_) {}
+    }
+    undoByKey.clear();
+  }
+
+  // ---- questions harvest (for the TIERED, non-LLM application extractor) --------------------------
+  // Like harvestFields(), but extraction-oriented, not fill-oriented: it builds NO harvestMap, INCLUDES
+  // file inputs (a resume upload IS a question), and carries the native input type + placeholder so the
+  // backend can type each field precisely. Reuses the same generic label heuristics (no per-site code).
+  // Returns { fields, total } where each field is { id, label, kind, inputType?, options?(string[]),
+  // required?, placeholder? }. The backend maps these to typed questions and gates out page noise.
+  function isQuestionControl(el) {
+    if (el.isContentEditable) return isVisible(el);
+    const tag = el.tagName;
+    if (tag === "TEXTAREA") return !el.disabled && !el.readOnly && isVisible(el);
+    if (tag === "SELECT") return !el.disabled && isVisible(el);
+    if (tag === "INPUT") {
+      const t = (el.type || "text").toLowerCase();
+      if (t === "file") return !el.disabled && isVisible(el); // a file upload is a real question
+      if (NON_FILLABLE_INPUT.has(t)) return false;
+      if (el.disabled) return false;
+      if (el.readOnly && t !== "checkbox" && t !== "radio" && !isCombobox(el)) return false;
+      return isVisible(el);
+    }
+    return false;
+  }
+
+  function harvestQuestions() {
+    const fields = [];
+    let seq = 0;
+    const nextQid = () => "q" + ++seq;
+
+    // Phase 1: custom option-button clusters → a single-choice question (same detection as autofill).
+    const consumedContainers = [];
+    const optionCandidates = Array.from(document.querySelectorAll(OPTION_SELECTOR))
+      .filter((el) => isVisible(el))
+      .filter((el) => { const t = textOf(el); return t && t.length <= 40; })
+      .filter((el) => !el.querySelector(OPTION_SELECTOR));
+    const candSet = new Set(optionCandidates);
+    const countOptionsIn = (node) => {
+      let c = 0;
+      for (const o of candSet) if (node.contains(o)) { c++; if (c > MAX_GROUP_OPTIONS + 1) break; }
+      return c;
+    };
+    const groupContainerOf = (el) => {
+      let node = el.parentElement;
+      for (let up = 0; up < GROUP_CLIMB && node; up++) {
+        if (node.tagName === "FORM") return null;
+        if (countOptionsIn(node) >= 2) return node;
+        node = node.parentElement;
+      }
+      return null;
+    };
+    const byContainer = new Map();
+    for (const o of optionCandidates) { const c = groupContainerOf(o); if (c) pushGroup(byContainer, c, o); }
+    const clusters = Array.from(byContainer.entries())
+      .map(([container, options]) => ({ container, options }))
+      .sort((a, b) => a.options.length - b.options.length);
+    const consumedOpt = new Set();
+    for (const { container, options } of clusters) {
+      const live = options.filter((o) => !consumedOpt.has(o));
+      if (live.length < 2 || live.length > MAX_GROUP_OPTIONS) continue;
+      const label = containerLabel(container);
+      if (!label) continue;
+      live.forEach((o) => consumedOpt.add(o));
+      consumedContainers.push(container);
+      fields.push({ id: nextQid(), label, kind: "radio", options: live.map((el) => textOf(el)).slice(0, MAX_OPTIONS) });
+    }
+    const inConsumed = (el) => consumedContainers.some((c) => c.contains(el));
+
+    // Phase 2: native controls + file inputs.
+    const candidates = Array.from(
+      document.querySelectorAll("input, textarea, select, [contenteditable]"),
+    ).filter((el) => isQuestionControl(el) && !inConsumed(el));
+
+    const radiosByName = new Map();
+    const checksByName = new Map();
+    const consumed = new Set();
+    for (const el of candidates) {
+      if (el.tagName !== "INPUT") continue;
+      const t = (el.type || "").toLowerCase();
+      if (t === "radio") pushGroup(radiosByName, el.name || "__r" + nextQid(), el);
+      else if (t === "checkbox" && el.name) pushGroup(checksByName, el.name, el);
+    }
+    const emitGroup = (inputs, kind) => {
+      const f = {
+        id: nextQid(),
+        label: groupLabel(inputs),
+        kind,
+        options: inputs.map((i) => optionLabel(i)).slice(0, MAX_OPTIONS),
+      };
+      if (inputs.some((i) => i.required)) f.required = true;
+      fields.push(f);
+      inputs.forEach((i) => consumed.add(i));
+    };
+    for (const [, inputs] of radiosByName) if (inputs.length) emitGroup(inputs, "radio");
+    for (const [, inputs] of checksByName) if (inputs.length >= 2) emitGroup(inputs, "checkbox");
+
+    for (const el of candidates) {
+      if (consumed.has(el)) continue;
+      let kind = null;
+      let options;
+      let inputType;
+      if (el.isContentEditable) kind = "contenteditable";
+      else if (el.tagName === "TEXTAREA") kind = "textarea";
+      else if (el.tagName === "SELECT") { kind = "select"; options = selectOptions(el).map((o) => o.label); }
+      else if (el.tagName === "INPUT") {
+        const t = (el.type || "text").toLowerCase();
+        if (t === "file") kind = "file";
+        else if (t === "checkbox") kind = "checkbox"; // standalone consent toggle
+        else if (isCombobox(el)) kind = "combobox";
+        else { kind = "text"; inputType = t; }
+      }
+      if (!kind) continue;
+      const f = { id: nextQid(), label: labelForControl(el), kind };
+      if (inputType) f.inputType = inputType;
+      if (options && options.length) f.options = options;
+      if (el.required) f.required = true;
+      const ph = el.getAttribute && el.getAttribute("placeholder");
+      if (ph && ph.trim()) f.placeholder = cap(ph);
+      fields.push(f);
+    }
+
+    const cleaned = fields.filter((f) => f.label && f.label.trim()).slice(0, MAX_FIELDS);
+    return { fields: cleaned, total: cleaned.length };
+  }
+
+  UI.autofill = {
+    harvest: harvestFields,
+    harvestQuestions,
+    apply: applyAutofillPlan,
+    undo: undoAutofill,
+    clear: clearHighlights,
+  };
 })(typeof self !== "undefined" ? self : this);

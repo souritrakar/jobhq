@@ -7,7 +7,7 @@ import { DocumentsBrowser } from "@/components/dashboard/documents-browser"
 export const dynamic = "force-dynamic"
 
 export default async function DocumentsPage() {
-  const userId = getServerUserId()
+  const userId = await getServerUserId()
   const documents = await listDocuments(userId)
 
   return <DocumentsBrowser documents={documents.map(toClientDocument)} />

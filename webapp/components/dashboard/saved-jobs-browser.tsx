@@ -5,7 +5,7 @@ import { Bookmark, Columns3, LayoutGrid, Plus, Search } from "lucide-react"
 import type { JobStatus } from "@prisma/client"
 
 import { cn } from "@/lib/utils"
-import { patchJob } from "@/lib/jobs/client"
+import { useStatusSync } from "@/lib/jobs/use-status-sync"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -51,17 +51,30 @@ export function SavedJobsBrowser({ jobs: initialJobs }: { jobs: JobCardData[] })
     [queried, filter],
   )
 
-  // Move a card to a new stage: update the working copy immediately, persist via PATCH, and
-  // roll the card back to its previous stage if the save fails.
+  // Persistence for board moves: writes are batched + debounced (see useStatusSync) so a flurry of
+  // drags collapses into one request. On a failed save the affected rows are reverted to whatever
+  // the database last had.
+  const syncStatus = useStatusSync(
+    initialJobs.map((j) => ({ id: j.id, status: j.status })),
+    (restore) => {
+      setJobs((cur) =>
+        cur.map((j) => {
+          const r = restore.find((x) => x.id === j.id)
+          return r ? { ...j, status: r.status } : j
+        }),
+      )
+      setError("Couldn't save some changes — they've been reverted. Please try again.")
+    },
+  )
+
+  // Move a card to a new stage: update the working copy immediately (optimistic), then hand the
+  // change to the batched sync. UI is instant; the DB write happens on the debounce/flush.
   function moveJob(id: string, next: JobStatus) {
     const previous = jobs.find((j) => j.id === id)?.status
     if (!previous || previous === next) return
     setError(null)
     setJobs((cur) => cur.map((j) => (j.id === id ? { ...j, status: next } : j)))
-    patchJob(id, { status: next }).catch(() => {
-      setJobs((cur) => cur.map((j) => (j.id === id ? { ...j, status: previous } : j)))
-      setError("Couldn't update that job. Please try again.")
-    })
+    syncStatus(id, next)
   }
 
   const isEmpty = jobs.length === 0

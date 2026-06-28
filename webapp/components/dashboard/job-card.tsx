@@ -95,7 +95,7 @@ export function JobCard({ job }: { job: JobCardData }) {
           )}
           {job.location && (
             <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
-              <MapPin className="size-4 shrink-0 opacity-70" />
+              <MapPin className="size-4 shrink-0 text-foreground/70" strokeWidth={2.5} />
               <span className="min-w-0 truncate">{job.location}</span>
             </div>
           )}
@@ -106,10 +106,10 @@ export function JobCard({ job }: { job: JobCardData }) {
           right) so the card closes on a second axis instead of one flat left column. mt-auto
           floats it to the foot, keeping a row of equal-height cards aligned. */}
       <div className="mt-auto flex items-center justify-between gap-2 pt-4 text-[11.5px] text-muted-foreground/70">
-        {/* Source gets a warm amber (a text-dark shade of the `sun` accent) — the system's
-            one non-fern note. It separates the origin from the gray timestamp beside it
-            without pulling rank on the green salary above. */}
-        <span className="flex min-w-0 items-center gap-1.5 text-[oklch(0.48_0.11_85)]">
+        {/* Source (the site the job came from — Greenhouse, LinkedIn, …) carries the brand's
+            primary fern, so the origin reads as a first-class, branded detail next to the
+            gray timestamp beside it. */}
+        <span className="flex min-w-0 items-center gap-1.5 font-medium text-primary">
           {site && (
             <>
               <Globe className="size-3 shrink-0" />

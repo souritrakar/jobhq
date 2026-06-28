@@ -24,7 +24,7 @@ const INLINE_SAFE_TYPES = new Set(["application/pdf"])
  * standard error JSON.
  */
 export const GET = withRoute(async (req: NextRequest, { params }: Ctx) => {
-  const userId = getUserId(req)
+  const userId = await getUserId(req)
   const { id } = await params
   const { body, contentType, fileName } = await getDocumentContent(userId, id)
 

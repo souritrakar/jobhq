@@ -41,8 +41,14 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${googleSans.variable} h-full antialiased`}
+      // Browser extensions (password managers, recorders, one-sec, etc.) inject attributes onto
+      // <html>/<body> before React hydrates, which otherwise throws a hydration-mismatch overlay
+      // on every full page load (e.g. the hard navigation after sign-out). Standard Next.js fix.
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }

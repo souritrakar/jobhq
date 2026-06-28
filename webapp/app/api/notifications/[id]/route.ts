@@ -7,7 +7,7 @@ import { markRead } from "@/lib/server/notifications"
 type Ctx = { params: Promise<{ id: string }> }
 
 export const PATCH = withRoute(async (req: NextRequest, { params }: Ctx) => {
-  const userId = getUserId(req)
+  const userId = await getUserId(req)
   const { id } = await params
   await markRead(userId, id)
   return ok({ id })

@@ -9,7 +9,7 @@ type Ctx = { params: Promise<{ id: string }> }
 
 // PATCH /api/reminders/:id — toggle done, edit text, or change/clear the due date.
 export const PATCH = withRoute(async (req: NextRequest, { params }: Ctx) => {
-  const userId = getUserId(req)
+  const userId = await getUserId(req)
   const { id } = await params
   const input = updateReminderSchema.parse(await req.json())
   return ok(await updateReminder(userId, id, input))
@@ -17,7 +17,7 @@ export const PATCH = withRoute(async (req: NextRequest, { params }: Ctx) => {
 
 // DELETE /api/reminders/:id — remove a reminder.
 export const DELETE = withRoute(async (req: NextRequest, { params }: Ctx) => {
-  const userId = getUserId(req)
+  const userId = await getUserId(req)
   const { id } = await params
   await deleteReminder(userId, id)
   return ok({ id, deleted: true })

@@ -38,6 +38,7 @@ export async function extractApplication(
     result = await groqChat(buildApplicationMessages(input.text), {
       model: env.GROQ_MODEL,
       maxTokens: 6000,
+      reasoningEffort: "low",
     })
   } catch (err) {
     await logExtraction({
@@ -55,6 +56,12 @@ export async function extractApplication(
   }
 
   const { questions } = normalizeApplicationQuestions(result.content)
+
+  if (result.usage.cachedInputTokens > 0) {
+    console.log(
+      `[application-extractions] prompt cache hit: ${result.usage.cachedInputTokens}/${result.usage.inputTokens} input tokens reused`,
+    )
+  }
 
   await logExtraction({
     userId,

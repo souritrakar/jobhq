@@ -27,6 +27,18 @@ export function documentUrl(id: string): string {
   return `/api/documents/${id}/raw`
 }
 
+// Ceiling for a one-time legacy parse so it can never hang a request waiting on the text (a healthy
+// parse is sub-second). Resolves to null past this — the work is abandoned, not awaited.
+const DOCUMENT_PARSE_TIMEOUT_MS = 15_000
+
+/** Resolve to the promise's value, or null if it doesn't settle within `ms`. */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+  ])
+}
+
 // Every Document column EXCEPT the heavy `extractedText` — the shape lists/serializers use. Read
 // via an explicit `select` (not `omit`, which this Prisma client build doesn't accept) so a list
 // never drags ~12 KB of parsed text per row out of the database.
@@ -170,12 +182,22 @@ export async function getDocumentText(
   } catch {
     return null
   }
-  const { text, status } = await deriveDocumentText(body, doc.fileName, doc.mimeType)
+  // Bound the parse: a pathological document must never hang the caller (e.g. the cover-letter
+  // stream waits on this before it can start). On timeout we skip the backfill and resolve to null
+  // so the caller degrades to a less-personalized result instead of stalling forever.
+  const parsed = await withTimeout(
+    deriveDocumentText(body, doc.fileName, doc.mimeType),
+    DOCUMENT_PARSE_TIMEOUT_MS,
+  )
+  if (!parsed) {
+    console.error(`[documents] text extraction timed out for ${doc.fileName} (${id})`)
+    return null
+  }
   await prisma.document.update({
     where: { id },
-    data: { extractedText: text, textStatus: status, extractedAt: new Date() },
+    data: { extractedText: parsed.text, textStatus: parsed.status, extractedAt: new Date() },
   })
-  return text
+  return parsed.text
 }
 
 /** Fetch a document's bytes (for the raw/download route). Scoped to the owner. */

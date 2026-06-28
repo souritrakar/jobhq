@@ -22,13 +22,16 @@ import {
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { Avatar } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Logo } from "@/components/landing/logo"
 import { SidebarItem } from "@/components/dashboard/sidebar-item"
 import { ImportJobDialog } from "@/components/dashboard/import-job-dialog"
 import { NotificationsBell } from "@/components/dashboard/notifications-bell"
+import { UserMenu } from "@/components/dashboard/user-menu"
 import type { NotificationDto } from "@/lib/notifications/types"
+
+/** The signed-in user's display fields, threaded from the dashboard layout's session read. */
+export type ShellUser = { name: string; email: string }
 
 const NAV = [
   { href: "/dashboard", label: "Home", icon: House },
@@ -46,9 +49,13 @@ const RESUME_NAV = [
   { href: "/dashboard/resume/agent", label: "AI Resume Agent", icon: Bot },
 ] as const
 
-const USER = { name: "Souritra Kar", email: "souritra.kar@gmail.com" }
-
-function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
+function NavLinks({
+  onNavigate,
+  reminderCount,
+}: {
+  onNavigate?: () => void
+  reminderCount: number
+}) {
   const pathname = usePathname()
   return (
     <nav className="flex flex-col gap-0.5">
@@ -59,6 +66,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
           label={label}
           icon={icon}
           active={href === "/dashboard" ? pathname === href : pathname.startsWith(href)}
+          alertCount={href === "/dashboard/reminders" ? reminderCount : undefined}
           onNavigate={onNavigate}
         />
       ))}
@@ -119,10 +127,12 @@ function SidebarBody({
   onNavigate,
   initialNotifications,
   initialUnread,
+  openReminders,
 }: {
   onNavigate?: () => void
   initialNotifications: NotificationDto[]
   initialUnread: number
+  openReminders: number
 }) {
   return (
     <div className="flex h-full flex-col gap-4 p-3">
@@ -148,7 +158,7 @@ function SidebarBody({
       />
 
       <div className="flex flex-col gap-0.5">
-        <NavLinks onNavigate={onNavigate} />
+        <NavLinks onNavigate={onNavigate} reminderCount={openReminders} />
         <ResumeGroup onNavigate={onNavigate} />
       </div>
 
@@ -170,12 +180,16 @@ function SidebarBody({
 
 export function DashboardShell({
   children,
+  user,
   initialNotifications,
   initialUnread,
+  openReminders,
 }: {
   children: React.ReactNode
+  user: ShellUser
   initialNotifications: NotificationDto[]
   initialUnread: number
+  openReminders: number
 }) {
   const [open, setOpen] = useState(false)
 
@@ -186,6 +200,7 @@ export function DashboardShell({
         <SidebarBody
           initialNotifications={initialNotifications}
           initialUnread={initialUnread}
+          openReminders={openReminders}
         />
       </aside>
 
@@ -193,18 +208,14 @@ export function DashboardShell({
       <header className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-background/80 px-4 py-3 backdrop-blur md:hidden">
         <Logo />
         <div className="flex items-center gap-1.5">
-          <Button asChild variant="ghost" size="icon" aria-label="Help and docs">
-            <Link href="/dashboard/settings">
-              <BookOpen className="size-[18px]" />
-            </Link>
-          </Button>
           <Link
             href="/dashboard/settings"
-            aria-label={`${USER.name} profile`}
-            className="grid size-9 cursor-pointer place-items-center rounded-full focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            aria-label="Help and docs"
+            className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}
           >
-            <Avatar name={USER.name} className="size-8 ring-1 ring-border" />
+            <BookOpen className="size-[18px]" />
           </Link>
+          <UserMenu name={user.name} email={user.email} />
           <Button
             variant="ghost"
             size="icon"
@@ -234,6 +245,7 @@ export function DashboardShell({
               onNavigate={() => setOpen(false)}
               initialNotifications={initialNotifications}
               initialUnread={initialUnread}
+              openReminders={openReminders}
             />
           </div>
         </div>
@@ -243,23 +255,17 @@ export function DashboardShell({
         {/* Desktop utility icons: float at the far top-right corner — no bar, no border,
             so the page content keeps its original position. */}
         <div className="absolute right-5 top-6 z-20 hidden items-center gap-1.5 sm:right-8 md:flex">
-          <Button
-            asChild
-            variant="ghost"
-            size="icon"
-            className="cursor-pointer text-muted-foreground transition-all duration-200 hover:-translate-y-0.5 hover:text-foreground"
-          >
-            <Link href="/dashboard/settings" aria-label="Help and docs">
-              <BookOpen className="size-[18px]" />
-            </Link>
-          </Button>
           <Link
             href="/dashboard/settings"
-            aria-label={`${USER.name} profile`}
-            className="grid size-9 cursor-pointer place-items-center rounded-full transition-all duration-200 hover:-translate-y-0.5 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            aria-label="Help and docs"
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "icon" }),
+              "cursor-pointer text-muted-foreground transition-all duration-200 hover:-translate-y-0.5 hover:text-foreground",
+            )}
           >
-            <Avatar name={USER.name} className="size-8 ring-1 ring-border" />
+            <BookOpen className="size-[18px]" />
           </Link>
+          <UserMenu name={user.name} email={user.email} />
         </div>
         <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8">{children}</div>
       </main>

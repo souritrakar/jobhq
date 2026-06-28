@@ -20,25 +20,36 @@ const envSchema = z.object({
   // extension). Extension origins look like `chrome-extension://<id>`.
   ALLOWED_ORIGINS: z.string().optional(),
 
-  // TEMPORARY: until real auth (Clerk) is wired up, requests without an
-  // `x-user-id` header fall back to this seeded dev user so CRUD can be tested.
-  // Remove once auth middleware lands. See lib/auth/current-user.ts.
+  // Neon Auth (Better Auth) powers the webapp's authentication (see docs/AUTH.md).
+  //   NEON_AUTH_BASE_URL       — the branch's Auth URL (Console → Branch → Auth → Configuration).
+  //   NEON_AUTH_COOKIE_SECRET  — >=32-char secret signing the session cookie (openssl rand -base64 32).
+  // Both are server-only; the client SDK talks to the same-origin /api/auth proxy. Optional so the
+  // app still boots without them (auth routes then error loudly when hit), keeping local non-auth
+  // workflows runnable.
+  NEON_AUTH_BASE_URL: z.string().url().optional(),
+  NEON_AUTH_COOKIE_SECRET: z.string().min(32).optional(),
+
+  // The extension's auth seam (webapp uses Neon Auth above). In non-production, API requests without
+  // a Neon Auth session fall back to the spoofable `x-user-id` header or this seeded dev user so the
+  // extension and curl can exercise CRUD. Never honored in production. See lib/auth/current-user.ts.
   DEV_USER_ID: z.string().optional(),
 
-  // Groq powers job extraction (POST /api/extract). The key lives here, server-side
-  // only — it must never be shipped in the extension bundle. A single GROQ_MODEL call
-  // reads the whole posting and returns all fields plus the cleaned description.
+  // Groq powers job extraction (POST /api/extract + /api/extract-application). The key lives
+  // here, server-side only — it must never be shipped in the extension bundle. GPT-OSS is
+  // cache-eligible on Groq, and both extraction prompts put the captured page FIRST so the
+  // page text is the shared cached prefix: the details call writes it, the application call
+  // (same posting, same DOM) reads it at 50% off — and cached tokens don't count toward TPM.
   GROQ_API_KEY: z.string().optional(),
-  GROQ_MODEL: z.string().default("llama-3.3-70b-versatile"),
+  GROQ_MODEL: z.string().default("openai/gpt-oss-20b"),
 
   // OpenRouter powers the AI cover letter (POST /api/cover-letter) — creative prose, a different
   // job from Groq's structured extraction. Server-side ONLY (never shipped to the extension/client).
   //   OPENROUTER_API_KEY        — the "sk-or-v1-…" key.
-  //   COVER_LETTER_MODEL        — primary model slug (GLM 4.7).
+  //   COVER_LETTER_MODEL        — primary model slug (Claude Haiku 4.5).
   //   COVER_LETTER_FALLBACK_MODELS — comma-separated slugs OpenRouter falls back to, in order, if
   //     the primary is unavailable (GLM 4.7 Flash → Gemini 3.1 Flash Lite). See lib/llm/openrouter.ts.
   OPENROUTER_API_KEY: z.string().optional(),
-  COVER_LETTER_MODEL: z.string().default("z-ai/glm-4.7"),
+  COVER_LETTER_MODEL: z.string().default("anthropic/claude-haiku-4.5"),
   COVER_LETTER_FALLBACK_MODELS: z
     .string()
     .default("z-ai/glm-4.7-flash,google/gemini-3.1-flash-lite"),
@@ -55,6 +66,25 @@ const envSchema = z.object({
     .string()
     .default("google/gemini-3.1-flash-lite,z-ai/glm-4.7-flash"),
   AI_DRAFT_MAX_TOKENS: z.coerce.number().int().min(128).max(4000).default(600),
+
+  // OpenRouter ALSO powers embeddings for the extension's one-click Autofill field matcher
+  // (POST /api/jobs/:id/application/autofill-match) — the only embeddings seam (lib/llm/embeddings.ts).
+  // OpenAI-compatible, so the same OPENROUTER_API_KEY above is reused; no separate OpenAI account.
+  //   EMBEDDINGS_MODEL — provider-namespaced slug; defaults to openai/text-embedding-3-small (1536-dim).
+  EMBEDDINGS_MODEL: z.string().optional(),
+
+  // Tuning knobs for the TIERED (non-LLM) extractor — the structured-data + embeddings alternative to
+  // the Groq routes (POST /api/extract/tiered + /api/extract-application/tiered; see lib/extraction/*).
+  // All have safe defaults so the feature works with no extra config; override to calibrate against
+  // real pages. Reuse the autofill MIN_SCORE (0.45) for the segment-key → field match.
+  //   TIERED_ENUM_MIN_SCORE      — cosine floor to snap a free-text employment/workplace value to the
+  //     controlled vocab (stricter — a wrong enum is a visible error; below it we drop, never guess).
+  //   TIERED_QUESTION_KEEP_FLOOR — absolute cosine floor for keeping a weak free-text form field.
+  //   TIERED_NOISE_MARGIN        — how far a weak field must beat the noise space (search/login/cookie)
+  //     to survive the inclusion gate.
+  TIERED_ENUM_MIN_SCORE: z.coerce.number().min(0).max(1).default(0.55),
+  TIERED_QUESTION_KEEP_FLOOR: z.coerce.number().min(0).max(1).default(0.3),
+  TIERED_NOISE_MARGIN: z.coerce.number().min(-1).max(1).default(0.03),
 
   // Firecrawl powers the in-app "save a job from a URL" import (POST /api/jobs/import):
   // ONE /v2/scrape call runs the structured extraction (Firecrawl's own LLM) plus the
@@ -95,6 +125,11 @@ const envSchema = z.object({
   // EMAIL_FROM must be a verified sending domain in production.
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default("JobTracker <reminders@jobtracker.app>"),
+  // TEST-MODE override: when set, EVERY outgoing email is redirected to this address regardless of
+  // the real recipient. Needed while sending from Resend's shared `onboarding@resend.dev` sandbox
+  // sender, which only delivers to the Resend account owner. Remove once a domain is verified in
+  // Resend and EMAIL_FROM points at it (then real recipients receive their own mail). See lib/email/client.ts.
+  EMAIL_OVERRIDE_TO: z.string().email().optional(),
 
   // Public base URL QStash calls back to (the worker + digest cron live here). In prod this is the
   // deployed origin; in local dev it must be a publicly reachable tunnel OR the Upstash QStash dev

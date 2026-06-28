@@ -37,6 +37,20 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       .catch((err) => sendResponse({ ok: false, error: String(err), questions: [] }));
     return true;
   }
+  // Tiered (non-LLM) extraction — the structured-data + embeddings alternative. Same response shapes
+  // as EXTRACT_JOB / EXTRACT_APPLICATION so the content script can swap which one it calls.
+  if (msg?.type === "EXTRACT_JOB_TIERED") {
+    extractJobTiered(msg.context || {})
+      .then((r) => sendResponse({ ok: true, fields: r.fields, description: r.description }))
+      .catch((err) => sendResponse({ ok: false, error: String(err), fields: {} }));
+    return true;
+  }
+  if (msg?.type === "EXTRACT_APPLICATION_TIERED") {
+    extractApplicationTiered(msg.context || {})
+      .then((r) => sendResponse({ ok: true, questions: r.questions }))
+      .catch((err) => sendResponse({ ok: false, error: String(err), questions: [] }));
+    return true;
+  }
   if (msg?.type === "SAVE_JOB") {
     saveJob(msg.job)
       .then((saved) => sendResponse({ ok: true, job: saved }))
@@ -58,6 +72,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === "DELETE_JOB") {
     deleteJob(msg.id)
       .then((jobs) => sendResponse({ ok: true, jobs }))
+      .catch((err) => sendResponse({ ok: false, error: String(err) }));
+    return true;
+  }
+  if (msg?.type === "AUTOFILL_MATCH") {
+    autofillMatch(msg.jobId, msg.fields)
+      .then((plan) => sendResponse({ ok: true, plan }))
       .catch((err) => sendResponse({ ok: false, error: String(err) }));
     return true;
   }
@@ -133,6 +153,39 @@ async function extractApplication({ text, source, url } = {}) {
   return { questions };
 }
 
+// TIERED (non-LLM) details extraction: send the page's structured signals (JSON-LD, meta, key/value
+// segments, h1) instead of raw markdown. The backend parses them deterministically and embeds only the
+// leftovers — no Groq call. Returns the same { fields, description } shape as extractJob().
+async function extractJobTiered({ signals, source, url } = {}) {
+  if (!signals) {
+    dlog("extract-tiered: SKIPPED — no signals");
+    return { fields: {} };
+  }
+  dlog("extract-tiered: POST /api/extract/tiered | source:", source, "| jsonLd:", (signals.jsonLd || []).length, "| segments:", (signals.segments || []).length);
+  const result = await apiFetch("/api/extract/tiered", {
+    method: "POST",
+    body: JSON.stringify({ signals, source, url }),
+  });
+  const fields = (result && result.fields) || {};
+  dlog("extract-tiered: got fields", fields, "| usage", result && result.usage);
+  return { fields, description: result && result.description };
+}
+
+// TIERED (non-LLM) application-question extraction: send the harvested form controls (label + kind +
+// native input type + options + required). The backend maps them to typed questions and runs an
+// embeddings inclusion gate — no Groq call. Returns the same { questions } shape as extractApplication().
+async function extractApplicationTiered({ fields, source, url } = {}) {
+  const list = Array.isArray(fields) ? fields : [];
+  dlog("extract-application-tiered: POST /api/extract-application/tiered | source:", source, "| fields:", list.length);
+  const result = await apiFetch("/api/extract-application/tiered", {
+    method: "POST",
+    body: JSON.stringify({ fields: list, source, url }),
+  });
+  const questions = (result && result.questions) || [];
+  dlog("extract-application-tiered: got", questions.length, "questions | usage", result && result.usage);
+  return { questions };
+}
+
 // Unwrap the API's `{ data }` success envelope; surface `{ error }` as a thrown Error.
 async function apiFetch(path, init) {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -201,6 +254,16 @@ async function saveJob(job) {
 async function deleteJob(id) {
   await apiFetch(`/api/jobs/${id}`, { method: "DELETE" });
   return getJobs();
+}
+
+// Autofill: send the page's harvested input fields to the backend, which semantically matches each
+// SAVED application question to its field and returns a fill plan ({ matched, unmatched }). Embeddings
+// + matching are server-side (the OpenAI key never ships in the extension). apiFetch unwraps `{ data }`.
+async function autofillMatch(jobId, fields) {
+  return apiFetch(`/api/jobs/${encodeURIComponent(jobId)}/application/autofill-match`, {
+    method: "POST",
+    body: JSON.stringify({ fields: Array.isArray(fields) ? fields : [] }),
+  });
 }
 
 // --- Reminders (shared backend; same /api/* as the web app) ----------------------------------

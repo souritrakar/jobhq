@@ -24,6 +24,7 @@ export async function fireReminder(reminderId: string): Promise<{ delivered: boo
       jobId: true,
       type: true,
       userId: true,
+      job: { select: { title: true, company: true } },
       user: { select: { id: true, email: true, notificationPreference: true } },
     },
   })
@@ -34,6 +35,7 @@ export async function fireReminder(reminderId: string): Promise<{ delivered: boo
 
   await dispatchReminderChannels({
     reminder: { id: reminder.id, title: reminder.title, jobId: reminder.jobId, type: reminder.type },
+    job: reminder.job ? { role: reminder.job.title, company: reminder.job.company } : null,
     user: { id: reminder.user.id, email: reminder.user.email },
     channels: { inApp: channels.inApp, email: channels.email },
     href,

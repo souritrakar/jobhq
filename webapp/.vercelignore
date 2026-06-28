@@ -1,0 +1,27 @@
+# Secrets / local env — NEVER upload (Vercel env vars are configured server-side).
+.env
+.env.*
+
+# Build & dependency artifacts (regenerated on Vercel; huge / irrelevant).
+node_modules
+.next
+.vercel
+out
+coverage
+
+# Local tooling / analysis caches.
+.fallow
+*.log
+*.tsbuildinfo
+
+# VCS / editor.
+.git
+.gitignore
+.DS_Store
+.vscode
+.idea
+
+# Tests & local scripts not needed at build/runtime.
+**/*.test.ts
+**/*.test.tsx
+scripts/curl

@@ -13,6 +13,7 @@ export function SidebarItem({
   icon: Icon,
   active = false,
   count,
+  alertCount,
   onNavigate,
 }: {
   href: string
@@ -21,6 +22,8 @@ export function SidebarItem({
   active?: boolean
   /** Optional trailing count (e.g. number of saved jobs). Omitted when undefined. */
   count?: number
+  /** Optional red attention badge (e.g. open reminders), styled like the notifications badge. */
+  alertCount?: number
   onNavigate?: () => void
 }) {
   return (
@@ -46,8 +49,13 @@ export function SidebarItem({
         strokeWidth={2}
       />
       <span className="flex-1 truncate">{label}</span>
-      {count !== undefined && count > 0 && (
-        <span className="text-xs tabular-nums text-muted-foreground">{count}</span>
+      {alertCount !== undefined && alertCount > 0 ? (
+        <span className="grid min-w-[18px] place-items-center rounded-full bg-destructive px-1.5 text-[10px] font-semibold leading-[18px] text-white tabular-nums">
+          {alertCount > 9 ? "9+" : alertCount}
+        </span>
+      ) : (
+        count !== undefined &&
+        count > 0 && <span className="text-xs tabular-nums text-muted-foreground">{count}</span>
       )}
     </Link>
   )

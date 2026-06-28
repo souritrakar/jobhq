@@ -15,8 +15,10 @@ and the temporary auth seam.
 Key facts that differ from defaults:
 - **Prisma 7**: connection URLs are NOT in `schema.prisma` — they live in
   `prisma.config.ts`, and the client uses the Neon driver adapter (`lib/db.ts`).
-- **Auth is a stub** (`lib/auth/current-user.ts`) trusting an `x-user-id` header
-  until Clerk is wired in. Do not treat it as secure.
+- **Auth:** the webapp uses **Neon Auth** (Better Auth) — see [`docs/AUTH.md`](docs/AUTH.md).
+  The seam is still `lib/auth/current-user.ts` (now async: `getServerUserId`/`getUserId` are
+  awaited). API routes also honor a **dev-only** `x-user-id`/`DEV_USER_ID` fallback for the
+  extension (never in production; not secure).
 - All DB access goes through `lib/server/*`, always scoped by `userId`. Never call
   Prisma from a route handler.
 

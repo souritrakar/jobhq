@@ -8,24 +8,38 @@
   </head>
   <body>
     <header class="header">
-      <span class="logo">★</span>
-      <h1>JobTracker</h1>
-      <span id="count" class="count">0</span>
+      <span class="brand">
+        <span id="brand-mark" class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">JobTracker</span>
+      </span>
+      <a id="open-dashboard" class="iconlink" title="Open dashboard" aria-label="Open dashboard"></a>
     </header>
 
     <div class="capture">
-      <button id="capture-current" class="btn-primary">
-        Save current tab as job
+      <button id="open-panel" class="btn-primary" type="button">
+        <span id="btn-ic" class="btn-ic" aria-hidden="true"></span>
+        <span class="btn-label">Save this tab</span>
       </button>
     </div>
 
-    <div id="loader" class="loader" role="status" aria-live="polite">
-      <span class="spinner" aria-hidden="true"></span>Loading saved jobs…
-    </div>
+    <section class="recent">
+      <div class="recent-head">
+        <span class="recent-title">Recent</span>
+        <span id="count" class="count">0</span>
+      </div>
 
-    <ul id="list" class="list" aria-live="polite"></ul>
-    <p id="empty" class="empty hidden">No saved jobs yet. Visit a job posting and hit
-      <strong>★ Save to JobTracker</strong>, or save the current tab above.</p>
+      <div id="loader" class="loader" role="status" aria-live="polite">
+        <span class="spinner" aria-hidden="true"></span>Loading…
+      </div>
+
+      <ul id="list" class="list" aria-live="polite"></ul>
+
+      <p id="empty" class="empty hidden">
+        No saved jobs yet. Open a posting and hit <strong>Save this tab</strong>.
+      </p>
+
+      <a id="view-all" class="view-all hidden">View all in dashboard →</a>
+    </section>
 
     <script src="popup.js"></script>
   </body>

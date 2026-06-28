@@ -18,7 +18,7 @@ export default async function CoverLetterPage({
   // chosen resume so the generator opens with both preselected.
   searchParams: Promise<{ jobId?: string; resumeId?: string }>
 }) {
-  const userId = getServerUserId()
+  const userId = await getServerUserId()
   const [{ jobId, resumeId }, jobs, resumes] = await Promise.all([
     searchParams,
     listJobs(userId, { limit: 100 }),

@@ -25,6 +25,10 @@ export type GroqUsage = {
   inputTokens: number
   outputTokens: number
   totalTokens: number
+  // Of `inputTokens`, how many were served from Groq's prompt cache (prefix reuse).
+  // Non-zero means a prior call's prompt prefix (the captured page) was reused — the
+  // second of our two extraction calls on the same posting should report this.
+  cachedInputTokens: number
 }
 
 export type GroqResult = {
@@ -35,7 +39,15 @@ export type GroqResult = {
 
 export async function groqChat(
   messages: ChatMessage[],
-  opts: { maxTokens?: number; model?: string; json?: boolean } = {},
+  opts: {
+    maxTokens?: number
+    model?: string
+    json?: boolean
+    // GPT-OSS reasoning depth. Reasoning tokens bill as output, so for structured
+    // extraction we pass "low" — it keeps the JSON deterministic and stops verbose
+    // reasoning from eating the max_tokens budget. Omitted → the model's default.
+    reasoningEffort?: "low" | "medium" | "high"
+  } = {},
 ): Promise<GroqResult> {
   if (!env.GROQ_API_KEY) {
     throw new ApiError(
@@ -54,6 +66,7 @@ export async function groqChat(
     temperature: 0,
     max_tokens: opts.maxTokens ?? 400,
     ...(useJson ? { response_format: { type: "json_object" } } : {}),
+    ...(opts.reasoningEffort ? { reasoning_effort: opts.reasoningEffort } : {}),
   })
 
   // Groq's free tier has tight per-minute token limits, so a transient 429 is common on big
@@ -96,6 +109,8 @@ export async function groqChat(
     inputTokens: Number(body?.usage?.prompt_tokens ?? 0),
     outputTokens: Number(body?.usage?.completion_tokens ?? 0),
     totalTokens: Number(body?.usage?.total_tokens ?? 0),
+    // OpenAI-compatible cache field (Groq mirrors it). Absent on non-cached models → 0.
+    cachedInputTokens: Number(body?.usage?.prompt_tokens_details?.cached_tokens ?? 0),
   }
   return { content, usage, model: body?.model ?? opts.model ?? env.GROQ_MODEL }
 }

@@ -16,7 +16,7 @@ type Ctx = { params: Promise<{ id: string }> }
 // failure (no resume selected, unreadable resume, unknown question, rate limit) comes back as the
 // standard `{ error }` envelope so the field can surface it inline.
 export const POST = withRoute(async (req: NextRequest, { params }: Ctx) => {
-  const userId = getUserId(req)
+  const userId = await getUserId(req)
   const { id } = await params
   const { questionId } = draftAnswerSchema.parse(await req.json())
   const draft = await draftApplicationAnswer(userId, id, questionId)

@@ -8,14 +8,14 @@ import { documentMimeType, uploadTitleSchema, validateDocumentFile } from "@/lib
 
 // GET /api/documents — list the current user's uploaded documents.
 export const GET = withRoute(async (req: NextRequest) => {
-  const userId = getUserId(req)
+  const userId = await getUserId(req)
   const docs = await listDocuments(userId)
   return ok(docs.map(toClientDocument))
 })
 
 // POST /api/documents — upload a document (multipart/form-data: `file`, optional `title`).
 export const POST = withRoute(async (req: NextRequest) => {
-  const userId = getUserId(req)
+  const userId = await getUserId(req)
 
   const form = await req.formData().catch(() => null)
   const file = form?.get("file")

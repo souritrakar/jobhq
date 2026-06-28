@@ -7,7 +7,7 @@ import type { ChatMessage } from "@/lib/llm/extraction"
  *
  * OpenRouter fronts many model providers behind one OpenAI-style API, which buys us two things the
  * cover letter wants:
- *   - Model fallback: we send a CHAIN (GLM 4.7 → GLM 4.7 Flash → Gemini 3.1 Flash Lite) and
+ *   - Model fallback: we send a CHAIN (Claude Haiku 4.5 → GLM 4.7 Flash → Gemini 3.1 Flash Lite) and
  *     OpenRouter routes to the first one that's available/healthy. One slug being down never
  *     fails the request. Configure via COVER_LETTER_MODEL + COVER_LETTER_FALLBACK_MODELS.
  *   - Prompt caching: the long, static system prompt is marked as a cache breakpoint

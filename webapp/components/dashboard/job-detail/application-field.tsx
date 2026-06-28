@@ -15,6 +15,7 @@ import {
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { draftAnswer } from "@/lib/application/client"
+import { decodeMultiValue, encodeMultiValue } from "@/lib/application/answer-codec"
 import { canAiDraft, FIELD_META, type StoredQuestion } from "./questions"
 
 // Free-entry types map straight onto a native input `type`, so the browser gives us the
@@ -49,11 +50,13 @@ export type ApplicationFieldProps = {
 /**
  * One application question rendered as its real, fillable control.
  *
- * Text-entry questions (the textarea + single-line typed inputs) are CONTROLLED by the parent
- * (`application-answers.tsx`): they render `value`, report edits via `onChange`, and the textarea
- * offers an AI draft (grounded in the job + the user's resume) that fills the field via `onChange`.
- * Nothing persists here — the parent batches a manual save. Choice/upload questions stay an
- * answer-ready preview (no persistence yet).
+ * Every answerable question is CONTROLLED by the parent (`application-answers.tsx`): it renders the
+ * passed `value` and reports edits via `onChange`; the parent tracks dirty state and batches a manual
+ * save. Text-entry fields (textarea + single-line typed inputs) render the value directly, and the
+ * textarea offers an AI draft (grounded in the job + the user's resume) that fills it via `onChange`.
+ * Choice fields (select/radio/checkbox/multi_select) drive their selection from `value` too —
+ * multi-value answers are JSON-encoded via `answer-codec`. Only `file` stays a preview (out of scope:
+ * not persisted).
  *
  * A single consent checkbox (a `checkbox` with no options) is special-cased: its label IS the
  * statement, so it renders as one acknowledgement row instead of a label + separate control.
@@ -67,7 +70,7 @@ export function ApplicationField({
   dirty,
 }: ApplicationFieldProps) {
   const isConsent = question.type === "checkbox" && !question.options?.length
-  if (isConsent) return <ConsentField question={question} />
+  if (isConsent) return <ConsentField question={question} value={value} onChange={onChange} dirty={dirty} />
 
   const isTextEntry = question.type === "long_text" || question.type in NATIVE_TYPE
   if (isTextEntry) {
@@ -83,10 +86,20 @@ export function ApplicationField({
     )
   }
 
-  // Choice / file fields: rendered as a preview only (not yet persisted).
+  // File: preview only — not persisted or autofilled (out of scope).
+  if (question.type === "file") {
+    return (
+      <FieldShell question={question}>
+        <FileField helpText={question.helpText} />
+      </FieldShell>
+    )
+  }
+
+  // Choice fields (select / radio / checkbox / multi_select): controlled + persisted.
   return (
     <FieldShell question={question}>
-      <ChoiceOrFileControl question={question} />
+      <ChoiceControl question={question} value={value} onChange={onChange} />
+      <FieldStatus drafting={false} error={null} dirty={dirty} />
     </FieldShell>
   )
 }
@@ -321,21 +334,29 @@ function FieldStatus({
   return null
 }
 
-/** The choice (select/radio/checkbox/multi) and file controls — preview only, not yet persisted. */
-function ChoiceOrFileControl({ question }: { question: StoredQuestion }) {
+/** The choice controls (select/radio/checkbox/multi_select), controlled by the parent's answer state. */
+function ChoiceControl({
+  question,
+  value,
+  onChange,
+}: {
+  question: StoredQuestion
+  value: string
+  onChange: (next: string) => void
+}) {
   const { type, placeholder, options } = question
 
   if (type === "select") {
     return (
       <div className="relative">
         <select
-          defaultValue=""
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
           className={cn(
             "h-9 w-full appearance-none rounded-md border border-border bg-background pl-3 pr-9 text-sm shadow-xs transition-colors",
             "text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none",
-            "[&:invalid]:text-muted-foreground",
+            value ? "" : "text-muted-foreground",
           )}
-          required
         >
           <option value="" disabled>
             {placeholder ?? "Select an option…"}
@@ -351,28 +372,51 @@ function ChoiceOrFileControl({ question }: { question: StoredQuestion }) {
     )
   }
 
-  if (type === "radio" || type === "multi_select" || type === "checkbox") {
-    const multiple = type !== "radio"
-    return <ChoiceGroup name={question.id} options={options ?? []} multiple={multiple} />
-  }
-
-  return <FileField helpText={question.helpText} />
+  // radio = single selection (stored as a plain string); checkbox/multi_select = many (JSON array).
+  const multiple = type !== "radio"
+  return (
+    <ChoiceGroup
+      name={question.id}
+      options={options ?? []}
+      multiple={multiple}
+      value={value}
+      onChange={onChange}
+    />
+  )
 }
 
 /**
- * Radio (single) or checkbox/multi-select (many) choices as selectable rows. Native inputs do
- * the state + a11y; `peer` + `has-[:checked]` style the row and a custom indicator so the
- * control reads as part of the warm-paper system, not a default OS widget.
+ * Radio (single) or checkbox/multi-select (many) choices as selectable rows, controlled by the
+ * parent. Native inputs do the state + a11y; `has-[:checked]` styles the row and a custom indicator
+ * so the control reads as part of the warm-paper system, not a default OS widget. Single answers store
+ * the chosen option string; multi answers JSON-encode the selected options via `answer-codec`.
  */
 function ChoiceGroup({
   name,
   options,
   multiple,
+  value,
+  onChange,
 }: {
   name: string
   options: string[]
   multiple: boolean
+  value: string
+  onChange: (next: string) => void
 }) {
+  const selected = multiple ? decodeMultiValue(value) : value ? [value] : []
+
+  function toggle(option: string) {
+    if (!multiple) {
+      onChange(option) // radio: replace the single selection
+      return
+    }
+    const next = selected.includes(option)
+      ? selected.filter((o) => o !== option)
+      : [...selected, option]
+    onChange(encodeMultiValue(next))
+  }
+
   return (
     <div role={multiple ? "group" : "radiogroup"} className="flex flex-col gap-1.5">
       {options.map((option) => (
@@ -384,7 +428,14 @@ function ChoiceGroup({
             "has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/30",
           )}
         >
-          <input type={multiple ? "checkbox" : "radio"} name={name} value={option} className="sr-only" />
+          <input
+            type={multiple ? "checkbox" : "radio"}
+            name={name}
+            value={option}
+            checked={selected.includes(option)}
+            onChange={() => toggle(option)}
+            className="sr-only"
+          />
           <span
             aria-hidden
             className={cn(
@@ -406,37 +457,60 @@ function ChoiceGroup({
   )
 }
 
-/** A single acknowledgement/consent question — its label is the statement to agree to. */
-function ConsentField({ question }: { question: StoredQuestion }) {
+/**
+ * A single acknowledgement/consent question — its label is the statement to agree to. Controlled by
+ * the parent: the answer is stored as "true" when checked, "" when not (a single boolean toggle, not
+ * a multi-value answer), so it round-trips through the same `{questionId, value}` save path.
+ */
+function ConsentField({
+  question,
+  value,
+  onChange,
+  dirty,
+}: {
+  question: StoredQuestion
+  value: string
+  onChange: (next: string) => void
+  dirty?: boolean
+}) {
   const id = useId()
   return (
-    <label
-      htmlFor={id}
-      className={cn(
-        "group/field flex cursor-pointer gap-3.5 rounded-lg border border-border bg-background p-3.5 transition-colors sm:gap-4",
-        "hover:border-input has-[:checked]:border-primary/60 has-[:checked]:bg-accent/40",
-        "has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/30",
-      )}
-    >
-      <input id={id} type="checkbox" className="sr-only" />
-      <span
-        aria-hidden
-        className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-[6px] border border-input text-primary-foreground transition-colors group-has-[:checked]/field:border-primary group-has-[:checked]/field:bg-primary"
+    <div>
+      <label
+        htmlFor={id}
+        className={cn(
+          "group/field flex cursor-pointer gap-3.5 rounded-lg border border-border bg-background p-3.5 transition-colors sm:gap-4",
+          "hover:border-input has-[:checked]:border-primary/60 has-[:checked]:bg-accent/40",
+          "has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/30",
+        )}
       >
-        <Check className="size-3.5 opacity-0 transition-opacity group-has-[:checked]/field:opacity-100" />
-      </span>
-      <span className="min-w-0 flex-1 text-sm leading-snug text-foreground">
-        {question.label}
-        {question.required && (
-          <span className="ml-1 text-destructive" aria-label="required">
-            *
-          </span>
-        )}
-        {question.helpText && (
-          <span className="mt-0.5 block text-[13px] text-muted-foreground">{question.helpText}</span>
-        )}
-      </span>
-    </label>
+        <input
+          id={id}
+          type="checkbox"
+          checked={value === "true"}
+          onChange={(e) => onChange(e.target.checked ? "true" : "")}
+          className="sr-only"
+        />
+        <span
+          aria-hidden
+          className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-[6px] border border-input text-primary-foreground transition-colors group-has-[:checked]/field:border-primary group-has-[:checked]/field:bg-primary"
+        >
+          <Check className="size-3.5 opacity-0 transition-opacity group-has-[:checked]/field:opacity-100" />
+        </span>
+        <span className="min-w-0 flex-1 text-sm leading-snug text-foreground">
+          {question.label}
+          {question.required && (
+            <span className="ml-1 text-destructive" aria-label="required">
+              *
+            </span>
+          )}
+          {question.helpText && (
+            <span className="mt-0.5 block text-[13px] text-muted-foreground">{question.helpText}</span>
+          )}
+        </span>
+      </label>
+      <FieldStatus drafting={false} error={null} dirty={dirty} />
+    </div>
   )
 }
 

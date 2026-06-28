@@ -42,3 +42,28 @@ export function patchJob(
 export function deleteJobRequest(id: string) {
   return send<{ id: string; deleted: true }>(id, { method: "DELETE" })
 }
+
+/**
+ * Bulk-move pipeline status for many jobs in one request (the Kanban board's batched save).
+ * Speaks the same `{ data } | { error }` envelope as the per-job helpers above.
+ *
+ * `keepalive` lets the request outlive the page during a tab-close / navigation flush — a normal
+ * fetch is killed on teardown, but a keepalive one is allowed to finish (the response isn't read
+ * in that case, since the page is already going away).
+ */
+export function patchJobStatuses(
+  changes: { id: string; status: JobStatus }[],
+  opts?: { keepalive?: boolean },
+): Promise<void> {
+  return fetch("/api/jobs", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ changes }),
+    keepalive: opts?.keepalive,
+  }).then(async (res) => {
+    if (!res.ok) {
+      const body = (await res.json().catch(() => null)) as Envelope<unknown> | null
+      throw new Error(body?.error?.message ?? "Couldn't save your changes. Try again.")
+    }
+  })
+}

@@ -5,7 +5,7 @@ import { getUserId } from "@/lib/auth/current-user"
 import { listNotifications } from "@/lib/server/notifications"
 
 export const GET = withRoute(async (req: NextRequest) => {
-  const userId = getUserId(req)
+  const userId = await getUserId(req)
   return ok(await listNotifications(userId))
 })
 

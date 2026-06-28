@@ -8,6 +8,9 @@ import { cn } from "@/lib/utils"
  * A circular checkbox in the Todoist tradition: an empty ring at rest, filling with fern and a
  * check when done. Shared by the global Reminders feed and the per-job rail card so completing a
  * reminder looks and behaves the same everywhere. (There's no checkbox primitive in the kit yet.)
+ *
+ * Checked means the user *handled* it — only a manual tick fills the ring. A reminder simply having
+ * been delivered doesn't check it: it's still a to-do until you tick it off.
  */
 export function ReminderCheckbox({
   checked,

@@ -15,14 +15,18 @@ export async function sendEmail(input: {
     console.warn("[email] RESEND_API_KEY unset — skipping send to", input.to)
     return
   }
+  // TEST-MODE: redirect every email to the override address (Resend sandbox can only reach the
+  // account owner). The intended recipient is preserved in the subject so test mail stays traceable.
+  const to = env.EMAIL_OVERRIDE_TO || input.to
+  const subject = env.EMAIL_OVERRIDE_TO ? `${input.subject} [→ ${input.to}]` : input.subject
   try {
     await resend.emails.send({
       from: env.EMAIL_FROM,
-      to: input.to,
-      subject: input.subject,
+      to,
+      subject,
       html: input.html,
     })
   } catch (err) {
-    console.error("[email] send failed", input.to, err)
+    console.error("[email] send failed", to, err)
   }
 }

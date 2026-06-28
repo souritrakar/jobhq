@@ -12,7 +12,7 @@ type Ctx = { params: Promise<{ id: string }> }
 // so a whole form saves in a single request rather than one upsert per field. Returns the saved
 // values as a { questionId: value } map.
 export const PUT = withRoute(async (req: NextRequest, { params }: Ctx) => {
-  const userId = getUserId(req)
+  const userId = await getUserId(req)
   const { id } = await params
   const { answers } = saveAnswersSchema.parse(await req.json())
   const saved = await saveApplicationAnswers(userId, id, answers)

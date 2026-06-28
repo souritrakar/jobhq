@@ -19,6 +19,10 @@
   const FONT_STYLE_ID = "jobtracker-font";
   const DASHBOARD_URL = "http://localhost:3100/dashboard";
   const DASHBOARD_SAVED_URL = "http://localhost:3100/dashboard/saved";
+  // Extraction strategy. "llm" = the Groq path (POST /api/extract*); "tiered" = the non-LLM path
+  // (structured data + embeddings, POST /api/extract*/tiered). Both backends stay live — flip this one
+  // flag to A/B the cheaper/faster tiered path. Default "llm" preserves today's behavior exactly.
+  const EXTRACTION_MODE = "tiered"; // "llm" | "tiered"
   // Deep-link to a saved posting in the dashboard. The id rides along as a query param so the
   // saved page can highlight it later; on its own it lands the user on their saved jobs.
   function viewUrlFor(id) {
@@ -131,10 +135,7 @@
       // onExtractDetails runs the LLM auto-fill ONLY when the user asks (no tokens on open).
       loadDetails: () => Promise.resolve((record && record.details) || null),
       onDetailsChange: (details) => mergeJobRecord(anchorId, { details }),
-      onExtractDetails: () =>
-        scoped && scoped.text
-          ? requestExtraction(scoped)
-          : Promise.reject(new Error("Couldn't read this page's content.")),
+      onExtractDetails: () => requestExtraction(),
       // ---- Application (unchanged flow; now stored in the same anchored record) ----
       // Restores the cached questions and — for an already-saved job — the current answers, so the
       // panel shows the live values read-only (the user can copy them out). `saved` flips the form
@@ -153,116 +154,14 @@
       // User-triggered. Re-captures the page at click time so the user can open/expand the
       // actual form first. Resolves to { questions } or rejects → the modal's error/retry state.
       onExtractApplication: () => requestApplicationExtraction(),
+      // Autofill is only meaningful once the posting is saved (it fills from saved answers). Provide
+      // the hook only then; the modal shows the Autofill button when this is present (read-only view).
+      onAutofillMatch:
+        savedRec && savedRec.id ? (fields) => requestAutofillMatch(savedRec.id, fields) : null,
       onConfirm: (finalJob) => saveJob(finalJob, anchorId),
     });
   }
 
-  // ============ dev / dummy save panel (no backend, no Groq) ============
-  // Opens the exact same modal as openSavePanel, but every async hook resolves instantly with
-  // canned local data so the Details + Application UI can be designed against without hitting
-  // the backend or spending tokens. Visually triggered by the amber "flask" button.
-
-  // A small inline-SVG monogram so the header logo path is exercised without a network fetch.
-  const DUMMY_LOGO =
-    "data:image/svg+xml," +
-    encodeURIComponent(
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">' +
-        '<rect width="64" height="64" rx="14" fill="#2b6a4b"/>' +
-        '<text x="32" y="42" font-family="system-ui,sans-serif" font-size="32" font-weight="700" ' +
-        'fill="#fff" text-anchor="middle">N</text></svg>',
-    );
-
-  const DUMMY_FIELDS = {
-    title: "Senior Frontend Engineer",
-    company: "Northwind Labs",
-    location: "San Francisco, CA (Remote OK)",
-    salary: "$180K – $230K + equity",
-    employmentType: "Full-time",
-    workplaceType: "Remote",
-  };
-
-  const DUMMY_DESCRIPTION =
-    "<p>Northwind Labs builds tools that thousands of teams rely on every day. We're a small, " +
-    "senior team that ships fast and sweats the details.</p>" +
-    "<h3>What you'll do</h3><ul>" +
-    "<li>Own complex features end to end across our web app.</li>" +
-    "<li>Partner with design to turn rough ideas into polished, accessible UI.</li>" +
-    "<li>Set the bar for frontend quality, performance, and testing.</li></ul>" +
-    "<h3>What we're looking for</h3><ul>" +
-    "<li>5+ years building production React/TypeScript applications.</li>" +
-    "<li>A strong eye for interaction detail and design systems.</li>" +
-    "<li>Comfort working autonomously in a remote-first team.</li></ul>" +
-    "<p>We offer competitive pay, meaningful equity, and a genuine remote culture.</p>";
-
-  // A spread of question types so the Application renderer's every control is exercised.
-  const DUMMY_QUESTIONS = [
-    { type: "short_text", label: "Full name", required: true, placeholder: "Jane Doe" },
-    { type: "email", label: "Email", required: true, placeholder: "you@example.com" },
-    { type: "tel", label: "Phone", placeholder: "+1 555 0100" },
-    { type: "url", label: "LinkedIn / portfolio", placeholder: "https://…" },
-    { type: "number", label: "Years of experience", placeholder: "5" },
-    { type: "date", label: "Earliest start date" },
-    {
-      type: "select",
-      label: "How did you hear about us?",
-      options: ["LinkedIn", "Referral", "Job board", "Other"],
-      placeholder: "Choose one",
-    },
-    {
-      type: "radio",
-      label: "Are you authorized to work in the US?",
-      required: true,
-      options: ["Yes", "No"],
-    },
-    {
-      type: "multi_select",
-      label: "Which time zones overlap with yours?",
-      options: ["PT", "MT", "CT", "ET", "GMT"],
-    },
-    {
-      type: "long_text",
-      label: "Why do you want to work here?",
-      required: true,
-      placeholder: "Tell us a bit…",
-      helpText: "A few sentences is plenty.",
-    },
-    { type: "file", label: "Resume / CV", required: true, helpText: "PDF preferred." },
-    { type: "checkbox", label: "I agree to the candidate privacy policy.", required: true },
-  ];
-
-  function openDummySavePanel() {
-    const initial = {
-      title: "",
-      company: "",
-      location: "",
-      salary: "",
-      employmentType: "",
-      workplaceType: "",
-      url: "https://example.com/jobs/senior-frontend-engineer",
-      description: "",
-      source: "example.com",
-      logoUrl: DUMMY_LOGO,
-      skills: ["React", "TypeScript", "GraphQL", "Design Systems"],
-    };
-    UI.modal.open(initial, {
-      dashboardUrl: DASHBOARD_URL,
-      savedJob: null,
-      // Every hook resolves instantly with canned data — no worker message, no Groq. Both
-      // extractions start blank (user-triggered) so the dev panel mirrors the real flow.
-      loadDetails: () => Promise.resolve(null),
-      onDetailsChange: () => {},
-      onExtractDetails: () => Promise.resolve({ fields: DUMMY_FIELDS, description: DUMMY_DESCRIPTION }),
-      loadApplication: () => Promise.resolve(null),
-      onApplicationExtracted: () => {},
-      onExtractApplication: () => Promise.resolve({ questions: DUMMY_QUESTIONS }),
-      // No real save: flip the dev button to its confirmed state and resolve a view link so the
-      // success view's "View in dashboard" CTA works.
-      onConfirm: () => {
-        UI.devButton.setState("saved");
-        return Promise.resolve({ viewUrl: DASHBOARD_URL });
-      },
-    });
-  }
 
   // ---- per-posting record store (path-prefix anchored) ----
 
@@ -277,9 +176,17 @@
     }
   }
 
-  // Candidate ids for a page, deepest first: the page itself, then each shallower ancestor path
-  // down to (but not including) the bare host — so siblings never collide, but a sub-page finds
-  // its parent. "host/jobs/123/apply" → ["host/jobs/123/apply", "host/jobs/123", "host/jobs"].
+  // A trailing path segment that means "the application step OF the posting above it", so the
+  // job page and its apply page should share ONE record (e.g. Ashby `/{org}/{id}/application`).
+  const APPLY_STEP = /^(apply|application|apply-now)$/i;
+
+  // Candidate ids for a page, deepest first: the page itself, and — ONLY when the trailing
+  // segment is a known apply step — its immediate parent, so a job page and its /apply step
+  // share one record. We deliberately do NOT climb to arbitrary shallower ancestors: a shared
+  // container like a company's board ("host/{org}") is an ancestor of EVERY posting under it,
+  // so climbing there made one saved posting mark all its siblings as saved (the tick showed on
+  // postings the user never extracted). "host/{org}/123" → ["host/{org}/123"];
+  // "host/{org}/123/application" → ["host/{org}/123/application", "host/{org}/123"].
   function candidateIds(url) {
     const id = pageId(url);
     const slash = id.indexOf("/");
@@ -287,8 +194,10 @@
     const host = id.slice(0, slash);
     const segs = id.slice(slash + 1).split("/").filter(Boolean);
     if (!segs.length) return [host];
-    const out = [];
-    for (let i = segs.length; i >= 1; i--) out.push(host + "/" + segs.slice(0, i).join("/"));
+    const out = [host + "/" + segs.join("/")]; // the page itself
+    if (segs.length >= 2 && APPLY_STEP.test(segs[segs.length - 1])) {
+      out.push(host + "/" + segs.slice(0, -1).join("/")); // its posting (one level up)
+    }
     return out;
   }
 
@@ -448,7 +357,39 @@
   // form's questions. Mirrors requestExtraction; only the message type / shape differs.
   function requestApplicationExtraction() {
     const scoped = SCOPE.scopePage ? SCOPE.scopePage() : null;
-    if (!scoped || !scoped.text) {
+    if (!scoped) {
+      return Promise.reject(new Error("Couldn't read this page's content."));
+    }
+    // Tiered path: harvest the live form controls structurally and send them (no markdown, no Groq).
+    // It reads the DOM directly, so it does NOT require scoped.text — a JS-rendered form whose markdown
+    // came back empty still has live controls to harvest. (The LLM path below needs scoped.text.)
+    if (EXTRACTION_MODE === "tiered") {
+      const harvest =
+        UI.autofill && typeof UI.autofill.harvestQuestions === "function"
+          ? UI.autofill.harvestQuestions()
+          : { fields: [] };
+      return new Promise((resolve, reject) => {
+        try {
+          chrome.runtime.sendMessage(
+            {
+              type: "EXTRACT_APPLICATION_TIERED",
+              context: { fields: harvest.fields || [], source: scoped.source, url: scoped.url },
+            },
+            (res) => {
+              if (chrome.runtime.lastError) {
+                return reject(new Error(chrome.runtime.lastError.message));
+              }
+              if (res && res.ok) resolve({ questions: res.questions || [] });
+              else reject(new Error((res && res.error) || "Extraction failed"));
+            },
+          );
+        } catch (e) {
+          reject(e);
+        }
+      });
+    }
+    // LLM path: the page markdown IS the payload, so an empty capture has nothing to send.
+    if (!scoped.text) {
       return Promise.reject(new Error("Couldn't read this page's content."));
     }
     return new Promise((resolve, reject) => {
@@ -472,21 +413,51 @@
     });
   }
 
+  // Autofill: hand the page's harvested input fields to the worker (→ backend), which semantically
+  // matches each SAVED application question to its field and returns a fill plan. The match runs
+  // server-side (embeddings + the OpenAI key stay off the extension). Resolves to { matched, unmatched }.
+  function requestAutofillMatch(jobId, fields) {
+    return new Promise((resolve, reject) => {
+      try {
+        chrome.runtime.sendMessage({ type: "AUTOFILL_MATCH", jobId, fields }, (res) => {
+          if (chrome.runtime.lastError) {
+            return reject(new Error(chrome.runtime.lastError.message));
+          }
+          if (res && res.ok) resolve(res.plan || { matched: [], unmatched: [] });
+          else reject(new Error((res && res.error) || "Autofill failed"));
+        });
+      } catch (e) {
+        reject(e);
+      }
+    });
+  }
+
   // Ask the worker (→ backend → Groq) for the structured fields and cleaned description.
-  // Rejects on any failure so the modal can fall back to manual entry; never blocks the
-  // save itself.
-  function requestExtraction(scoped) {
+  // Re-captures the page at click time (mirrors requestApplicationExtraction) so the
+  // extraction always reads the CURRENT DOM — not a snapshot frozen when the panel opened.
+  // A posting and its /apply step share one panel session, so a stale open-time capture
+  // would otherwise extract the wrong sub-page. Rejects on any failure so the modal can
+  // fall back to manual entry; never blocks the save itself.
+  function requestExtraction() {
+    const scoped = SCOPE.scopePage ? SCOPE.scopePage() : null;
+    if (!scoped || !scoped.text) {
+      return Promise.reject(new Error("Couldn't read this page's content."));
+    }
+    // Tiered path: send the page's structured signals (JSON-LD/meta/segments/h1) instead of markdown.
+    const useTiered = EXTRACTION_MODE === "tiered" && scoped.signals;
+    const message = useTiered
+      ? {
+          type: "EXTRACT_JOB_TIERED",
+          context: { signals: scoped.signals, source: scoped.source, url: scoped.url },
+        }
+      : {
+          type: "EXTRACT_JOB",
+          context: { text: scoped.text, source: scoped.source, url: scoped.url },
+        };
     return new Promise((resolve, reject) => {
       try {
         chrome.runtime.sendMessage(
-          {
-            type: "EXTRACT_JOB",
-            context: {
-              text: scoped.text,
-              source: scoped.source,
-              url: scoped.url,
-            },
-          },
+          message,
           (res) => {
             if (chrome.runtime.lastError) {
               return reject(new Error(chrome.runtime.lastError.message));
@@ -567,8 +538,18 @@
 
   injectFont();
   UI.button.show(openSavePanel);
-  // Second, dummy-data button (no backend/Groq) for fast UI iteration.
-  if (UI.devButton && UI.devButton.show) UI.devButton.show(openDummySavePanel);
+
+  // The toolbar popup opens the panel here too, so it's reachable even where the on-page button is
+  // hidden (e.g. a framework that wipes our overlay). Respond so the popup knows the script is
+  // present and can close itself.
+  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+    if (msg && msg.type === "OPEN_SAVE_PANEL") {
+      Promise.resolve().then(() => openSavePanel()).catch(() => {});
+      sendResponse({ ok: true });
+      return true;
+    }
+    return false;
+  });
 
   // ---- per-page saved-state status light ----
   // The Save button doubles as a status light: a persistent tick whenever THIS posting is
@@ -607,7 +588,6 @@
       if (!res) return;
       if (res.id !== prevAnchor) {
         if (UI.modal && UI.modal.close) UI.modal.close();
-        if (UI.devButton && UI.devButton.setState) UI.devButton.setState("idle");
       }
       lastAnchorId = res.id;
     }, 150);

@@ -15,6 +15,8 @@
  * that carry no usable label — so malformed model output can't reach the UI.
  */
 
+import { SHARED_EXTRACTION_SYSTEM, pageBlock } from "@/lib/llm/extraction"
+
 /** Control types the UI knows how to render. `short_text` is the safe fallback. */
 export const APPLICATION_FIELD_TYPES = [
   "short_text",
@@ -56,17 +58,6 @@ export type ApplicationExtraction = { questions: ApplicationQuestion[] }
 
 const TYPES_LIST = APPLICATION_FIELD_TYPES.join(", ")
 
-const SYSTEM_PROMPT =
-  "You read a single job APPLICATION FORM and return the questions a candidate must answer, " +
-  "as JSON. The input is simplified HTML from a rendered page: <label>, <input>, <textarea>, " +
-  "<select>/<option>, radio and checkbox groups, and their surrounding text are the signal. " +
-  "Your job is to find every form field the candidate is expected to fill in and describe it " +
-  "as a structured question. Use only what the input actually shows — never invent fields, " +
-  "options, or placeholders. Ignore page navigation, the job description, marketing copy, " +
-  "cookie/consent banners, login/search boxes, and the submit/cancel buttons themselves. " +
-  "If the page contains no application form at all, return an empty questions array. " +
-  "Output JSON only, no prose."
-
 // Heavy, example-led guidance. The model is good at reading a form; we anchor the field
 // types, the placeholder vs label distinction, and how to read options/required so the
 // output renders cleanly without UI guesswork.
@@ -106,19 +97,25 @@ const EXAMPLE = `Example — given a form asking for a full name, LinkedIn URL, 
 
 export type ChatMessage = { role: "system" | "user"; content: string }
 
-/** Build the chat messages for an OpenAI-compatible chat-completions call (Groq). */
+// Build the chat messages for an OpenAI-compatible chat-completions call (Groq).
+// Page FIRST (shared cached prefix), application task SECOND. The system text and pageBlock()
+// are imported from extraction.ts so this prefix is byte-identical to the details call (see the
+// caching note there). The form-specific guidance — ignore nav/login/cookie/submit, empty array
+// when there's no form — lives here, after the page, so it never enters the shared prefix.
 export function buildApplicationMessages(text: string): ChatMessage[] {
   const user =
-    "Extract every application-form question from the page below. For each, return an object with:\n- " +
+    pageBlock(text) +
+    "\n\nFrom the page above, extract every application-form question — the fields a candidate " +
+    "must fill in. For each, return an object with:\n- " +
     FIELD_GUIDE +
     "\n\n" +
     EXAMPLE +
-    '\n\nReturn a JSON object of the form {"questions":[ ... ]} and nothing else. If there is no ' +
-    "application form on the page, return {\"questions\":[]}.\n\nPage:\n\"\"\"\n" +
-    String(text ?? "").trim() +
-    '\n"""'
+    "\n\nFind every form field the candidate is expected to fill in. Ignore page navigation, the " +
+    "job description, marketing copy, cookie/consent banners, login/search boxes, and the " +
+    'submit/cancel buttons themselves. Return a JSON object of the form {"questions":[ ... ]} and ' +
+    'nothing else. If the page has no application form, return {"questions":[]}.'
   return [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: SHARED_EXTRACTION_SYSTEM },
     { role: "user", content: user },
   ]
 }

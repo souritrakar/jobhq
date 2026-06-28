@@ -8,7 +8,7 @@ import { SavedJobsBrowser } from "@/components/dashboard/saved-jobs-browser"
 export const dynamic = "force-dynamic"
 
 export default async function SavedJobsPage() {
-  const userId = getServerUserId()
+  const userId = await getServerUserId()
   const jobs = await listJobs(userId, { limit: 100 })
 
   return <SavedJobsBrowser jobs={jobs.map(toJobCardData)} />

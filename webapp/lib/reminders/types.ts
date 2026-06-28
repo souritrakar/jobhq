@@ -14,6 +14,12 @@ export type Reminder = {
   /** ISO timestamp of when the reminder was created — drives the feed's time grouping. */
   createdAt: string
   done: boolean
+  /**
+   * ISO timestamp of when the reminder was actually *delivered* (the worker fired it: email +
+   * in-app + extension). Absent until it fires. Distinct from `done` (which is the user manually
+   * ticking it off) — a delivered-but-not-done reminder is the "Reminded" state.
+   */
+  deliveredAt?: string
   /** ISO timestamp of when the reminder is due. Absent for reminders with no due date. */
   dueAt?: string
   /** Whether `dueAt` carries a meaningful time-of-day (vs. a date-only reminder). */

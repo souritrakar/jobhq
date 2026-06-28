@@ -18,7 +18,7 @@ export const maxDuration = 120
 // as the standard `{ error }` JSON envelope (withRoute handles the throw). Once bytes start, the
 // stream just ends on an upstream error; the client treats a truncated draft as retryable.
 export const POST = withRoute(async (req: NextRequest) => {
-  const userId = getUserId(req)
+  const userId = await getUserId(req)
   const input = generateCoverLetterSchema.parse(await req.json())
 
   const { messages, temperature, maxTokens } = await prepareCoverLetter(userId, input)

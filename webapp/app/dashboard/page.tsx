@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic"
 const RECENT_LIMIT = 12
 
 export default async function HomePage() {
-  const userId = getServerUserId()
+  const userId = await getServerUserId()
   const [stats, recentJobs] = await Promise.all([
     getJobStats(userId),
     listJobs(userId, { limit: RECENT_LIMIT }),

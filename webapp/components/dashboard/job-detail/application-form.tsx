@@ -1,4 +1,4 @@
-import { ClipboardList, Sparkles, Star } from "lucide-react"
+import { ClipboardList, Star } from "lucide-react"
 
 import { Card } from "@/components/ui/card"
 import { ApplicationAnswers } from "./application-answers"
@@ -75,17 +75,6 @@ export function ApplicationForm({
             hasResume={hasResume}
             initialAnswers={answers}
           />
-
-          {/* Quiet footer, not a banner — reflects what's live: manual save + AI drafting (once a
-              resume is selected). */}
-          <div className="flex items-center gap-2 border-t border-border px-5 py-3.5 text-[13px] text-muted-foreground sm:px-6">
-            <Sparkles className="size-3.5 shrink-0 text-fern-700/80" />
-            <span>
-              {hasResume
-                ? "Edits are saved when you click Save changes. Use AI draft on a long answer to write a first version from your resume."
-                : "Edits are saved when you click Save changes. Select a resume in the rail to draft long answers with AI."}
-            </span>
-          </div>
         </Card>
       )}
     </section>

@@ -89,8 +89,8 @@ export function NotificationsBell({
 
   return (
     <Menu
-      align="end"
-      panelClassName="w-80 p-0"
+      align="start"
+      panelClassName="w-80 max-w-[calc(100vw-1.5rem)] p-0"
       renderTrigger={({ open, toggle }) => (
         <button
           type="button"
@@ -183,10 +183,10 @@ function NotificationRow({
         />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="flex items-baseline justify-between gap-2">
+        <span className="flex items-start justify-between gap-2">
           <span
             className={cn(
-              "truncate text-[13px] leading-snug text-foreground",
+              "min-w-0 line-clamp-2 break-words text-[13px] leading-snug text-foreground",
               isUnread ? "font-semibold" : "font-medium",
             )}
           >

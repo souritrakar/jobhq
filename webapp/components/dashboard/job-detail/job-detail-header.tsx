@@ -86,12 +86,9 @@ export function JobDetailHeader({
         <ReminderPopover
           company={company}
           onSubmit={addReminder}
-          renderTrigger={({ open, toggle }) => (
+          renderTrigger={({ open }) => (
             <button
               type="button"
-              onClick={toggle}
-              aria-expanded={open}
-              aria-haspopup="dialog"
               className={cn(
                 buttonVariants({ variant: "outline", size: "sm" }),
                 open && "bg-muted text-foreground",

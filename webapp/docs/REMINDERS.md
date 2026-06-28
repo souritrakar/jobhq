@@ -7,6 +7,24 @@ Read [`BACKEND.md`](BACKEND.md) first for the route → validation → service �
 response envelope. The reminders **CRUD + feed** predate this; this doc covers the delivery layer
 built on top.
 
+## To-dos and reminders are the same row
+
+A `Reminder` row is a **to-do**; a **due date is the only thing that makes it a reminder.**
+
+- **`dueAt` is null → plain to-do.** Never fires. Lives only on its job's **To-do panel**
+  (`components/dashboard/job-detail/todo-panel.tsx` → `todo-card.tsx`, fed by `listJobReminders`,
+  which returns both kinds). Text-only row.
+- **`dueAt` is set → reminder.** Fires via the delivery path below, renders a bell + due label
+  (the visual "this is a reminder" cue), and surfaces on the global **Reminders page**.
+
+This split is enforced entirely by a `dueAt: { not: null }` filter on the two queries that back the
+global page — `listReminders` (the feed) and `countOpenReminders` (the sidebar badge) — so a
+dateless to-do never leaks there. The Reminders-page composer likewise requires a date before save.
+Attaching a date later ("convert a to-do into a reminder") is just a `PATCH` setting `dueAt`
+(`setReminderDue` in `lib/reminders/client.ts`); `updateReminder` schedules the delivery off the
+back of it. **No separate Todo model, no migration** — the distinction is purely the presence of a
+due date.
+
 ## Architecture at a glance
 
 ```
@@ -64,6 +82,52 @@ Exactly one caller wins `count === 1`; a QStash retry sees `count === 0` and sen
 (at-most-once per reminder). Channel sends after the claim are best-effort (logged, not rolled
 back).
 
+## Surfacing delivery in the UI: a reminder is a to-do
+
+`done` and `deliveredAt` are **independent**, and only `done` resolves a reminder:
+
+- `done` — the user manually ticked the reminder off (the round checkbox). **The only thing that
+  closes a reminder.**
+- `deliveredAt` — the worker fired it (email + in-app + extension notification went out). Firing is
+  a *nudge*, not a completion: being reminded ≠ having handled the thing, so it **does not** tick the
+  reminder, strike it through, or remove it from the open/overdue/badge counts.
+
+So the list UI has just **two** states, computed by the shared helpers in
+[`lib/reminders/status.ts`](../lib/reminders/status.ts) (`isComplete`/`isOpen`, both `done`-only)
+and used by the global feed, the per-job rail card, and the sidebar badge:
+
+| State | Predicate | UI |
+| --- | --- | --- |
+| **Open** | `!done` | live to-do: empty checkbox, urgency colour, due/overdue chip — *even after it has fired* |
+| **Done** | `done` | checked (solid fern) + strike-through |
+
+This is deliberate: a fired-but-unticked reminder stays a visible, actionable, still-overdue to-do
+until the user ticks it. The **Reminders sidebar** red badge counts every open reminder
+(`countOpenReminders`: `done = false`), fired or not.
+
+### Overdue rendering (consistent across surfaces)
+
+"Overdue" is a *subset* of open: `isOpen(r) && isOverdue(r.dueAt, r.hasTime)` (`lib/dates.ts`).
+`isOverdue` is time-aware — a timed reminder ("due 2pm") goes overdue at 2:01pm, while a date-only
+reminder only falls overdue once its whole day has passed. A reminder with no due date is never
+overdue.
+
+Overdue gets the same loud treatment everywhere so a missed follow-up reads as "act now", not faint
+red text:
+
+- **Global feed** (`reminders-feed.tsx` `DueChip`) and the **per-job card** (`job-detail/reminders-card.tsx`)
+  both render overdue as a filled `bg-destructive/10` pill with a `TriangleAlert` icon and a
+  `dueDisplay(...)` label ("Yesterday", "2 days overdue", "45 min overdue").
+- **Headers/badges:** the global feed header shows a red "N overdue" count; the per-job
+  **Reminders panel** header (`job-detail/reminders-panel.tsx`) mirrors it — a red "N overdue" pill
+  that takes precedence over the neutral "N open" pill.
+
+`deliveredAt` still rides the `Reminder` DTO (`toClientReminder`) and is used as *informational*
+context — **not** a completion signal — on the job page's **Interview** control, which reads the
+SYSTEM interview reminder to swap its sub-label: "We'll remind you 24h before" → "We reminded you ·
+<when>" (fired) → "Reminder done." (ticked), with a "This interview has passed." fallback once the
+interview datetime is in the past and nothing has fired.
+
 ## Channels (`lib/server/notification-dispatch.ts`)
 
 Resolved per user via `resolveChannels(prefs)` — with no `NotificationPreference` row (the current
@@ -74,7 +138,11 @@ state), **all channels default on**.
   escaped and hrefs are restricted to `http(s)`.
 - **In-app** — a `Notification` row (`lib/server/notifications.ts`), surfaced by the dashboard bell.
 - **Extension** — delivered **locally**, not from the server (see below).
-- Copy is shared/templated (`lib/reminders/copy.ts`); no LLM anywhere in reminders.
+- Copy is shared/templated (`lib/reminders/copy.ts`); no LLM anywhere in reminders. A fired
+  individual reminder emails with subject `REMINDER : <reminder text>`; the body keeps the reminder
+  text as the bold heading, then — when the reminder is tied to a job — names the **role at company**,
+  followed by a short friendly nudge. The job's role/company are fetched in `reminder-delivery.ts`
+  and threaded through `ReminderDispatchContext.job`. The same body is reused for the in-app channel.
 
 ## System-generated reminders (`lib/server/system-reminders.ts`)
 

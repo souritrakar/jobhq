@@ -39,15 +39,30 @@ export function toClientReminder(row: ReminderRow): Reminder {
     type: row.type === "SYSTEM" ? "system" : "user",
     createdAt: row.createdAt.toISOString(),
     done: row.done,
+    ...(row.deliveredAt ? { deliveredAt: row.deliveredAt.toISOString() } : {}),
     ...(row.dueAt ? { dueAt: row.dueAt.toISOString(), hasTime: row.hasTime } : {}),
     ...(row.job ? { job: row.job } : {}),
   }
 }
 
-/** Every reminder for the global feed, newest first (the feed groups by createdAt). */
+/**
+ * How many open, *dated* reminders the user has — the count the sidebar's "Reminders" badge
+ * shows. A dateless row is a plain to-do (it lives only on its job's To-do panel, never fires,
+ * and never appears on the Reminders page), so it's excluded here to keep the badge in step with
+ * the page. Being *delivered* doesn't close a reminder, so this still counts fired-but-not-done.
+ */
+export async function countOpenReminders(userId: string): Promise<number> {
+  return prisma.reminder.count({ where: { userId, done: false, dueAt: { not: null } } })
+}
+
+/**
+ * Every *dated* reminder for the global feed, newest first (the feed groups by createdAt).
+ * Dateless rows are plain to-dos and deliberately excluded — they belong to their job's To-do
+ * panel only (see listJobReminders), never the Reminders page.
+ */
 export async function listReminders(userId: string): Promise<Reminder[]> {
   const rows = await prisma.reminder.findMany({
-    where: { userId },
+    where: { userId, dueAt: { not: null } },
     orderBy: { createdAt: "desc" },
     include: { job: { select: jobSelect } },
   })

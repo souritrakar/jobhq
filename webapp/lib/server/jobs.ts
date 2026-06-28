@@ -7,6 +7,7 @@ import type {
   ApplicationInput,
   ApplicationQuestionInput,
   CreateJobInput,
+  JobStatusChange,
   ListJobsQuery,
   UpdateJobInput,
 } from "@/lib/validations/job"
@@ -278,6 +279,36 @@ function applicationUpsert(
       },
     },
   }
+}
+
+/**
+ * Bulk-set the pipeline status of many jobs in one round trip — the Kanban board's batched,
+ * debounced save. Ids are grouped by their target status so each distinct stage is a single
+ * `updateMany`, and all the writes run in ONE transaction (atomic: the board never half-saves).
+ *
+ * Every write is scoped by `userId`, so ids the user doesn't own are silently skipped rather
+ * than touched — no per-id existence check needed, and `count` reflects only the rows actually
+ * moved. An empty change set is a no-op (no DB round trip at all).
+ */
+export async function updateJobStatuses(
+  userId: string,
+  changes: JobStatusChange[],
+) {
+  if (changes.length === 0) return { count: 0 }
+
+  // Group ids by target status (last write wins on a duplicate id).
+  const idsByStatus = new Map<JobStatusChange["status"], string[]>()
+  for (const { id, status } of changes) {
+    const ids = idsByStatus.get(status)
+    if (ids) ids.push(id)
+    else idsByStatus.set(status, [id])
+  }
+
+  const writes = Array.from(idsByStatus, ([status, ids]) =>
+    prisma.job.updateMany({ where: { id: { in: ids }, userId }, data: { status } }),
+  )
+  const results = await prisma.$transaction(writes)
+  return { count: results.reduce((sum, r) => sum + r.count, 0) }
 }
 
 export async function deleteJob(userId: string, id: string) {

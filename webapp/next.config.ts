@@ -1,14 +1,14 @@
 import type { NextConfig } from "next";
-import path from "node:path";
 
+// Shared design-system CSS is vendored into webapp/design-system/ (see app/globals.css),
+// so all imports stay within the webapp/ filesystem root — no Turbopack root override needed,
+// and CLI/serverless builds (upload root = webapp/) resolve them cleanly.
 const nextConfig: NextConfig = {
-  // The webapp imports shared CSS from ../design-system (a sibling of webapp/,
-  // also consumed by the Chrome extension). Turbopack treats its root as the
-  // filesystem boundary, so without this those imports "leave the filesystem
-  // root" and crash the dev server. Point the root at the jobtracker workspace.
-  turbopack: {
-    root: path.join(__dirname, ".."),
-  },
+  // unpdf (pdf.js) and mammoth are heavy, server-only document parsers. Letting Turbopack/webpack
+  // bundle unpdf makes its dynamic pdf.js import hang at runtime (the cover-letter "stuck on
+  // writing" bug — a resume PDF never finished parsing). Marking them external means Next requires
+  // them natively at runtime, the same way they resolve correctly under plain Node.
+  serverExternalPackages: ["unpdf", "mammoth"],
 };
 
 export default nextConfig;

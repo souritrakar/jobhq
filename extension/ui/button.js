@@ -16,7 +16,6 @@
 
   const HOST_ID = "jobtracker-save-host";
   const SVGNS = "http://www.w3.org/2000/svg";
-  const SAVED_REVERT_MS = 2200; // dev button only: how long its dummy tick lingers before reverting
   const TOKENS = {
     primary: "oklch(0.58 0.13 150)",
     primaryHover: "oklch(0.52 0.13 150)",
@@ -36,6 +35,36 @@
   let iconEl = null;
   let onClick = null;
 
+  // Attach our overlay to <html>, NOT <body>: that keeps it OUTSIDE the host page's React/SPA root,
+  // so a hydration/re-render that reconciles <body> can't drop it (the failure mode on Greenhouse &
+  // other React apps). mount()/isMounted() target <html>.
+  function mountTarget() { return document.documentElement || document.body; }
+  function isMounted(el) { const r = document.documentElement; return !!(el && r && r.contains(el)); }
+  function mount(el) { const r = mountTarget(); if (r && !r.contains(el)) r.appendChild(el); }
+
+  // Backstop for pages that detach us. Some frameworks (e.g. Greenhouse) replace the ENTIRE <html>
+  // node on client takeover, which orphans an observer bound to the old documentElement — so we watch
+  // the stable `document` instead and re-attach into whatever the current tree is. The check is cheap
+  // and debounced to once per frame; idempotent, so it can't loop.
+  let keepAlive = null;
+  let remountScheduled = false;
+  function remountIfDropped() {
+    remountScheduled = false;
+    if (hostEl && hostEl.style.display !== "none" && !isMounted(hostEl)) mount(hostEl);
+  }
+  function scheduleRemount() {
+    if (remountScheduled) return;
+    remountScheduled = true;
+    (root.requestAnimationFrame || setTimeout)(remountIfDropped, 0);
+  }
+  function startKeepAlive() {
+    if (keepAlive || typeof MutationObserver === "undefined") return;
+    keepAlive = new MutationObserver(scheduleRemount);
+    try { keepAlive.observe(document, { childList: true, subtree: true }); } catch (_) {}
+    // Safety net: re-check a few times in case a swap lands in an awkward gap.
+    [400, 1200, 3000].forEach((ms) => setTimeout(remountIfDropped, ms));
+  }
+
   function icon(paths) {
     const svg = document.createElementNS(SVGNS, "svg");
     svg.setAttribute("viewBox", "0 0 24 24");
@@ -50,7 +79,7 @@
   }
 
   function ensure() {
-    if (hostEl && document.body && document.body.contains(hostEl)) return;
+    if (hostEl && isMounted(hostEl)) return;
     if (!document.body) return; // non-HTML document (e.g. a standalone SVG/XML) — nothing to attach to
     hostEl = document.createElement("div");
     if (!hostEl.style) {
@@ -88,7 +117,7 @@
     btnEl.append(iconEl);
     btnEl.addEventListener("click", () => onClick && onClick());
     r.append(style, btnEl);
-    document.body.appendChild(hostEl);
+    mount(hostEl);
   }
 
   UI.button = {
@@ -97,6 +126,7 @@
       ensure();
       if (!hostEl) return; // non-injectable document — skip silently
       hostEl.style.display = "";
+      startKeepAlive(); // re-attach if the host page later drops our overlay
       this.setState("idle");
     },
     hide() {
@@ -124,93 +154,4 @@
     },
   };
 
-  // ============ Dev / dummy button ============
-  // A second pill that opens the SAME save panel but seeded entirely with local dummy data
-  // (no backend, no Groq) so the modal's Details + Application UI can be iterated on instantly.
-  // Distinguished from the real button by an amber tint + flask icon, and parked just below it.
-  const DEV_HOST_ID = "jobtracker-devsave-host";
-  const DEV_TOKENS = {
-    primary: "oklch(0.72 0.15 70)",
-    primaryHover: "oklch(0.66 0.15 70)",
-    primaryFg: "oklch(0.99 0.01 95)",
-    ring: "oklch(0.72 0.15 70)",
-    shadow: "0 4px 14px oklch(0.28 0.02 250 / 0.20)",
-  };
-  // lucide flask-conical — reads as "test / dummy / lab".
-  const DEV_ICON = {
-    flask:
-      '<path d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2"/><path d="M6.453 15h11.094"/><path d="M8.5 2h7"/>',
-    check: ICON.check,
-  };
-  const DEV_TITLES = { idle: "Save with dummy data (dev)", saved: "Filled with dummy data" };
-
-  let devHostEl = null;
-  let devBtnEl = null;
-  let devIconEl = null;
-  let devOnClick = null;
-  let devRevertTimer = null;
-
-  function devEnsure() {
-    if (devHostEl && document.body && document.body.contains(devHostEl)) return;
-    if (!document.body) return;
-    devHostEl = document.createElement("div");
-    if (!devHostEl.style) {
-      devHostEl = null;
-      return;
-    }
-    devHostEl.id = DEV_HOST_ID;
-    devHostEl.style.all = "initial";
-    const r = devHostEl.attachShadow({ mode: "open" });
-    const style = document.createElement("style");
-    // Parked one button-height + gap below the real Save button (top:90 + 36 + 8).
-    style.textContent = `
-      .fab{position:fixed;top:134px;right:16px;z-index:2147483646;
-        display:inline-flex;align-items:center;justify-content:center;
-        width:36px;height:36px;padding:0;background:${DEV_TOKENS.primary};color:${DEV_TOKENS.primaryFg};
-        border:1px dashed ${DEV_TOKENS.primaryFg};border-radius:50%;cursor:pointer;box-shadow:${DEV_TOKENS.shadow};
-        opacity:.5;transition:background .15s ease,transform .15s ease,opacity .15s ease;}
-      .fab:hover{background:${DEV_TOKENS.primaryHover};opacity:1;transform:translateY(-1px);}
-      .fab:focus-visible{outline:2px solid ${DEV_TOKENS.ring};outline-offset:2px;opacity:1;}
-      .fab:active{transform:translateY(0);}
-      .fab.saved{opacity:1;}
-      .fab svg{width:17px;height:17px;}
-      @media (prefers-reduced-motion: reduce){
-        .fab{transition:background .15s ease,opacity .15s ease;} .fab:hover{transform:none;}}
-    `;
-    devBtnEl = document.createElement("button");
-    devBtnEl.type = "button";
-    devBtnEl.className = "fab";
-    devBtnEl.setAttribute("aria-label", DEV_TITLES.idle);
-    devBtnEl.title = DEV_TITLES.idle;
-    devIconEl = icon(DEV_ICON.flask);
-    devBtnEl.append(devIconEl);
-    devBtnEl.addEventListener("click", () => devOnClick && devOnClick());
-    r.append(style, devBtnEl);
-    document.body.appendChild(devHostEl);
-  }
-
-  UI.devButton = {
-    show(handler) {
-      devOnClick = handler;
-      devEnsure();
-      if (!devHostEl) return; // non-injectable document — skip silently
-      devHostEl.style.display = "";
-      this.setState("idle");
-    },
-    hide() {
-      if (devHostEl) devHostEl.style.display = "none";
-    },
-    setState(state) {
-      if (!devBtnEl) return;
-      clearTimeout(devRevertTimer);
-      const saved = state === "saved";
-      devIconEl.innerHTML = saved ? DEV_ICON.check : DEV_ICON.flask;
-      devBtnEl.title = saved ? DEV_TITLES.saved : DEV_TITLES.idle;
-      devBtnEl.setAttribute("aria-label", saved ? DEV_TITLES.saved : DEV_TITLES.idle);
-      devBtnEl.classList.toggle("saved", saved);
-      if (saved) {
-        devRevertTimer = setTimeout(() => UI.devButton.setState("idle"), SAVED_REVERT_MS);
-      }
-    },
-  };
 })(typeof self !== "undefined" ? self : this);

@@ -26,12 +26,26 @@ export const EXTRACTION_FIELDS = [
 export type ExtractionField = (typeof EXTRACTION_FIELDS)[number]
 export type ExtractedJob = Partial<Record<ExtractionField, string>>
 
-const SYSTEM_PROMPT =
-  "You read a single job posting and return its details as JSON. The input is simplified " +
-  "HTML (tags like headings, lists, <a href>, and form fields are meaningful and may " +
-  "carry content), and may include surrounding site navigation and boilerplate. Use only " +
-  "what the input actually states — never guess, infer, or invent. For any field that is " +
-  "genuinely not present, return null. Output JSON only, no prose."
+// Prompt caching seam (Groq GPT-OSS). Both extraction prompts — this module's field reader
+// and application-extraction.ts's form reader — share this exact system text AND wrap the
+// page with the exact same pageBlock(). Render order is system → user, so the byte-identical
+// prefix is [SHARED_EXTRACTION_SYSTEM] + [pageBlock(page)]; only the task-specific instructions
+// after the page differ. That makes the captured page the *shared cached prefix*: the details
+// call writes it, and the application call on the same posting reads it cheaply. Keep this
+// string and pageBlock() identical across both modules — any drift breaks the cache.
+export const SHARED_EXTRACTION_SYSTEM =
+  "You read a single job posting page and return structured data as JSON. The input is " +
+  "simplified markdown converted from a rendered web page: headings, lists, and link text " +
+  "carry content, and form controls are encoded as compact markers — [text], [long text], " +
+  "[dropdown: a | b], (radio), (checkbox), [image: …]. The page may include surrounding site " +
+  "navigation and boilerplate. Use only what the input actually states — never guess, infer, " +
+  "or invent. For anything genuinely not present, use null (or an empty result). Output JSON " +
+  "only, no prose."
+
+/** Wrap the captured page identically for both prompts — this is the cached prefix. */
+export function pageBlock(text: string): string {
+  return 'Job posting page:\n"""\n' + String(text ?? "").trim() + '\n"""'
+}
 
 const FIELD_GUIDE = [
   'title: the role title only (e.g. "Senior Backend Engineer"), not the company or a tagline.',
@@ -45,18 +59,19 @@ const FIELD_GUIDE = [
 
 export type ChatMessage = { role: "system" | "user"; content: string }
 
-/** Build the chat messages for an OpenAI-compatible chat-completions call (Groq). */
+// Build the chat messages for an OpenAI-compatible chat-completions call (Groq).
+// The page goes FIRST (shared cached prefix), the field task SECOND — see the caching note
+// on SHARED_EXTRACTION_SYSTEM above.
 export function buildExtractionMessages(text: string): ChatMessage[] {
   const user =
-    "Extract the following fields from the job posting below:\n- " +
+    pageBlock(text) +
+    "\n\nFrom the page above, extract the following fields:\n- " +
     FIELD_GUIDE +
     "\n\nReturn a JSON object with exactly these keys: " +
     EXTRACTION_FIELDS.join(", ") +
-    " (value null when absent).\n\nJob posting:\n\"\"\"\n" +
-    String(text ?? "").trim() +
-    '\n"""'
+    " (value null when absent)."
   return [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: SHARED_EXTRACTION_SYSTEM },
     { role: "user", content: user },
   ]
 }

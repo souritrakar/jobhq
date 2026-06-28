@@ -8,7 +8,7 @@ type Ctx = { params: Promise<{ id: string }> }
 
 // DELETE /api/documents/:id — remove a document (metadata + stored bytes).
 export const DELETE = withRoute(async (req: NextRequest, { params }: Ctx) => {
-  const userId = getUserId(req)
+  const userId = await getUserId(req)
   const { id } = await params
   await deleteDocument(userId, id)
   return ok({ id, deleted: true })
