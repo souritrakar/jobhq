@@ -868,6 +868,9 @@
     // Element → field-id map so capture v2 can stamp the SAME q<N> ids into its block doc.
     // Group members all map to the group's one id (the block doc emits one field block per group).
     const controlIds = new WeakMap();
+    // Field-id → the live element(s) the question spans. The on-page picker anchors its badge
+    // to the bounding box of this set (group = all members; cluster = its option buttons).
+    const anchors = new Map();
 
     // Phase 1: custom option-button clusters → a single-choice question (same detection as autofill).
     const consumedContainers = [];
@@ -903,7 +906,9 @@
       if (!label) continue;
       live.forEach((o) => consumedOpt.add(o));
       consumedContainers.push(container);
-      fields.push({ id: nextQid(), label, kind: "radio", options: live.map((el) => textOf(el)).slice(0, MAX_OPTIONS) });
+      const cf = { id: nextQid(), label, kind: "radio", options: live.map((el) => textOf(el)).slice(0, MAX_OPTIONS) };
+      fields.push(cf);
+      anchors.set(cf.id, live.slice());
     }
     const inConsumed = (el) => consumedContainers.some((c) => c.contains(el));
 
@@ -931,6 +936,7 @@
       if (inputs.some((i) => i.required)) f.required = true;
       fields.push(f);
       inputs.forEach((i) => controlIds.set(i, f.id));
+      anchors.set(f.id, inputs.slice());
       inputs.forEach((i) => consumed.add(i));
     };
     for (const [, inputs] of radiosByName) if (inputs.length) emitGroup(inputs, "radio");
@@ -953,6 +959,7 @@
       }
       if (!kind) continue;
       const f = { id: nextQid(), label: labelForControl(el), kind };
+      if (el.tagName === "SELECT" && el.multiple) f.multiple = true; // → multi_select downstream
       if (inputType) f.inputType = inputType;
       if (options && options.length) f.options = options;
       if (el.required) f.required = true;
@@ -960,12 +967,13 @@
       if (ph && ph.trim()) f.placeholder = cap(ph);
       fields.push(f);
       controlIds.set(el, f.id);
+      anchors.set(f.id, [el]);
     }
 
     const cleaned = fields.filter((f) => f.label && f.label.trim()).slice(0, MAX_FIELDS);
-    // controlIds may still map elements whose fields were dropped by the label filter above —
-    // capture resolves ids against the CLEANED field list, so those fall back to legacy markers.
-    return { fields: cleaned, total: cleaned.length, controlIds };
+    // controlIds/anchors may still reference dropped (unlabelled) ids — consumers resolve
+    // against the CLEANED field list, so those entries are simply never read.
+    return { fields: cleaned, total: cleaned.length, controlIds, anchors };
   }
 
   UI.autofill = {
