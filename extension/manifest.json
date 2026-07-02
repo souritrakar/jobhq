@@ -33,6 +33,7 @@
         "lib/question-mapper.js",
         "ui/button.js",
         "ui/application.js",
+        "ui/field-picker.js",
         "ui/modal.js",
         "ui/reminders.js",
         "vendor/readability.bundle.js",
