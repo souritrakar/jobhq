@@ -124,6 +124,20 @@
       source: (scoped && scoped.source) || hostname(),
       logoUrl: "",
     };
+    // ---- on-page field picker (deterministic question capture) ----
+    // State for this panel session: the tracked questions (seeded from the anchored record —
+    // cached picks/extractions or the saved job's server copy) and the modal tray handle.
+    const MAPPER = JT.questionMapper;
+    let applicationApi = null;
+    let pickedQuestions = record && Array.isArray(record.questions) ? record.questions.slice() : [];
+    const savedView = !!(record && record.saved && record.saved.id);
+    const trayViewOpts = () =>
+      savedView ? { answers: (record && record.answers) || {}, readOnly: true } : undefined;
+    const persistPicked = () => mergeJobRecord(anchorId, { questions: pickedQuestions });
+    const refreshTray = () => {
+      if (applicationApi) applicationApi.setQuestions(pickedQuestions, trayViewOpts());
+    };
+
     // If this posting has already been saved (persisted per anchor), the panel opens straight
     // into its "already tracked" state — primary action becomes "View in dashboard".
     const savedRec = record && record.saved;
@@ -151,16 +165,45 @@
               }
             : null,
         ),
-      onApplicationExtracted: (questions) => mergeJobRecord(anchorId, { questions }),
-      // User-triggered. Re-captures the page at click time so the user can open/expand the
-      // actual form first. Resolves to { questions } or rejects → the modal's error/retry state.
-      onExtractApplication: () => requestApplicationExtraction(),
+      onApplicationExtracted: (questions) => {
+        // Flag toggles re-persist through this same hook (renderAppResult calls it).
+        pickedQuestions = questions;
+        mergeJobRecord(anchorId, { questions });
+      },
+      // REVERT(LLM extraction): restore the line below to bring back extract-on-demand.
+      // onExtractApplication: () => requestApplicationExtraction(),
+      onApplicationReady: (api) => {
+        applicationApi = api;
+      },
+      onClose: () => {
+        if (UI.picker) UI.picker.deactivate();
+      },
       // Autofill is only meaningful once the posting is saved (it fills from saved answers). Provide
       // the hook only then; the modal shows the Autofill button when this is present (read-only view).
       onAutofillMatch:
         savedRec && savedRec.id ? (fields) => requestAutofillMatch(savedRec.id, fields) : null,
       onConfirm: (finalJob) => saveJob(finalJob, anchorId),
     });
+
+    // Activate the picker the moment the panel opens (bookmark click) — affordances appear
+    // immediately, pre-marked for questions already tracked for this posting.
+    if (UI.picker && MAPPER) {
+      UI.picker
+        .activate({
+          selectedKeys: pickedQuestions.map((q) => MAPPER.keyOf(q)),
+          onPick: () => {
+            pickedQuestions = MAPPER.mergePicked(pickedQuestions, UI.picker.getSelected());
+            persistPicked();
+            refreshTray();
+          },
+          onUnpick: (key) => {
+            pickedQuestions = pickedQuestions.filter((q) => MAPPER.keyOf(q) !== key);
+            persistPicked();
+            refreshTray();
+          },
+        })
+        .catch(() => {});
+    }
   }
 
 
