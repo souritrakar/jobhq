@@ -7,6 +7,6 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "jsdom",
-    include: ["lib/**/*.test.js", "ui/**/*.test.js"],
+    include: ["lib/**/*.test.js", "ui/**/*.test.js", "parsers/**/*.test.js"],
   },
 });
