@@ -86,6 +86,8 @@ Error:   `{ "error": { "code": "NOT_FOUND", "message": "...", "details"?: ... } 
 | POST   | `/api/extract-application` | `{ text, source?, url? }`   | LLM-extract application questions |
 | POST   | `/api/extract/tiered` | `{ signals: { jsonLd, meta, segments, h1?, titleHint? }, source?, url? }` | NON-LLM job fields (structured data + embeddings) |
 | POST   | `/api/extract-application/tiered` | `{ fields: [{ id, label, kind, inputType?, options?, required? }], source?, url? }` | NON-LLM application questions (DOM harvest + embeddings gate) |
+| POST   | `/api/extract/indexed` | `{ blocks, fields, source?, url? }` | INDEXED job fields (block-addressed LLM; default path) |
+| POST   | `/api/extract-application/indexed` | `{ blocks, fields, source?, url? }` | INDEXED application questions (classifies harvested DOM controls) |
 | POST   | `/api/jobs/import` | `{ url, carryQuestions? }`          | Save a job from a posting URL (web app, no extension) |
 | POST   | `/api/jobs/:id/application` | `{ url }`                   | Attach a separate apply page's form to a saved job |
 | PUT    | `/api/jobs/:id/application/answers` | `{ answers: [{ questionId, value }] }` | Batch save (or clear) the changed answers |
@@ -421,6 +423,37 @@ The extension picks which to call via its `EXTRACTION_MODE` flag (default `"llm"
   DB; this is tens of vectors matched in-memory exactly like the autofill matcher. Embeddings reuse
   the single `embed()` seam (`lib/llm/embeddings.ts`, `EMBEDDINGS_MODEL`), so a swap to a local model
   is a one-file change. All thresholds are env-overridable (`TIERED_*` in `lib/env.ts`).
+
+### Indexed (block-addressed) extraction (`POST /api/extract/indexed` + `/api/extract-application/indexed`) — the default
+
+The v2 pipeline (spec: `docs/superpowers/specs/2026-07-01-indexed-extraction-design.md`). The
+extension captures the page as ORDERED, TYPED blocks (`{ i, kind, text }` — headings, paras,
+list items, table rows, `[field q<n>: …]` markers) plus the harvested form fields, and the
+model **points at content instead of regenerating it**:
+
+- **Details** (`lib/server/extractions-indexed.ts` + `lib/llm/indexed-details.ts`): one
+  OpenRouter call (`EXTRACTION_MODEL` chain, temperature 0, `json_schema`) returns small
+  values + a `descriptionRange` block pointer. The description is sliced **verbatim** from the
+  blocks (never truncated mid-sentence, never hallucinated); title/company/location/salary
+  must pass a normalized containment check against the page text or they drop to null; enums
+  validate against the existing vocab. Then the unchanged `normalizeExtractedFields` sieve.
+- **Questions** (`lib/server/application-extractions-indexed.ts` + `lib/llm/indexed-questions.ts`):
+  the model CLASSIFIES the harvested controls (include/label/type/required/helpText) and can
+  never invent one — unknown fieldIds are rejected, `options` are copied **verbatim** from the
+  DOM harvest (not in the LLM output at all), a type incompatible with the DOM kind snaps back,
+  native input types (email/tel/url/number/date) win outright, and consent/legal checkboxes
+  (privacy policy, terms, marketing) are excluded by prompt + a deterministic keyword backstop.
+  Zero harvested fields → `{ questions: [] }` with NO model call. Then the unchanged
+  `normalizeApplicationQuestions` sieve and the same `application.questions` save path.
+- **Shared cached prefix.** Both prompts open with the byte-identical `system` + block-doc
+  messages (`lib/llm/indexed-shared.ts`, `cache_control` breakpoints), so the second task on
+  the same page re-reads the page from the provider cache.
+- **Oversized pages** (est. tokens > `INDEXED_TOKEN_BUDGET`, default 24k): an outline pre-pass
+  (headings + field blocks whole, prose truncated) asks for the relevant block regions first;
+  on failure it clamps deterministically (head + all field blocks). Logged as
+  `indexed+outline:<model>`.
+- **Logging:** one `ExtractionLog` row per call, `model: "indexed:<resolved-model>"`, so cost
+  and coverage compare directly against the legacy `llm`/`semantic`/`tiered` rows.
 
 ### Import from a URL (`POST /api/jobs/import`)
 
