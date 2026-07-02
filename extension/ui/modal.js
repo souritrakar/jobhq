@@ -49,6 +49,8 @@
       '<path d="M15 4V2"/><path d="M15 16v-2"/><path d="M8 9h2"/><path d="M20 9h2"/><path d="M17.8 11.8 19 13"/><path d="M15 9h.01"/><path d="M17.8 6.2 19 5"/><path d="m3 21 9-9"/><path d="M12.2 6.2 11 5"/>',
     penLine:
       '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+    flask:
+      '<path d="M10 2v7.31l-5.7 9.87A1 1 0 0 0 5.17 21h13.66a1 1 0 0 0 .87-1.82L14 9.31V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/>',
   };
 
   let host = null;
@@ -438,6 +440,27 @@
       @media (prefers-reduced-motion: reduce){
         .panel{transition:none;}
       }
+
+      /* ---- Experiment tab (TEMPORARY: library markdown playground) ---- */
+      .exp{display:flex;flex-direction:column;gap:12px;}
+      .exp-note{font-size:12px;line-height:1.5;color:var(--ink-3);}
+      .exp-note code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;
+        background:var(--bg-sunken);padding:1px 4px;border-radius:4px;color:var(--ink-2);}
+      .exp-opts{display:flex;flex-wrap:wrap;gap:10px 14px;}
+      .exp-opt{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink);cursor:pointer;}
+      .exp-opt input{accent-color:var(--accent);width:14px;height:14px;}
+      /* Preprocessing toggle set apart from the dom-to-semantic-markdown options. */
+      .exp-opt--pre{font-weight:600;padding-right:12px;margin-right:2px;border-right:1px solid var(--line);}
+      .exp-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
+      .exp-actions .btn{flex:0 0 auto;}
+      .exp-stat{font-size:11.5px;color:var(--ink-3);font-variant-numeric:tabular-nums;}
+      .exp-statrow{display:flex;align-items:center;gap:8px;}
+      .exp-statrow .exp-stat{margin-left:auto;text-align:right;}
+      .exp-alt-label{font-size:11.5px;color:var(--ink-3);font-weight:600;}
+      .exp-out{width:100%;min-height:260px;resize:vertical;border:1px solid var(--line);border-radius:10px;
+        padding:10px 12px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;
+        line-height:1.5;color:var(--ink);background:var(--bg-sunken);white-space:pre;overflow:auto;tab-size:2;}
+      .exp-out:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent);}
     ` +
       appFormCss()
     );
@@ -764,13 +787,14 @@
     const detailsBar = el("div", { class: "dx" }, [dxBtn, dxNote]);
     dxBtn.addEventListener("click", runDetailsExtraction);
 
-    function setDetailsState(state) {
+    function setDetailsState(state, errorMsg, usage) {
       detailsExtracted = state === "done";
       dxNote.replaceChildren();
       if (state === "loading") {
         dxBtn.style.display = "none";
         dxNote.className = "finding loading dx-note";
-        dxNote.append(icon(ICON.sparkles), el("span", { text: "Reading this posting…" }));
+        const loadText = usage && usage.estimated ? `Reading this posting… (${usage.estimated} input tokens)` : "Reading this posting…";
+        dxNote.append(icon(ICON.sparkles), el("span", { text: loadText }));
         dxNote.style.display = "";
       } else if (state === "done") {
         dxBtn.style.display = "none";
@@ -778,13 +802,15 @@
         const re = el("button", { class: "dx-re", type: "button", title: "Extract again" });
         re.append(icon(ICON.refresh), el("span", { text: "Re-extract" }));
         re.addEventListener("click", runDetailsExtraction);
-        dxNote.append(icon(ICON.check), el("span", { text: "Auto-filled by AI" }), re);
+        const usageText = usage ? ` (${usage.inputTokens || 0} in, ${usage.outputTokens || 0} out)` : "";
+        dxNote.append(icon(ICON.check), el("span", { text: "Auto-filled by AI" + usageText }), re);
         dxNote.style.display = "";
       } else if (state === "error") {
         dxBtn.style.display = "";
         dxBtn.replaceChildren(icon(ICON.refresh), el("span", { text: "Try again" }));
         dxNote.className = "finding muted dx-note";
-        dxNote.append(el("span", { text: "Couldn't auto-fill — enter the details manually." }));
+        const msg = errorMsg || "Couldn't auto-fill — enter the details manually.";
+        dxNote.append(el("span", { text: msg }));
         dxNote.style.display = "";
       } else {
         // idle
@@ -1262,6 +1288,303 @@
       ]),
     );
 
+    // ---- Experiment pane (⚠️ TEMPORARY) --------------------------------------------------------
+    // Throwaway playground that runs the live page through a small markdown pipeline and downloads
+    // every artifact locally, so we can eyeball what each library produces:
+    //   0. @mozilla/readability     → (optional) strip nav/ads/boilerplate to clean article HTML
+    //   1. dom-to-semantic-markdown → page HTML becomes markdown   (the SOURCE for steps 2 & 3)
+    //   2. mdast-util-from-markdown → that markdown becomes an mdast syntax tree (JSON)
+    //   3. remark                   → that markdown is parsed + re-stringified (round-trip)
+    // Steps 2 & 3 reuse step 1's markdown (auto-producing it first if needed). Every run also
+    // downloads the artifact under a clearly-labelled filename. To remove: delete this block, drop
+    // the "exp" entry from tabDefs, delete vendor/readability.bundle.js +
+    // vendor/dom-to-semantic-markdown.bundle.js + vendor/remark-mdast.bundle.js and their manifest
+    // content_scripts entries, and drop the .exp* CSS.
+    const expOut = el("textarea", {
+      class: "exp-out",
+      readonly: "",
+      spellcheck: "false",
+      placeholder: "Run a step below — the output shows here and downloads to your browser…",
+    });
+    const expStat = el("span", { class: "exp-stat", text: "—" });
+
+    // Preprocessing: run Mozilla Readability (Firefox Reader View's extractor) on the DOM BEFORE
+    // converting to markdown. It clones the page, strips nav/ads/boilerplate, and returns just the
+    // main article HTML — usually a much cleaner markdown source. Default on; toggling re-derives.
+    const expReadabilityCb = el("input", { type: "checkbox", "data-opt": "readability" });
+    expReadabilityCb.checked = true;
+    expReadabilityCb.addEventListener("change", () => (expSourceMd = null));
+    const expReadabilityOpt = el("label", { class: "exp-opt exp-opt--pre" }, [
+      expReadabilityCb,
+      el("span", { text: "Readability cleanup (Mozilla)" }),
+    ]);
+
+    // Options for step 1 (dom-to-semantic-markdown). Changing one invalidates the cached source
+    // markdown so steps 2 & 3 re-derive from a fresh conversion.
+    const expOptDefs = [
+      { key: "extractMainContent", label: "Main content only" },
+      { key: "refifyUrls", label: "Refify URLs", checked: true },
+      { key: "enableTableColumnTracking", label: "Track table columns" },
+      { key: "includeMetaData", label: "Include metadata" },
+    ];
+    const expOptInputs = {};
+    const expOpts = el("div", { class: "exp-opts" }, [
+      expReadabilityOpt,
+      ...expOptDefs.map((o) => {
+        const input = el("input", { type: "checkbox", "data-opt": o.key });
+        if (o.checked) input.checked = true;
+        input.addEventListener("change", () => (expSourceMd = null));
+        expOptInputs[o.key] = input;
+        return el("label", { class: "exp-opt" }, [input, el("span", { text: o.label })]);
+      }),
+    ]);
+    function expReadOpts() {
+      const opts = {};
+      Object.keys(expOptInputs).forEach((k) => (opts[k] = expOptInputs[k].checked));
+      return opts;
+    }
+
+    // ---- local-download helpers (clear, collision-resistant filenames) ----
+    function expHost() {
+      return (location.hostname || "page").replace(/[^a-z0-9.-]/gi, "_");
+    }
+    function expStamp() {
+      const d = new Date();
+      const p = (n) => String(n).padStart(2, "0");
+      return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+    }
+    function expDownload(text, suffix, mime, stamp) {
+      const blob = new Blob([text], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = el("a", {
+        href: url,
+        download: `jobtracker-experiment_${expHost()}_${stamp || expStamp()}_${suffix}`,
+      });
+      (document.body || document.documentElement).appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    }
+
+    // Step 1's markdown, cached and reused by steps 2 & 3 (per the request: the mdast/remark steps
+    // consume the SAME markdown the html→markdown step produced). `expSourceNote` records HOW that
+    // markdown was produced (Readability vs full page) so the stat line can show it.
+    let expSourceMd = null;
+    let expSourceNote = "";
+
+    // Run Mozilla Readability on a CLONE of the document (it mutates what it's given) and return the
+    // extracted article HTML, or null if the page isn't article-like / the lib didn't load.
+    function expReadabilityHtml() {
+      if (!root.mozReadability || typeof root.mozReadability.Readability !== "function") {
+        throw new Error("global `mozReadability` not found — vendor/readability.bundle.js didn't load.");
+      }
+      let article = null;
+      try {
+        article = new root.mozReadability.Readability(document.cloneNode(true)).parse();
+      } catch (_) {
+        article = null;
+      }
+      return article && article.content
+        ? { html: article.content, title: article.title || "" }
+        : null;
+    }
+
+    function expMakeSource() {
+      if (!root.htmlToSMD || typeof root.htmlToSMD.convertElementToMarkdown !== "function") {
+        throw new Error("global `htmlToSMD` not found — vendor/dom-to-semantic-markdown.bundle.js didn't load.");
+      }
+      const opts = expReadOpts();
+      if (expReadabilityCb.checked) {
+        const article = expReadabilityHtml();
+        if (article) {
+          // convertHtmlToMarkdown parses the cleaned HTML string (Readability's output) itself.
+          expSourceMd = root.htmlToSMD.convertHtmlToMarkdown(article.html, opts);
+          expSourceNote = "readability ✓";
+          return expSourceMd;
+        }
+        // No article found — fall back to the full page so the pipeline still produces output.
+        expSourceMd = root.htmlToSMD.convertElementToMarkdown(document.body, opts);
+        expSourceNote = "readability: no article → full page";
+        return expSourceMd;
+      }
+      expSourceMd = root.htmlToSMD.convertElementToMarkdown(document.body, opts);
+      expSourceNote = "full page (no readability)";
+      return expSourceMd;
+    }
+    function expEnsureSource() {
+      return expSourceMd != null ? expSourceMd : expMakeSource();
+    }
+    function expRemarkLib() {
+      if (!root.markdownExperiments) {
+        throw new Error("global `markdownExperiments` not found — vendor/remark-mdast.bundle.js didn't load.");
+      }
+      return root.markdownExperiments;
+    }
+
+    // The three pipeline steps. `run()` returns the artifact text; the harness times, shows, and
+    // downloads it.
+    const expSteps = [
+      {
+        label: "1 · Page → Markdown",
+        lib: "dom-to-semantic-markdown",
+        suffix: "dom-to-semantic-markdown.md",
+        mime: "text/markdown",
+        run: () => expMakeSource(),
+      },
+      {
+        label: "2 · Markdown → mdast AST",
+        lib: "mdast-util-from-markdown",
+        suffix: "mdast-ast.json",
+        mime: "application/json",
+        run: () => JSON.stringify(expRemarkLib().fromMarkdown(expEnsureSource()), null, 2),
+      },
+      {
+        label: "3 · Markdown → remark round-trip",
+        lib: "remark",
+        suffix: "remark-roundtrip.md",
+        mime: "text/markdown",
+        run: () => String(expRemarkLib().remark().processSync(expEnsureSource())),
+      },
+    ];
+
+    function expRunStep(step, stamp) {
+      const t0 = performance.now();
+      let out;
+      try {
+        out = step.run();
+      } catch (err) {
+        expOut.value = `ERROR in ${step.lib}:\n\n` + (err && err.stack ? err.stack : String(err));
+        expStat.textContent = "error";
+        throw err;
+      }
+      const ms = Math.round(performance.now() - t0);
+      expOut.value = out;
+      expOut.scrollTop = 0;
+      // Steps 1–3 report how the shared source markdown was made; a standalone converter (capture.js)
+      // supplies its own note instead.
+      const note = step.note ? step.note() : expSourceNote;
+      const suffix = note ? ` · ${step.standalone ? "" : "src: "}${note}` : "";
+      expStat.textContent = `${step.lib} · ${out.length.toLocaleString()} chars · ${ms} ms · downloaded ✓${suffix}`;
+      expDownload(out, step.suffix, step.mime, stamp);
+      console.log(`[JobTracker:experiment:${step.lib}]\n` + out);
+      return out;
+    }
+
+    // Helper for the buttons: show a "running…" tick, then run a converter next frame.
+    function expClick(step) {
+      expStat.textContent = "running…";
+      requestAnimationFrame(() => {
+        try {
+          expRunStep(step);
+        } catch (_) {
+          /* expRunStep already surfaced it in the output */
+        }
+      });
+    }
+
+    // Standalone converter: the extension's OWN serializer (parsers/capture.js scopePage()). It is a
+    // sibling to steps 1–3, NOT part of the readability→d2m→mdast→remark chain — it runs its own
+    // deterministic DOM clean and, unlike Readability/d2m, preserves form controls as typed markers
+    // ([text], [dropdown: …], (checkbox)), which is why application questions survive here. The
+    // downloaded artifact is PURE markdown (scopePage().fullText); the object's other fields
+    // (metadata + signals) are logged to the console rather than crammed into the .md.
+    const expCaptureStep = {
+      lib: "capture.js (scopePage)",
+      suffix: "capture-scopepage.md",
+      mime: "text/markdown",
+      standalone: true,
+      note: () => "standalone serializer · options N/A",
+      run: () => {
+        const scope = root.JobTracker && root.JobTracker.scope;
+        if (!scope || typeof scope.scopePage !== "function") {
+          throw new Error("JobTracker.scope.scopePage not found — parsers/capture.js didn't load.");
+        }
+        const s = scope.scopePage();
+        // The .md gets only the markdown; the rest of scopePage()'s object goes to the console.
+        console.log("[JobTracker:experiment:capture.js] metadata", {
+          url: s.url,
+          source: s.source,
+          titleHint: s.titleHint,
+          textLength: (s.text || "").length,
+          fullTextLength: (s.fullText || "").length,
+        });
+        console.log("[JobTracker:experiment:capture.js] signals", s.signals);
+        return s.fullText || "";
+      },
+    };
+
+    const expStepBtns = expSteps.map((step) => {
+      const b = el("button", { class: "btn btn--ghost", type: "button" }, [
+        icon(ICON.flask),
+        el("span", { text: step.label }),
+      ]);
+      b.addEventListener("click", () => expClick(step));
+      return b;
+    });
+
+    // Standalone capture.js button (separate from the pipeline / Run all).
+    const expCaptureBtn = el("button", { class: "btn btn--ghost", type: "button" }, [
+      icon(ICON.text),
+      el("span", { text: "capture.js (scopePage)" }),
+    ]);
+    expCaptureBtn.addEventListener("click", () => expClick(expCaptureStep));
+
+    const expAllBtn = el("button", { class: "btn btn--primary", type: "button" }, [
+      icon(ICON.arrow),
+      el("span", { text: "Run all & download" }),
+    ]);
+    expAllBtn.addEventListener("click", () => {
+      expStat.textContent = "running all…";
+      requestAnimationFrame(() => {
+        const stamp = expStamp(); // one stamp so the 3 files sort together
+        expSourceMd = null; // force a fresh source read for a full run
+        try {
+          expSteps.forEach((step) => expRunStep(step, stamp));
+          expStat.textContent = "all 3 artifacts downloaded ✓";
+        } catch (_) {
+          /* first failing step already surfaced its error */
+        }
+      });
+    });
+
+    const expCopyBtn = el("button", { class: "btn btn--ghost", type: "button", text: "Copy output" });
+    expCopyBtn.addEventListener("click", async () => {
+      if (!expOut.value) return;
+      try {
+        await navigator.clipboard.writeText(expOut.value);
+      } catch {
+        expOut.select();
+        document.execCommand("copy");
+      }
+    });
+
+    const expNote = el("p", { class: "exp-note" }, [
+      el("span", { text: "Temporary — optionally cleans the page with " }),
+      el("code", { text: "@mozilla/readability" }),
+      el("span", { text: " first, converts to markdown with " }),
+      el("code", { text: "dom-to-semantic-markdown" }),
+      el("span", { text: ", then feeds that markdown into " }),
+      el("code", { text: "mdast-util-from-markdown" }),
+      el("span", { text: " (AST) and " }),
+      el("code", { text: "remark" }),
+      el("span", { text: " (round-trip). Every run downloads the artifact locally. Options apply to step 1." }),
+    ]);
+
+    const expAltLabel = el("span", { class: "exp-alt-label", text: "Compare our own serializer:" });
+
+    const experimentPane = el(
+      "div",
+      { class: "pane exp", id: "jt-pane-exp", role: "tabpanel", "aria-labelledby": "jt-tab-exp", hidden: "" },
+      [
+        expNote,
+        expOpts,
+        el("div", { class: "exp-actions" }, [...expStepBtns, expAllBtn]),
+        el("div", { class: "exp-actions" }, [expAltLabel, expCaptureBtn]),
+        el("div", { class: "exp-actions exp-statrow" }, [expCopyBtn, expStat]),
+        expOut,
+      ],
+    );
+
     // ---- tabs ----
     function makeTab(key, labelText, iconPaths, selected) {
       const t = el("button", {
@@ -1282,6 +1605,7 @@
       { key: "details", label: "Details", icon: ICON.text, pane: detailsPane },
       { key: "app", label: "Application", icon: ICON.clipboard, pane: appPane },
       { key: "resume", label: "Resume", icon: ICON.file, pane: resumePane },
+      { key: "exp", label: "Experiment", icon: ICON.flask, pane: experimentPane },
     ];
     tabDefs.forEach((t, i) => (t.tab = makeTab(t.key, t.label, t.icon, i === 0)));
     const tabs = el(
@@ -1308,7 +1632,7 @@
       next.tab.focus();
     });
 
-    const body = el("div", { class: "body" }, [detailsPane, appPane, resumePane]);
+    const body = el("div", { class: "body" }, [detailsPane, appPane, resumePane, experimentPane]);
 
     // ---- Details fields: fill (from extraction/restore), persist (debounced), extract on demand ----
     const edited = new Set();
@@ -1409,15 +1733,40 @@
     function runDetailsExtraction() {
       if (typeof opts.onExtractDetails !== "function") return;
       detailsInteracted = true;
+      let estimatedTokens = null;
       setDetailsState("loading");
       Promise.resolve()
         .then(() => opts.onExtractDetails())
         .then((res) => {
+          estimatedTokens = res && res.estimatedTokens;
+          // Update loading state with estimated tokens
+          if (estimatedTokens) {
+            setDetailsState("loading", null, { estimated: estimatedTokens });
+          }
           applyExtraction(res);
-          setDetailsState("done");
+          setDetailsState("done", null, res && res.usage);
+          // Adaptive UX: the capture knows an application form is on this page — surface the
+          // next step instead of waiting for the user to find the Application tab.
+          if (res && res.detected && res.detected.hasApplicationForm) {
+            const go = el("button", {
+              class: "dx-re",
+              type: "button",
+              title: "This page also has an application form — extract its questions",
+            });
+            go.append(icon(ICON.sparkles), el("span", { text: "Form detected — extract questions" }));
+            go.addEventListener("click", () => selectTab("app"));
+            dxNote.append(go);
+          }
           persistDetails();
         })
-        .catch(() => setDetailsState("error"));
+        .catch((err) => {
+          console.error("[JobTracker] Details extraction failed:", err);
+          // Capture estimated tokens from error object if present
+          const tokens = estimatedTokens || (err && err.estimatedTokens);
+          const errorMsg = err && err.message ? err.message : String(err);
+          const tokenInfo = tokens ? ` [${tokens} input tokens]` : "";
+          setDetailsState("error", errorMsg + tokenInfo);
+        });
     }
 
     // Restore a previously saved Details snapshot for this posting (incl. one anchored on a
