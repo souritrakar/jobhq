@@ -30,6 +30,7 @@
         "parsers/block-capture.js",
         "parsers/capture.js",
         "lib/field-adapters.js",
+        "lib/question-mapper.js",
         "ui/button.js",
         "ui/application.js",
         "ui/modal.js",
