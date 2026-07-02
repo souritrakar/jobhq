@@ -47,6 +47,9 @@
     "placeholder",
     "label",
     "role",
+    // capture v2: the block emitter and the live-control counter must both see
+    // contenteditable on the cleaned clone, or clone/live control order drifts.
+    "contenteditable",
   ]);
 
   // Elements that stay even when they hold no text and no children: void/replaced/
@@ -144,4 +147,5 @@
   }
 
   NS.cleanDom = { cleanDom, REMOVED_TAGS, KEPT_ATTRS, KEEP_IF_EMPTY };
-})(self);
+  if (typeof module !== "undefined" && module.exports) module.exports = NS.cleanDom;
+})(typeof self !== "undefined" ? self : globalThis);

@@ -14,7 +14,12 @@
 (function (root) {
   const NS = (root.JobTracker = root.JobTracker || {});
 
-  const TEXT_MAX = 24000; // hard cap on text sent to the model — markdown is dense, so this is plenty
+  // TEXT_MAX bounds the markdown sent to the WHOLE-PAGE LLM path (POST /api/extract) — Groq's free
+  // tier 413s past ~3.5k tokens, so this stays conservative. The SEMANTIC path (POST
+  // /api/extract/semantic) does NOT use this: it gets fullText and bounds the model context itself
+  // via section-chunked retrieval, so it never truncates and never loses information.
+  const TEXT_MAX = 6000;
+  const FULL_TEXT_MAX = 100000; // generous ceiling for the semantic path (guards only pathological pages)
   const DEBUG = true; // dev-only: log char counts (page console)
 
   function clog(...a) {
@@ -33,78 +38,93 @@
     }
   }
 
-  // Build the model input as compact MARKDOWN, not HTML. Pipeline:
-  //   live <body> → cleanDom (deterministic) → markdown serialization.
-  // cleanDom clones first, so the live page is never mutated. Markdown is dramatically more
-  // token-efficient than tag-dense HTML (~4 chars/token vs ~2) while keeping every signal the model
-  // needs — headings, link text, lists, AND form labels/inputs/options — so big ATS pages (Greenhouse)
-  // stay well under the model's per-request token limit (HTML blew past Groq's free-tier 12k TPM).
-  // Form structure is preserved: each control becomes a compact marker — [text], [long text],
-  // [dropdown: a | b], (radio), (checkbox) — so the question extractor still sees field types.
+  // ---- capture v2: block index -------------------------------------------------------------
+  // Pipeline: live <body> → cleanDom (deterministic clone; page never mutated) → block emitter
+  // (parsers/block-capture.js). One walk produces addressable, typed blocks; the legacy flat
+  // strings (`text`/`fullText`) are DERIVED from the blocks so the old paths keep working until
+  // they're deleted. Form structure is preserved as field blocks — harvested controls carry the
+  // harvest's stable q<N> id, everything else keeps the anonymous typed marker.
   //
   // NB: there is deliberately NO heuristic "main-content" (Readability) stage here. It silently
   // dropped must-have fields — e.g. the company name, which on real ATS pages lives in a header/nav
   // link Readability prunes as chrome. Don't re-add content extraction without a proven guard.
-  const HEADING = { H1: "#", H2: "##", H3: "###", H4: "####", H5: "#####", H6: "######" };
-  const BLOCK = new Set([
-    "DIV", "SECTION", "ARTICLE", "HEADER", "FOOTER", "MAIN", "P", "UL", "OL", "FIELDSET", "FORM",
-    "NAV", "ASIDE", "TABLE", "TR",
-  ]);
+  const CONTROL_SELECTOR = "input, textarea, select, [contenteditable]";
 
-  // Serialize a (cleaned) DOM node to compact markdown. Reads only; never mutates.
-  function toMarkdown(node) {
-    if (!node) return "";
-    if (node.nodeType === 3) return node.nodeValue.replace(/\s+/g, " ");
-    if (node.nodeType !== 1) return "";
-    const tag = node.tagName;
-
-    // Form controls → compact, type-preserving markers (the question extractor reads these).
-    if (tag === "INPUT") {
-      const t = (node.getAttribute("type") || "text").toLowerCase();
-      if (t === "hidden") return "";
-      const ph = node.getAttribute("placeholder");
-      if (t === "checkbox" || t === "radio") {
-        const v = node.getAttribute("value");
-        return ` (${t}${v ? ": " + v : ""})`;
-      }
-      return ` [${t}${ph ? ": " + ph : ""}]`;
-    }
-    if (tag === "TEXTAREA") {
-      const ph = node.getAttribute("placeholder");
-      return ` [long text${ph ? ": " + ph : ""}]`;
-    }
-    if (tag === "SELECT") {
-      const opts = Array.from(node.querySelectorAll("option"))
-        .map((o) => (o.textContent || "").trim())
-        .filter(Boolean);
-      return ` [dropdown: ${opts.join(" | ")}]`;
-    }
-    if (tag === "OPTION") return ""; // emitted by its <select>
-    if (tag === "IMG") { const a = node.getAttribute("alt"); return a ? `[image: ${a}] ` : ""; }
-    if (tag === "BR") return "\n";
-
-    let inner = "";
-    for (const ch of node.childNodes) inner += toMarkdown(ch);
-
-    if (HEADING[tag]) return `\n\n${HEADING[tag]} ${inner.trim()}\n`;
-    if (tag === "LI") return `\n- ${inner.trim()}`;
-    if (tag === "LABEL" || tag === "LEGEND") return `\n${inner.trim()} `;
-    if (tag === "A") return inner; // link TEXT only — href dropped (the page url is sent separately)
-    if (BLOCK.has(tag)) return `\n${inner}`;
-    return inner; // inline (span/strong/button/…): keep text, drop the tag
+  // Build the markerFor callback for a capture pass. The block emitter walks a CLEANED CLONE,
+  // so live-element identity is gone — we recover it by ORDER: the Nth control encountered in
+  // the clone (pre-order) is the Nth control in the live body. clean-dom preserves every
+  // control (KEEP_IF_EMPTY) and the contenteditable attribute (KEPT_ATTRS), so the two
+  // sequences match. Harvested controls render the rich [field q<N>: …] marker (one per GROUP —
+  // repeats suppress); everything else keeps the legacy anonymous marker.
+  function makeMarkerFor(harvest) {
+    const liveControls = Array.from(document.body.querySelectorAll(CONTROL_SELECTOR));
+    const byId = new Map(((harvest && harvest.fields) || []).map((f) => [f.id, f]));
+    const controlIds = harvest && harvest.controlIds;
+    const emitted = new Set();
+    let n = 0;
+    return function markerFor(cloneEl) {
+      const live = liveControls[n++];
+      const B = NS.blocks;
+      if (!live || !controlIds) return B.legacyMarker(cloneEl);
+      const fid = controlIds.get(live);
+      const field = fid && byId.get(fid);
+      if (!field) return B.legacyMarker(cloneEl);
+      if (emitted.has(fid)) return ""; // one field block per radio/checkbox group
+      emitted.add(fid);
+      return B.renderFieldMarker(field);
+    };
   }
 
-  function pageHtml() {
+  // Serialize the cleaned DOM to blocks, bounded by FULL_TEXT_MAX total chars.
+  function pageBlocks(harvest) {
     const cleanDom = NS.cleanDom && NS.cleanDom.cleanDom;
     const root = cleanDom ? cleanDom(document.body) : document.body;
-    const md = toMarkdown(root)
-      .replace(/[ \t]+/g, " ")
-      .replace(/ *\n */g, "\n")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim()
-      .slice(0, TEXT_MAX);
-    clog("raw body html:", document.body.innerHTML.length, "→ markdown:", md.length, "chars");
-    return md;
+    const all = NS.blocks.emitBlocks(root, { markerFor: makeMarkerFor(harvest) });
+    let total = 0;
+    const blocks = [];
+    for (const b of all) {
+      total += b.text.length;
+      if (total > FULL_TEXT_MAX) {
+        clog("block capture clamped at", FULL_TEXT_MAX, "chars —", all.length - blocks.length, "blocks dropped");
+        break;
+      }
+      blocks.push(b);
+    }
+    clog("raw body html:", document.body.innerHTML.length, "→", blocks.length, "blocks,", total, "chars");
+    return blocks;
+  }
+
+  // ---- settle gate ---------------------------------------------------------------------------
+  // Capture is click-triggered, so the page is normally rendered — but slow-hydrating SPA forms
+  // exist. Wait until readyState is complete AND the DOM has been mutation-quiet for `quietMs`,
+  // capped at `maxMs`, then capture regardless. Deterministic, cheap, no polling loops.
+  function settle({ quietMs = 300, maxMs = 2500 } = {}) {
+    return new Promise((resolve) => {
+      let done = false;
+      let quietTimer = null;
+      let obs = null;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        clearTimeout(quietTimer);
+        clearTimeout(capTimer);
+        if (obs) obs.disconnect();
+        resolve();
+      };
+      const capTimer = setTimeout(finish, maxMs);
+      const armQuiet = () => {
+        clearTimeout(quietTimer);
+        quietTimer = setTimeout(() => {
+          if (document.readyState === "complete") finish();
+          else armQuiet(); // still loading — re-arm; the cap bounds us
+        }, quietMs);
+      };
+      try {
+        obs = new MutationObserver(armQuiet);
+        obs.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+      } catch (_) {}
+      armQuiet();
+    });
   }
 
   // ---- structured signals (for the TIERED, non-LLM extractor) -------------------------------------
@@ -193,9 +213,23 @@
     };
   }
 
-  function scopePage() {
+  function scopePage(opts) {
+    // Optional harvest ({ fields, controlIds }) from UI.autofill.harvestQuestions() — when
+    // present, field blocks carry the harvest's q<N> ids (the indexed pipeline's linkage).
+    const harvest = (opts && opts.harvest) || null;
+    const blocks = pageBlocks(harvest);
+    // Legacy flat markdown, derived from the same walk (one serialization, three consumers).
+    const full = blocks.map((b) => b.text).join("\n\n").slice(0, FULL_TEXT_MAX);
     return {
-      text: pageHtml(),
+      // `blocks` — the addressable index for the INDEXED path (B<i>| lines on the backend).
+      blocks,
+      // `fields` — the harvested question descriptors that pair with the field blocks.
+      fields: (harvest && harvest.fields) || [],
+      // `text` — bounded markdown for the whole-page LLM path (kept small for Groq's 413 wall).
+      text: full.slice(0, TEXT_MAX),
+      // `fullText` — untruncated markdown for the semantic path, which bounds the model context
+      // itself via section-chunked retrieval (no upstream truncation → no information loss).
+      fullText: full,
       url: cleanHref(),
       source: hostname(),
       titleHint: (document.title || "").trim(),
@@ -205,5 +239,6 @@
     };
   }
 
-  NS.scope = { scopePage, harvestStructuredSignals };
-})(self);
+  NS.scope = { scopePage, harvestStructuredSignals, settle };
+  if (typeof module !== "undefined" && module.exports) module.exports = NS.scope;
+})(typeof self !== "undefined" ? self : globalThis);

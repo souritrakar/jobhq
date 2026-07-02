@@ -209,8 +209,11 @@
         flush();
         return;
       }
-      // Inline element (span/strong/a/button/…): flatten into the running paragraph.
-      buf += inline(node, markerFor);
+      // Everything else (span/strong/a/…, BODY, custom elements) is a TRANSPARENT container:
+      // descend without flushing. Real inline tags keep paragraph continuity (their text joins
+      // the running buffer), while a control nested inside a span or a custom element still
+      // reaches the isControl branch above and becomes a proper field block.
+      for (const ch of node.childNodes) walk(ch);
     }
 
     walk(rootNode);

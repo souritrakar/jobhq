@@ -865,6 +865,9 @@
     const fields = [];
     let seq = 0;
     const nextQid = () => "q" + ++seq;
+    // Element → field-id map so capture v2 can stamp the SAME q<N> ids into its block doc.
+    // Group members all map to the group's one id (the block doc emits one field block per group).
+    const controlIds = new WeakMap();
 
     // Phase 1: custom option-button clusters → a single-choice question (same detection as autofill).
     const consumedContainers = [];
@@ -927,6 +930,7 @@
       };
       if (inputs.some((i) => i.required)) f.required = true;
       fields.push(f);
+      inputs.forEach((i) => controlIds.set(i, f.id));
       inputs.forEach((i) => consumed.add(i));
     };
     for (const [, inputs] of radiosByName) if (inputs.length) emitGroup(inputs, "radio");
@@ -955,10 +959,13 @@
       const ph = el.getAttribute && el.getAttribute("placeholder");
       if (ph && ph.trim()) f.placeholder = cap(ph);
       fields.push(f);
+      controlIds.set(el, f.id);
     }
 
     const cleaned = fields.filter((f) => f.label && f.label.trim()).slice(0, MAX_FIELDS);
-    return { fields: cleaned, total: cleaned.length };
+    // controlIds may still map elements whose fields were dropped by the label filter above —
+    // capture resolves ids against the CLEANED field list, so those fall back to legacy markers.
+    return { fields: cleaned, total: cleaned.length, controlIds };
   }
 
   UI.autofill = {
