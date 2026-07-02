@@ -62,6 +62,7 @@
   // Set by open(): flushes the current Details snapshot to storage synchronously. Called on
   // close so the latest edits survive even when close is triggered by a navigation.
   let activeFlush = null;
+  let activeOnClose = null; // per-open close hook (deactivates the on-page field picker)
 
   // ---- design tokens (one source of truth; `all:initial` doesn't reset custom properties) ----
   // Neutral white + fern SaaS surface. Hue 250 = a cool, calm grey for text/lines/surfaces.
@@ -602,6 +603,13 @@
         activeFlush();
       } catch (_) {}
     }
+    // Tear down companions (the on-page field picker) on EVERY close path, including nav.
+    if (typeof activeOnClose === "function") {
+      try {
+        activeOnClose();
+      } catch (_) {}
+      activeOnClose = null;
+    }
     if (panelEl && !reduceMotion) {
       panelEl.classList.remove("open");
       const node = host;
@@ -661,6 +669,8 @@
     opts = opts || {};
     if (host) removeHost();
     ensureFont();
+    // Companion teardown hook (the on-page field picker) — fired on EVERY close path.
+    activeOnClose = typeof opts.onClose === "function" ? opts.onClose : null;
     lastFocus = document.activeElement;
     reduceMotion =
       typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -871,21 +881,28 @@
       clearApp();
       const ic = el("div", { class: "ic" });
       ic.append(icon(iconPaths));
-      const btn = el("button", {
-        class: "btn btn--primary btn--lg appextract" + (loading ? " loading" : ""),
-        type: "button",
+      const kids = [ic, el("h3", { text: heading }), el("p", { text })];
+      if (btnLabel) {
+        const btn = el("button", {
+          class: "btn btn--primary btn--lg appextract" + (loading ? " loading" : ""),
+          type: "button",
+        });
+        if (loading) btn.disabled = true;
+        btn.append(icon(btnIcon), el("span", { text: btnLabel }));
+        if (!loading) btn.addEventListener("click", runAppExtraction);
+        kids.push(btn);
+      }
+      appPane.append(el("div", { class: "appstate" + (kind === "err" ? " err" : "") }, kids));
+    }
+
+    // Picker mode: the Application tab is a tray filled by picking fields ON THE PAGE.
+    function renderAppPickerHint() {
+      appState({
+        kind: "blank",
+        iconPaths: ICON.clipboard,
+        title: "Pick questions from the page",
+        body: "Click the + button next to any application field on this page to track it here. Click a tracked field again to remove it.",
       });
-      if (loading) btn.disabled = true;
-      btn.append(icon(btnIcon), el("span", { text: btnLabel }));
-      if (!loading) btn.addEventListener("click", runAppExtraction);
-      appPane.append(
-        el("div", { class: "appstate" + (kind === "err" ? " err" : "") }, [
-          ic,
-          el("h3", { text: heading }),
-          el("p", { text }),
-          btn,
-        ]),
-      );
     }
 
     function renderAppBlank() {
@@ -937,11 +954,12 @@
       const answers = (viewOpts && viewOpts.answers) || null;
       const readOnly = !!(viewOpts && viewOpts.readOnly);
       clearApp();
-      const reBtn = el("button", {
-        class: "reextract", type: "button", title: "Re-extract questions", "aria-label": "Re-extract questions",
-      });
-      reBtn.append(icon(ICON.refresh));
-      reBtn.addEventListener("click", runAppExtraction);
+      // REVERT(LLM extraction): re-extract affordance, disconnected in picker mode.
+      // const reBtn = el("button", {
+      //   class: "reextract", type: "button", title: "Re-extract questions", "aria-label": "Re-extract questions",
+      // });
+      // reBtn.append(icon(ICON.refresh));
+      // reBtn.addEventListener("click", runAppExtraction);
       const count = questions.length + (questions.length === 1 ? " question" : " questions");
 
       // Live "N flagged" tally — shows what the user starred for review; hidden when none.
@@ -956,7 +974,7 @@
         flaggedBadge.style.display = n ? "" : "none";
       }
 
-      const headActions = el("div", { class: "apphead-actions" }, [reBtn]);
+      const headActions = el("div", { class: "apphead-actions" }, []);
       const header = el("div", { class: "apphead" }, [
         el("div", { class: "apphead-row" }, [
           el("div", { class: "apphead-label" }, [
@@ -1139,7 +1157,10 @@
         .catch((err) => renderAppError(err && err.message ? err.message : null));
     }
 
-    renderAppBlank();
+    // REVERT: to restore LLM question extraction, call renderAppBlank() here instead (its
+    // button wires runAppExtraction), re-enable the reextract button in renderAppResult,
+    // and re-enable onExtractApplication in content.js#openSavePanel.
+    renderAppPickerHint();
 
     // Restore a previous extraction for this page (chrome.storage.local) so closing/reopening —
     // or restarting the browser — keeps the questions. Applies only while still blank.
@@ -1158,6 +1179,19 @@
           renderAppResult(questions, viewOpts);
         })
         .catch(() => {});
+    }
+
+    // Picker-mode tray API: content.js pushes the picked-question set here as the user picks/
+    // unpicks fields on the page. setQuestions marks appInteracted so a slow loadApplication
+    // restore can't clobber a fresher pick.
+    if (typeof opts.onApplicationReady === "function") {
+      opts.onApplicationReady({
+        setQuestions(questions, viewOpts) {
+          appInteracted = true;
+          if (questions && questions.length) renderAppResult(questions, viewOpts);
+          else renderAppPickerHint();
+        },
+      });
     }
 
     // ---- Resume pane (documents list + tailored-generation actions) ----
@@ -1753,7 +1787,7 @@
               type: "button",
               title: "This page also has an application form — extract its questions",
             });
-            go.append(icon(ICON.sparkles), el("span", { text: "Form detected — extract questions" }));
+            go.append(icon(ICON.sparkles), el("span", { text: "Form detected — pick questions" }));
             go.addEventListener("click", () => selectTab("app"));
             dxNote.append(go);
           }
