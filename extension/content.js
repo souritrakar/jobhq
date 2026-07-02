@@ -19,10 +19,11 @@
   const FONT_STYLE_ID = "jobtracker-font";
   const DASHBOARD_URL = "http://localhost:3100/dashboard";
   const DASHBOARD_SAVED_URL = "http://localhost:3100/dashboard/saved";
-  // Extraction strategy. "llm" = the Groq path (POST /api/extract*); "tiered" = the non-LLM path
-  // (structured data + embeddings, POST /api/extract*/tiered). Both backends stay live — flip this one
-  // flag to A/B the cheaper/faster tiered path. Default "llm" preserves today's behavior exactly.
-  const EXTRACTION_MODE = "tiered"; // "llm" | "tiered"
+  // Extraction strategy. "indexed" = the block-addressed pipeline (POST /api/extract*/indexed)
+  // — the DEFAULT (see docs/superpowers/specs/2026-07-01-indexed-extraction-design.md).
+  // Legacy paths, kept selectable during verification: "llm" (Groq whole-page),
+  // "semantic" (RAG — scheduled for deletion), "tiered" (non-LLM).
+  const EXTRACTION_MODE = "indexed"; // "indexed" | "llm" | "semantic" | "tiered"
   // Deep-link to a saved posting in the dashboard. The id rides along as a query param so the
   // saved page can highlight it later; on its own it lands the user on their saved jobs.
   function viewUrlFor(id) {
@@ -353,9 +354,60 @@
     } catch (_) {}
   }
 
+  // ---- indexed capture helpers -------------------------------------------------------------
+  // Capture for the INDEXED pipeline: settle the DOM (SPA hydration), harvest the live form
+  // controls, then scope the page WITH the harvest so field blocks carry the q<N> ids.
+  async function captureIndexed() {
+    if (SCOPE.settle) await SCOPE.settle();
+    const harvest =
+      UI.autofill && typeof UI.autofill.harvestQuestions === "function"
+        ? UI.autofill.harvestQuestions()
+        : { fields: [], controlIds: null };
+    const scoped = SCOPE.scopePage ? SCOPE.scopePage({ harvest }) : null;
+    if (!scoped || !scoped.blocks || !scoped.blocks.length) {
+      throw new Error("Couldn't read this page's content.");
+    }
+    return scoped;
+  }
+
+  function sendExtractionMessage(message) {
+    return new Promise((resolve, reject) => {
+      try {
+        chrome.runtime.sendMessage(message, (res) => {
+          if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+          if (res && res.ok) resolve(res);
+          else reject(new Error((res && res.error) || "Extraction failed"));
+        });
+      } catch (e) {
+        reject(e);
+      }
+    });
+  }
+
   // Re-scope the current DOM and ask the worker (→ backend → Groq) for the application
   // form's questions. Mirrors requestExtraction; only the message type / shape differs.
   function requestApplicationExtraction() {
+    if (EXTRACTION_MODE === "indexed") {
+      return (async () => {
+        let scoped = await captureIndexed();
+        // A slow-hydrating form can harvest empty on the first pass — settle and retry ONCE
+        // before concluding "no application form".
+        if (!scoped.fields.length && SCOPE.settle) {
+          await SCOPE.settle({ quietMs: 400, maxMs: 3000 });
+          scoped = await captureIndexed();
+        }
+        const res = await sendExtractionMessage({
+          type: "EXTRACT_APPLICATION_INDEXED",
+          context: {
+            blocks: scoped.blocks,
+            fields: scoped.fields,
+            source: scoped.source,
+            url: scoped.url,
+          },
+        });
+        return { questions: res.questions || [], detected: res.detected };
+      })();
+    }
     const scoped = SCOPE.scopePage ? SCOPE.scopePage() : null;
     if (!scoped) {
       return Promise.reject(new Error("Couldn't read this page's content."));
@@ -439,31 +491,100 @@
   // would otherwise extract the wrong sub-page. Rejects on any failure so the modal can
   // fall back to manual entry; never blocks the save itself.
   function requestExtraction() {
+    if (EXTRACTION_MODE === "indexed") {
+      return (async () => {
+        const scoped = await captureIndexed();
+        const estimatedTokens = Math.ceil(
+          scoped.blocks.reduce((n, b) => n + b.text.length, 0) / 4,
+        );
+        try {
+          const res = await sendExtractionMessage({
+            type: "EXTRACT_JOB_INDEXED",
+            context: {
+              blocks: scoped.blocks,
+              fields: scoped.fields,
+              source: scoped.source,
+              url: scoped.url,
+            },
+          });
+          return {
+            fields: res.fields || {},
+            description: res.description,
+            usage: res.usage,
+            // Client-side detection (free) backs up the model's judgement: harvested
+            // fields on the page mean an application form is present.
+            detected: {
+              hasJobDetails: !!(res.detected && res.detected.hasJobDetails),
+              hasApplicationForm:
+                !!(res.detected && res.detected.hasApplicationForm) || scoped.fields.length > 0,
+            },
+            estimatedTokens,
+          };
+        } catch (e) {
+          e.estimatedTokens = estimatedTokens;
+          throw e;
+        }
+      })();
+    }
     const scoped = SCOPE.scopePage ? SCOPE.scopePage() : null;
     if (!scoped || !scoped.text) {
       return Promise.reject(new Error("Couldn't read this page's content."));
     }
-    // Tiered path: send the page's structured signals (JSON-LD/meta/segments/h1) instead of markdown.
-    const useTiered = EXTRACTION_MODE === "tiered" && scoped.signals;
-    const message = useTiered
-      ? {
-          type: "EXTRACT_JOB_TIERED",
-          context: { signals: scoped.signals, source: scoped.source, url: scoped.url },
-        }
-      : {
-          type: "EXTRACT_JOB",
-          context: { text: scoped.text, source: scoped.source, url: scoped.url },
-        };
+
+    // Route to the appropriate extraction backend
+    let message;
+    let estimatedTokens;
+    if (EXTRACTION_MODE === "semantic") {
+      // Semantic RAG: send the FULL markdown (the backend section-chunks + retrieves, so it bounds
+      // the model context itself — nothing is truncated here). estimate reflects the full payload.
+      const fullText = scoped.fullText || scoped.text;
+      estimatedTokens = Math.ceil(fullText.length / 4);
+      message = {
+        type: "EXTRACT_JOB_SEMANTIC",
+        context: { text: fullText, source: scoped.source, url: scoped.url },
+        estimatedTokens,
+      };
+    } else if (EXTRACTION_MODE === "tiered" && scoped.signals) {
+      estimatedTokens = Math.ceil(scoped.text.length / 4);
+      // Tiered extraction: structured data + embeddings (no Groq)
+      message = {
+        type: "EXTRACT_JOB_TIERED",
+        context: { signals: scoped.signals, source: scoped.source, url: scoped.url },
+        estimatedTokens,
+      };
+    } else {
+      // Standard LLM extraction (Groq)
+      estimatedTokens = Math.ceil(scoped.text.length / 4);
+      message = {
+        type: "EXTRACT_JOB",
+        context: { text: scoped.text, source: scoped.source, url: scoped.url },
+        estimatedTokens,
+      };
+    }
+
     return new Promise((resolve, reject) => {
       try {
         chrome.runtime.sendMessage(
           message,
           (res) => {
             if (chrome.runtime.lastError) {
-              return reject(new Error(chrome.runtime.lastError.message));
+              const err = new Error(chrome.runtime.lastError.message);
+              err.estimatedTokens = estimatedTokens;
+              return reject(err);
             }
-            if (res && res.ok) resolve({ fields: res.fields || {}, description: res.description });
-            else reject(new Error((res && res.error) || "Extraction failed"));
+            if (res && res.ok) {
+              resolve({
+                fields: res.fields || {},
+                description: res.description,
+                usage: res.usage,
+                estimatedTokens,
+                metadata: res.metadata, // Include semantic extraction metadata
+              });
+            } else {
+              const err = new Error((res && res.error) || "Extraction failed");
+              err.estimatedTokens = estimatedTokens;
+              reject(err);
+            }
           },
         );
       } catch (e) {

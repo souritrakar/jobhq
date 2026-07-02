@@ -31,6 +31,21 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       .catch((err) => sendResponse({ ok: false, error: String(err), fields: {} }));
     return true;
   }
+  // Semantic RAG extraction — parse HTML → embed chunks → retrieve → synthesize with Groq
+  if (msg?.type === "EXTRACT_JOB_SEMANTIC") {
+    extractJobSemantic(msg.context || {})
+      .then((r) =>
+        sendResponse({
+          ok: true,
+          fields: r.fields,
+          description: r.description,
+          usage: r.usage,
+          metadata: r.metadata,
+        }),
+      )
+      .catch((err) => sendResponse({ ok: false, error: String(err), fields: {} }));
+    return true;
+  }
   if (msg?.type === "EXTRACT_APPLICATION") {
     extractApplication(msg.context || {})
       .then((r) => sendResponse({ ok: true, questions: r.questions }))
@@ -48,6 +63,29 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === "EXTRACT_APPLICATION_TIERED") {
     extractApplicationTiered(msg.context || {})
       .then((r) => sendResponse({ ok: true, questions: r.questions }))
+      .catch((err) => sendResponse({ ok: false, error: String(err), questions: [] }));
+    return true;
+  }
+  // INDEXED (block-addressed) extraction — the default pipeline. The content script sends the
+  // page as numbered blocks + harvested fields; the backend model points at content and the
+  // values resolve deterministically (see docs/superpowers/specs/2026-07-01-indexed-extraction-design.md).
+  if (msg?.type === "EXTRACT_JOB_INDEXED") {
+    extractJobIndexed(msg.context || {})
+      .then((r) =>
+        sendResponse({
+          ok: true,
+          fields: r.fields,
+          description: r.description,
+          usage: r.usage,
+          detected: r.detected,
+        }),
+      )
+      .catch((err) => sendResponse({ ok: false, error: String(err), fields: {} }));
+    return true;
+  }
+  if (msg?.type === "EXTRACT_APPLICATION_INDEXED") {
+    extractApplicationIndexed(msg.context || {})
+      .then((r) => sendResponse({ ok: true, questions: r.questions, detected: r.detected }))
       .catch((err) => sendResponse({ ok: false, error: String(err), questions: [] }));
     return true;
   }
@@ -125,14 +163,65 @@ async function extractJob({ text, source, url } = {}) {
     dlog("extract: SKIPPED — empty page text");
     return { fields: {} };
   }
-  dlog("extract: POST /api/extract | source:", source, "| context chars:", text.length);
+  // Groq has payload size limits (~100KB for request body). Truncate to ~50KB of text
+  // to stay well under the limit with JSON overhead.
+  const MAX_TEXT_CHARS = 50000;
+  const truncated = text.length > MAX_TEXT_CHARS ? text.slice(0, MAX_TEXT_CHARS) : text;
+  dlog("extract: POST /api/extract | source:", source, "| context chars:", truncated.length, truncated.length < text.length ? `(truncated from ${text.length})` : "");
   const result = await apiFetch("/api/extract", {
     method: "POST",
-    body: JSON.stringify({ text, source, url }),
+    body: JSON.stringify({ text: truncated, source, url }),
   });
   const fields = (result && result.fields) || {};
   dlog("extract: got fields", fields, "| usage", result && result.usage);
-  return { fields, description: result && result.description };
+  return { fields, description: result && result.description, usage: result && result.usage };
+}
+
+// Semantic RAG extraction: parse HTML → embed chunks → retrieve → synthesize
+// Uses Unstructured.io for HTML parsing and OpenRouter for embeddings + Groq for synthesis.
+// No 413 errors because only relevant chunks are sent to Groq (~1K tokens instead of 3.5K).
+// Returns { fields, description, usage, metadata } with detailed extraction info.
+async function extractJobSemantic({ text, source, url } = {}) {
+  if (!text || !text.trim()) {
+    dlog("extract-semantic: SKIPPED — empty page text");
+    return { fields: {} };
+  }
+
+  dlog("extract-semantic: POST /api/extract/semantic | source:", source, "| text chars:", text.length);
+
+  try {
+    const result = await apiFetch("/api/extract/semantic", {
+      method: "POST",
+      body: JSON.stringify({ text, source, url }),
+    });
+
+    const fields = (result && result.fields) || {};
+    const usage = (result && result.usage) || { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
+    const metadata = result && result.metadata;
+
+    dlog(
+      "extract-semantic: SUCCESS | fields:",
+      Object.keys(fields).filter((k) => fields[k]).join(","),
+      "| groq tokens:",
+      usage.inputTokens + usage.outputTokens,
+      "| chunks used/total:",
+      `${metadata?.chunksUsed}/${metadata?.totalChunks}`,
+      "| ctx tokens:",
+      metadata?.contextTokens,
+      "| cache:",
+      metadata?.cacheHit,
+    );
+
+    return {
+      fields,
+      description: result && result.description,
+      usage,
+      metadata,
+    };
+  } catch (err) {
+    dlog("extract-semantic: ERROR", String(err));
+    throw err;
+  }
 }
 
 // Ask the backend to LLM-extract the application form's questions from the captured page
@@ -184,6 +273,46 @@ async function extractApplicationTiered({ fields, source, url } = {}) {
   const questions = (result && result.questions) || [];
   dlog("extract-application-tiered: got", questions.length, "questions | usage", result && result.usage);
   return { questions };
+}
+
+// INDEXED details extraction: send the numbered blocks + harvested fields. The backend model
+// answers with pointers (description block range) + small values; resolution is deterministic.
+async function extractJobIndexed({ blocks, fields, source, url } = {}) {
+  const list = Array.isArray(blocks) ? blocks : [];
+  if (!list.length) {
+    dlog("extract-indexed: SKIPPED — no blocks");
+    return { fields: {} };
+  }
+  dlog("extract-indexed: POST /api/extract/indexed | source:", source, "| blocks:", list.length, "| fields:", (fields || []).length);
+  const result = await apiFetch("/api/extract/indexed", {
+    method: "POST",
+    body: JSON.stringify({ blocks: list, fields: fields || [], source, url }),
+  });
+  dlog("extract-indexed: got fields", result && result.fields, "| detected", result && result.detected, "| usage", result && result.usage);
+  return {
+    fields: (result && result.fields) || {},
+    description: result && result.description,
+    usage: result && result.usage,
+    detected: result && result.detected,
+  };
+}
+
+// INDEXED application-question extraction: same payload; the backend classifies the harvested
+// controls (it can never invent a question) and copies options verbatim from the DOM.
+async function extractApplicationIndexed({ blocks, fields, source, url } = {}) {
+  dlog("extract-application-indexed: POST /api/extract-application/indexed | source:", source, "| blocks:", (blocks || []).length, "| fields:", (fields || []).length);
+  const result = await apiFetch("/api/extract-application/indexed", {
+    method: "POST",
+    body: JSON.stringify({
+      blocks: Array.isArray(blocks) ? blocks : [],
+      fields: Array.isArray(fields) ? fields : [],
+      source,
+      url,
+    }),
+  });
+  const questions = (result && result.questions) || [];
+  dlog("extract-application-indexed: got", questions.length, "questions | detected", result && result.detected, "| usage", result && result.usage);
+  return { questions, detected: result && result.detected };
 }
 
 // Unwrap the API's `{ data }` success envelope; surface `{ error }` as a thrown Error.
