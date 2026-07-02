@@ -158,11 +158,11 @@ export async function extractJobIndexed(
       "details",
     )
     const { result, parsed } = await runIndexedCall(
-      buildIndexedDetailsMessages(blocks),
+      buildIndexedDetailsMessages(blocks, input.titleHint),
       DETAILS_RESPONSE_FORMAT,
       "JobTracker Indexed Details",
     )
-    const resolved = resolveIndexedDetails(parsed, blocks)
+    const resolved = resolveIndexedDetails(parsed, blocks, input.titleHint)
     const usage = {
       inputTokens: result.usage.inputTokens + outlineUsage.inputTokens,
       outputTokens: result.usage.outputTokens + outlineUsage.outputTokens,

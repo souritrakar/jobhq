@@ -38,7 +38,9 @@ const applicationQuestionSchema = z.object({
   placeholder: z.string().trim().max(300).optional(),
   helpText: z.string().trim().max(300).optional(),
   required: z.boolean().optional(),
-  options: z.array(z.string().trim().min(1).max(300)).max(40).optional(),
+  // Count cap matches the extraction sieve + the extension harvest (MAX_OPTIONS = 60) so a
+  // long real dropdown saved via the indexed path isn't rejected or truncated here.
+  options: z.array(z.string().trim().min(1).max(300)).max(60).optional(),
   // User-set: this question is starred for later review. Set in the save panel, persisted so
   // the web app (and future reminders) can surface what the user flagged as important.
   flagged: z.boolean().optional(),
@@ -50,7 +52,8 @@ const applicationQuestionSchema = z.object({
  * means nothing application-related is persisted for the job.
  */
 export const applicationInputSchema = z.object({
-  questions: z.array(applicationQuestionSchema).max(60),
+  // Matches the extraction sieve's MAX_QUESTIONS and the harvest's MAX_FIELDS (200).
+  questions: z.array(applicationQuestionSchema).max(200),
 })
 
 export const createJobSchema = z.object({

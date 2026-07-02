@@ -44,8 +44,16 @@ const DETAILS_TASK = [
   "Every string value must be copied verbatim from the page (or the page title). Use null when absent.",
 ].join("\n")
 
-export function buildIndexedDetailsMessages(blocks: CapturedBlock[]): LlmMessage[] {
-  return [...pagePrefixMessages(blocks), { role: "user", content: DETAILS_TASK }]
+export function buildIndexedDetailsMessages(
+  blocks: CapturedBlock[],
+  titleHint?: string,
+): LlmMessage[] {
+  // titleHint rides in the TASK TAIL, never the cached prefix — the prefix must stay
+  // byte-identical with the questions prompt for the prompt cache to hit.
+  const task = titleHint
+    ? `The page's <title> tag (not part of the blocks): "${titleHint}"\n\n` + DETAILS_TASK
+    : DETAILS_TASK
+  return [...pagePrefixMessages(blocks), { role: "user", content: task }]
 }
 
 /** Strict schema — providers that support json_schema enforce it; others fall back to parsing. */
@@ -105,7 +113,11 @@ export function renderDescription(
   const start = Math.trunc(Number(range?.start))
   const end = Math.trunc(Number(range?.end))
   if (!Number.isFinite(start) || !Number.isFinite(end)) return null
-  if (start < 0 || end >= blocks.length || start > end) return null
+  // Bound against the max block INDEX present, not the array length: after the outline
+  // pre-pass slices an oversized page, `.i` values are non-contiguous and legitimately
+  // exceed blocks.length — the model was prompted with those original B<i> numbers.
+  const maxI = blocks.length ? blocks[blocks.length - 1].i : -1
+  if (start < 0 || end > maxI || start > end) return null
   const exclude = new Set((range.exclude || []).map((n) => Math.trunc(Number(n))))
   const parts: string[] = []
   for (const b of blocks) {

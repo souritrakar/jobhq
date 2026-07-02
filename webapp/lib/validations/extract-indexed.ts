@@ -30,6 +30,9 @@ export const harvestedFieldSchema = z.object({
 export const indexedExtractInputSchema = z.object({
   blocks: z.array(capturedBlockSchema).min(1).max(4000),
   fields: z.array(harvestedFieldSchema).max(200).default([]),
+  // document.title — the details prompt's fallback source for a title/company that isn't
+  // restated verbatim in the visible body; also part of the containment-check haystack.
+  titleHint: z.string().trim().max(2000).optional(),
   source: z.string().trim().max(255).optional(),
   url: z.string().trim().max(2000).optional(),
 })

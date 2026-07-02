@@ -503,6 +503,7 @@
             context: {
               blocks: scoped.blocks,
               fields: scoped.fields,
+              titleHint: scoped.titleHint,
               source: scoped.source,
               url: scoped.url,
             },

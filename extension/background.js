@@ -277,7 +277,7 @@ async function extractApplicationTiered({ fields, source, url } = {}) {
 
 // INDEXED details extraction: send the numbered blocks + harvested fields. The backend model
 // answers with pointers (description block range) + small values; resolution is deterministic.
-async function extractJobIndexed({ blocks, fields, source, url } = {}) {
+async function extractJobIndexed({ blocks, fields, titleHint, source, url } = {}) {
   const list = Array.isArray(blocks) ? blocks : [];
   if (!list.length) {
     dlog("extract-indexed: SKIPPED — no blocks");
@@ -286,7 +286,7 @@ async function extractJobIndexed({ blocks, fields, source, url } = {}) {
   dlog("extract-indexed: POST /api/extract/indexed | source:", source, "| blocks:", list.length, "| fields:", (fields || []).length);
   const result = await apiFetch("/api/extract/indexed", {
     method: "POST",
-    body: JSON.stringify({ blocks: list, fields: fields || [], source, url }),
+    body: JSON.stringify({ blocks: list, fields: fields || [], titleHint, source, url }),
   });
   dlog("extract-indexed: got fields", result && result.fields, "| detected", result && result.detected, "| usage", result && result.usage);
   return {

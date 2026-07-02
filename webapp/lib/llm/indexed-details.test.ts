@@ -27,6 +27,12 @@ describe("buildIndexedDetailsMessages", () => {
     expect(msgs).toHaveLength(3)
     expect(msgs[2].cache).toBeUndefined()
   })
+
+  it("carries titleHint in the task tail, never the cached prefix", () => {
+    const msgs = buildIndexedDetailsMessages(PAGE, "Intern | Acme Careers")
+    expect(msgs.slice(0, 2)).toEqual(pagePrefixMessages(PAGE)) // prefix untouched
+    expect(msgs[2].content).toContain("Intern | Acme Careers")
+  })
 })
 
 describe("containsOnPage", () => {
@@ -52,6 +58,20 @@ describe("renderDescription", () => {
   })
   it("returns null when the slice is only field blocks", () => {
     expect(renderDescription(PAGE, { start: 5, end: 5 })).toBeNull()
+  })
+
+  it("accepts original indices on non-contiguous (outline-sliced) blocks", () => {
+    // After the outline pre-pass, .i values are the ORIGINAL page indices — the model was
+    // prompted with them, so a range beyond blocks.length must still resolve.
+    const sliced: CapturedBlock[] = [
+      B(0, "heading", "# Role"),
+      B(60, "para", "The description body."),
+      B(62, "li", "- A requirement"),
+    ]
+    expect(renderDescription(sliced, { start: 60, end: 62 })).toBe(
+      "The description body.\n- A requirement",
+    )
+    expect(renderDescription(sliced, { start: 60, end: 63 })).toBeNull() // beyond max .i
   })
 })
 

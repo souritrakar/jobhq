@@ -120,8 +120,12 @@ export function buildApplicationMessages(text: string): ChatMessage[] {
   ]
 }
 
-const MAX_QUESTIONS = 60
-const MAX_OPTIONS = 40
+// Caps match the extension harvest (MAX_FIELDS = 200, MAX_OPTIONS = 60 in ui/application.js)
+// and the storage validation (lib/validations/job.ts): the indexed path feeds VERBATIM DOM
+// data through this sieve, so a cap below the harvest's would silently truncate real options
+// (e.g. a country dropdown's tail). Still bounded — this remains the anti-runaway backstop.
+const MAX_QUESTIONS = 200
+const MAX_OPTIONS = 60
 const MAX_LABEL = 400
 const MAX_SHORT = 300
 const TYPES_WITH_OPTIONS = new Set<ApplicationFieldType>([
