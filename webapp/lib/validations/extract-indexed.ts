@@ -19,10 +19,12 @@ export const harvestedFieldSchema = z.object({
   kind: z.enum([
     "text", "textarea", "select", "radio", "checkbox", "combobox", "contenteditable", "file",
   ]),
-  inputType: z.string().max(30).optional(),
-  options: z.array(z.string().min(1).max(300)).max(60).optional(),
+  // Caps mirror the proven tiered-path schema (extract-tiered.ts) — permissive enough that a
+  // page with long option labels can't 400-reject the whole capture.
+  inputType: z.string().max(40).optional(),
+  options: z.array(z.string().min(1).max(2_000)).max(100).optional(),
   required: z.boolean().optional(),
-  placeholder: z.string().max(300).optional(),
+  placeholder: z.string().max(400).optional(),
 })
 
 export const indexedExtractInputSchema = z.object({

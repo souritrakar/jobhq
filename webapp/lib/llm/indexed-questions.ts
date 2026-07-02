@@ -106,7 +106,13 @@ function renderFieldManifest(fields: HarvestedField[]): string {
       if (f.inputType) s += ` inputType=${f.inputType}`
       s += ` label="${f.label}"`
       if (f.required) s += " required"
-      if (f.options?.length) s += ` options=[${f.options.join(" | ")}]`
+      if (f.options?.length) {
+        // Context only — options are copied verbatim from the harvest in the merge, so a huge
+        // list (200-country dropdowns) is capped here rather than bloating the prompt.
+        let joined = f.options.join(" | ")
+        if (joined.length > 600) joined = joined.slice(0, 600) + " | …"
+        s += ` options=[${joined}]`
+      }
       if (f.placeholder) s += ` placeholder="${f.placeholder}"`
       return s
     })

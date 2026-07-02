@@ -90,7 +90,14 @@
           .map(norm)
           .filter(Boolean)
       : [];
-    if (opts.length) s += ` — options: ${opts.join(" | ")}`;
+    if (opts.length) {
+      // The marker is CONTEXT for the LLM, not ground truth (options are copied verbatim from
+      // the harvest server-side) — cap a giant option list so one field can't bloat the block
+      // doc or split its own marker across continuation blocks.
+      let joined = opts.join(" | ");
+      if (joined.length > 600) joined = joined.slice(0, 600) + " | …";
+      s += ` — options: ${joined}`;
+    }
     if (field.placeholder) s += ` — placeholder: "${norm(field.placeholder)}"`;
     return s + "]";
   }
