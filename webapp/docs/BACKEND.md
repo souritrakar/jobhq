@@ -455,6 +455,13 @@ model **points at content instead of regenerating it**:
 - **Logging:** one `ExtractionLog` row per call, `model: "indexed:<resolved-model>"`, so cost
   and coverage compare directly against the legacy `llm`/`semantic`/`tiered` rows.
 
+> **Update (2026-07-02):** the extension now captures application questions via the
+> deterministic ON-PAGE FIELD PICKER (`extension/ui/field-picker.js` +
+> `lib/question-mapper.js`; spec `docs/superpowers/specs/2026-07-02-field-picker-design.md`)
+> — zero LLM calls for questions. `/api/extract-application/indexed` stays live (revert path;
+> web-app import unaffected) but the extension no longer calls it. Details extraction is
+> unchanged.
+
 ### Import from a URL (`POST /api/jobs/import`)
 
 The web app's "save a job without the extension" path: the user pastes a posting URL into the
