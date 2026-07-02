@@ -67,6 +67,20 @@ const envSchema = z.object({
     .default("google/gemini-3.1-flash-lite,z-ai/glm-4.7-flash"),
   AI_DRAFT_MAX_TOKENS: z.coerce.number().int().min(128).max(4000).default(600),
 
+  // OpenRouter also powers INDEXED extraction (POST /api/extract/indexed +
+  // /api/extract-application/indexed) — the block-addressed pipeline (see
+  // docs/superpowers/specs/2026-07-01-indexed-extraction-design.md). The LLM points at
+  // content (block ranges / field ids); values are resolved deterministically, so output
+  // stays tiny and a fast cheap model fits. Server-side ONLY.
+  //   EXTRACTION_MODEL           — primary model slug.
+  //   EXTRACTION_FALLBACK_MODELS — comma-separated fallbacks, in order.
+  //   INDEXED_TOKEN_BUDGET       — est. input tokens above which the outline pre-pass runs.
+  EXTRACTION_MODEL: z.string().default("google/gemini-3.5-flash"),
+  EXTRACTION_FALLBACK_MODELS: z
+    .string()
+    .default("google/gemini-3.1-flash-lite,z-ai/glm-4.7-flash"),
+  INDEXED_TOKEN_BUDGET: z.coerce.number().int().min(2000).max(200_000).default(24_000),
+
   // OpenRouter ALSO powers embeddings for the extension's one-click Autofill field matcher
   // (POST /api/jobs/:id/application/autofill-match) — the only embeddings seam (lib/llm/embeddings.ts).
   // OpenAI-compatible, so the same OPENROUTER_API_KEY above is reused; no separate OpenAI account.

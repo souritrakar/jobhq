@@ -52,6 +52,8 @@ export type OpenRouterChatOptions = {
   maxTokens?: number
   /** ASCII-only attribution title (OpenRouter header is Latin1 — no em dashes here). */
   title?: string
+  /** OpenAI-compatible response_format (e.g. json_schema). Passed through verbatim. */
+  responseFormat?: Record<string, unknown>
 }
 
 /**
@@ -90,6 +92,7 @@ export async function openRouterChat(
     messages: toWireMessages(messages),
     temperature: opts.temperature ?? 0.6,
     max_tokens: opts.maxTokens ?? 600,
+    ...(opts.responseFormat ? { response_format: opts.responseFormat } : {}),
     // No chain-of-thought: a draft answer is prose, and reasoning would spend the cap (and cost)
     // on hidden tokens. No-op for non-reasoning models.
     reasoning: { enabled: false },
