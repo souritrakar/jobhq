@@ -59,11 +59,21 @@ export async function extractApplicationIndexed(
       input.blocks,
       "questions",
     )
+    // Output scales with the form: each included field costs ~40-80 JSON tokens (fieldId,
+    // label, type, required, helpText). A fixed cap truncated real Greenhouse forms mid-JSON,
+    // which parsed as null and silently read as "no questions found".
+    const maxTokens = Math.min(6000, 500 + input.fields.length * 80)
     const { result, parsed } = await runIndexedCall(
       buildIndexedQuestionsMessages(blocks, input.fields),
       QUESTIONS_RESPONSE_FORMAT,
       "JobTracker Indexed Questions",
+      maxTokens,
     )
+    // A still-unparsable reply after the retry is a FAILURE (surface the retry UI) — resolving
+    // it would silently render the "no application form" empty state on a page that has one.
+    if (!parsed) {
+      throw new ApiError("INTERNAL", "The AI service returned an unreadable reply. Please try again.")
+    }
     const resolved = resolveIndexedQuestions(parsed, input.fields)
     const usage = {
       inputTokens: result.usage.inputTokens + outlineUsage.inputTokens,

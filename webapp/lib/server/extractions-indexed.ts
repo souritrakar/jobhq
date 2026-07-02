@@ -46,18 +46,21 @@ export function extractionModels(): string[] {
 
 /**
  * One chat call whose reply must parse as a JSON object; on a parse failure, ONE retry with
- * an explicit nudge appended. Shared by the details and questions services.
+ * an explicit nudge appended. Shared by the details and questions services. `maxTokens` is
+ * caller-set because the questions task's output scales with the form's field count — a cap
+ * that truncates the JSON mid-array parses as null and would read as "no questions found".
  */
 export async function runIndexedCall(
   messages: LlmMessage[],
   responseFormat: Record<string, unknown>,
   title: string,
+  maxTokens: number = MAX_OUTPUT_TOKENS,
 ): Promise<{ result: ChatResult; parsed: Record<string, unknown> | null; calls: number }> {
   const models = extractionModels()
   const first = await openRouterChat(messages, {
     models,
     temperature: 0,
-    maxTokens: MAX_OUTPUT_TOKENS,
+    maxTokens,
     responseFormat,
     title,
   })
@@ -75,7 +78,7 @@ export async function runIndexedCall(
   const second = await openRouterChat(retryMessages, {
     models,
     temperature: 0,
-    maxTokens: MAX_OUTPUT_TOKENS,
+    maxTokens,
     responseFormat,
     title,
   })
@@ -162,6 +165,11 @@ export async function extractJobIndexed(
       DETAILS_RESPONSE_FORMAT,
       "JobTracker Indexed Details",
     )
+    // A still-unparsable reply after the retry is a FAILURE (surface the retry UI) — resolving
+    // it would silently show an empty form/blank fields as if the page had none.
+    if (!parsed) {
+      throw new ApiError("INTERNAL", "The AI service returned an unreadable reply. Please try again.")
+    }
     const resolved = resolveIndexedDetails(parsed, blocks, input.titleHint)
     const usage = {
       inputTokens: result.usage.inputTokens + outlineUsage.inputTokens,

@@ -48,4 +48,47 @@ describe("extractApplicationIndexed", () => {
     expect(r.questions).toEqual([{ label: "Country", type: "select", options: ["US", "CA"] }])
     expect(r.detected.hasApplicationForm).toBe(true)
   })
+
+  it("scales the output-token cap with the harvested field count", async () => {
+    const fields = Array.from({ length: 50 }, (_, i) => ({
+      id: `q${i + 1}`,
+      label: `Question ${i + 1}`,
+      kind: "text" as const,
+    }))
+    openRouterChat.mockResolvedValueOnce({
+      content: JSON.stringify({ hasApplicationForm: true, questions: [] }),
+      usage: USAGE,
+      model: "m",
+    })
+    await extractApplicationIndexed("u1", {
+      blocks: [{ i: 0, kind: "para", text: "form page" }],
+      fields,
+      source: "t",
+      url: "https://x.test",
+    })
+    const opts = openRouterChat.mock.calls[0][1] as { maxTokens: number }
+    expect(opts.maxTokens).toBe(500 + 50 * 80)
+  })
+
+  it("throws (retryable) when the reply is unparsable even after the retry", async () => {
+    // A truncated JSON reply must surface the error/retry UI, never the
+    // "no application form" empty state on a page that has one.
+    const input: IndexedExtractInput = {
+      blocks: [{ i: 0, kind: "field", text: '[field q1: text "Name"]' }],
+      fields: [{ id: "q1", label: "Name", kind: "text" }],
+      source: "t",
+      url: "https://x.test",
+    }
+    openRouterChat
+      .mockResolvedValueOnce({ content: '{"questions": [truncat', usage: USAGE, model: "m" })
+      .mockResolvedValueOnce({ content: '{"questions": [truncat', usage: USAGE, model: "m" })
+    let err: unknown = null
+    try {
+      await extractApplicationIndexed("u1", input)
+    } catch (e) {
+      err = e
+    }
+    expect((err as Error)?.name).toBe("ApiError")
+    expect(String(err)).toContain("unreadable")
+  })
 })

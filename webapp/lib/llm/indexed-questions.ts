@@ -131,20 +131,21 @@ export function buildIndexedQuestionsMessages(
     "context above):\n\n" +
     renderFieldManifest(fields) +
     "\n\nClassify each field. Return JSON only:\n" +
-    '{"hasApplicationForm": boolean, "questions": [{"fieldId": string, "include": boolean, ' +
+    '{"hasApplicationForm": boolean, "questions": [{"fieldId": string, "include": true, ' +
     '"label": string, "type": string, "required": boolean, "helpText": string|null}]}\n' +
     "Rules:\n" +
+    "- questions: an entry ONLY for each field a candidate answers as part of APPLYING — " +
+    "simply OMIT page noise (search boxes, login, newsletter signup, cookie banners) and " +
+    "consent/legal acknowledgements (privacy policy, terms of service, data-processing " +
+    "consent, marketing opt-ins). Never invent a field id.\n" +
     `- type: one of ${TYPES_LIST}. Choose what the QUESTION asks for (a text input asking for years of experience is "number"; a LinkedIn field is "url").\n` +
-    "- include: true only for questions a candidate answers as part of APPLYING. Exclude page " +
-    "noise (search boxes, login, newsletter signup, cookie banners) AND consent/legal " +
-    "acknowledgements (privacy policy, terms of service, data-processing consent, marketing opt-ins).\n" +
     "- label: the question as the candidate reads it, cleaned (strip a trailing required asterisk; " +
     "fix broken casing/whitespace). Keep the meaning — do not rephrase.\n" +
     "- required: true if the form marks it required (asterisk, the word required, aria-required) — " +
     "read the page context, the DOM attribute may be missing.\n" +
     "- helpText: any hint/sub-label shown with the field (file-type limits, formatting guidance), or null.\n" +
     "- Do NOT return options — they are taken from the DOM.\n" +
-    "- Return one entry per field id above; never invent a field id.\n" +
+    "- Keep the JSON compact: no extra whitespace or fields.\n" +
     "If the page has no real application form, return hasApplicationForm=false and questions=[]."
   return [...pagePrefixMessages(blocks), { role: "user", content: task }]
 }

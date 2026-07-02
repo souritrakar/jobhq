@@ -10,11 +10,17 @@ import { pagePrefixMessages, type CapturedBlock } from "@/lib/llm/indexed-shared
 
 const B = (i: number, kind: CapturedBlock["kind"], text: string): CapturedBlock => ({ i, kind, text })
 
+// Long enough to clear MIN_DESCRIPTION_CHARS (200) — real descriptions are prose.
+const PROSE =
+  "Build robots that build robots. You will design, deploy and operate the automation " +
+  "platform behind our assembly line, working with a small senior team across firmware, " +
+  "controls and cloud tooling to ship reliable production systems every single week."
+
 const PAGE: CapturedBlock[] = [
   B(0, "heading", "# Software Engineering Intern"),
   B(1, "para", "Acme Robotics · Remote — Ontario, Canada"),
   B(2, "heading", "## About the role"),
-  B(3, "para", "Build robots that build robots."),
+  B(3, "para", PROSE),
   B(4, "li", "- Ship weekly"),
   B(5, "field", '[field q1: text "Full name"]'),
   B(6, "para", "Salary: CAD $60,000 - $75,000 per year"),
@@ -47,9 +53,9 @@ describe("containsOnPage", () => {
 })
 
 describe("renderDescription", () => {
-  it("slices verbatim, skips excluded and field blocks, keeps markdown shape", () => {
+  it("slices verbatim, skips excluded and field blocks, strips heading hashes", () => {
     const out = renderDescription(PAGE, { start: 2, end: 6, exclude: [6] })
-    expect(out).toBe("## About the role\n\nBuild robots that build robots.\n- Ship weekly")
+    expect(out).toBe(`About the role\n\n${PROSE}\n- Ship weekly`)
   })
   it("returns null on invalid ranges", () => {
     expect(renderDescription(PAGE, { start: 5, end: 2 })).toBeNull()
@@ -60,16 +66,32 @@ describe("renderDescription", () => {
     expect(renderDescription(PAGE, { start: 5, end: 5 })).toBeNull()
   })
 
+  it("returns null for a metadata-label slice (no real prose)", () => {
+    // The Ashby "Application tab" failure: the overview prose isn't rendered, and the model
+    // points at the left-rail metadata list. Absent (→ warning) beats saving this as the
+    // description.
+    const rail: CapturedBlock[] = [
+      B(0, "heading", "# Infrastructure Intern"),
+      B(1, "heading", "## Location"),
+      B(2, "para", "Bay Area Office"),
+      B(3, "heading", "## Employment Type"),
+      B(4, "para", "Full time"),
+      B(5, "heading", "## Department"),
+      B(6, "para", "Engineering"),
+    ]
+    expect(renderDescription(rail, { start: 0, end: 6 })).toBeNull()
+  })
+
   it("accepts original indices on non-contiguous (outline-sliced) blocks", () => {
     // After the outline pre-pass, .i values are the ORIGINAL page indices — the model was
     // prompted with them, so a range beyond blocks.length must still resolve.
     const sliced: CapturedBlock[] = [
       B(0, "heading", "# Role"),
-      B(60, "para", "The description body."),
+      B(60, "para", PROSE),
       B(62, "li", "- A requirement"),
     ]
     expect(renderDescription(sliced, { start: 60, end: 62 })).toBe(
-      "The description body.\n- A requirement",
+      `${PROSE}\n- A requirement`,
     )
     expect(renderDescription(sliced, { start: 60, end: 63 })).toBeNull() // beyond max .i
   })

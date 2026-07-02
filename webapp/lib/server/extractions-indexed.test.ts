@@ -44,10 +44,14 @@ describe("extractJobIndexed", () => {
       usage: USAGE,
       model: "test/model",
     })
-    const r = await extractJobIndexed("u1", input(["Intern wanted at Acme"]))
+    const body =
+      "Intern wanted at Acme. You will build and operate our robot-assembly automation " +
+      "platform, pairing with senior engineers across firmware, controls and cloud tooling " +
+      "to ship reliable production systems to real customers every single week."
+    const r = await extractJobIndexed("u1", input([body]))
     expect(openRouterChat).toHaveBeenCalledTimes(1)
     expect(r.fields.title).toBe("Intern")
-    expect(r.description).toBe("Intern wanted at Acme")
+    expect(r.description).toBe(body)
     expect(r.detected.hasJobDetails).toBe(true)
     expect(r.usage.totalTokens).toBe(120)
   })
@@ -94,6 +98,21 @@ describe("extractJobIndexed", () => {
     const mainMessages = openRouterChat.mock.calls[1][0] as Array<{ content: string }>
     expect(mainMessages[1].content).toContain("B0|")
     expect(mainMessages[1].content).not.toContain("B59|")
+  })
+
+  it("throws (retryable) when the reply is unparsable even after the retry", async () => {
+    // e.g. output truncated by max_tokens on both attempts — must NOT resolve to empty fields.
+    openRouterChat
+      .mockResolvedValueOnce({ content: '{"title": "cut off mid-js', usage: USAGE, model: "m" })
+      .mockResolvedValueOnce({ content: '{"title": "cut off again', usage: USAGE, model: "m" })
+    let err: unknown = null
+    try {
+      await extractJobIndexed("u1", input(["x"]))
+    } catch (e) {
+      err = e
+    }
+    expect((err as Error)?.name).toBe("ApiError")
+    expect(String(err)).toContain("unreadable")
   })
 
   it("throws ApiError on transport failure", async () => {

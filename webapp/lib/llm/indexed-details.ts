@@ -38,7 +38,9 @@ const DETAILS_TASK = [
     " responsibilities, requirements, benefits) — {start, end, exclude} where exclude lists block" +
     " indices inside the range that are NOT description (ads, unrelated links). Choose the widest" +
     " honest range; do NOT include site navigation, the application form, or footer boilerplate." +
-    " null if the page has no description.",
+    " The range must contain actual descriptive PROSE — a list of metadata labels (Location /" +
+    " Employment Type / Department) or a bare application form is NOT a description. If the page" +
+    " shows no descriptive prose (e.g. only a form), return null.",
   "- hasJobDetails: does this page show a job posting's details?",
   "- hasApplicationForm: does this page show an application form a candidate fills in?",
   "Every string value must be copied verbatim from the page (or the page title). Use null when absent.",
@@ -105,7 +107,12 @@ export function containsOnPage(value: string, haystack: string): boolean {
   return norm(haystack).includes(v)
 }
 
-/** Verbatim description slice: range minus excludes minus field blocks, markdown-shaped. */
+// A real description is prose — a slice below this floor is almost certainly a metadata list
+// (Location / Employment Type / Department) the model grabbed on a page whose actual prose
+// isn't rendered (e.g. an ATS "Application" tab). Absent (→ amber warning) beats junk saved.
+const MIN_DESCRIPTION_CHARS = 200
+
+/** Verbatim description slice: range minus excludes minus field blocks, plain-text-shaped. */
 export function renderDescription(
   blocks: CapturedBlock[],
   range: { start: number; end: number; exclude?: number[] },
@@ -123,11 +130,14 @@ export function renderDescription(
   for (const b of blocks) {
     if (b.i < start || b.i > end) continue
     if (exclude.has(b.i) || b.kind === "field") continue
-    if (b.kind === "heading" || b.kind === "para") parts.push("\n\n" + b.text)
+    // Headings keep their text but drop the markdown hashes — the description is stored and
+    // rendered as plain text (a literal "## Location" in the saved job reads as noise).
+    if (b.kind === "heading") parts.push("\n\n" + b.text.replace(/^#+\s*/, ""))
+    else if (b.kind === "para") parts.push("\n\n" + b.text)
     else parts.push("\n" + b.text) // li / row stay line-per-item
   }
   const out = parts.join("").replace(/\n{3,}/g, "\n\n").trim()
-  return out || null
+  return out.length >= MIN_DESCRIPTION_CHARS ? out : null
 }
 
 export function resolveIndexedDetails(
