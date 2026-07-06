@@ -150,6 +150,21 @@ Defined in the web app's `globals.css`; reuse, don't reinvent:
 - `.scribble` — recolor monochrome scribble SVGs to `currentColor` via masking.
 - `::selection` is fern-tinted (`--fern-100` on `--pine`).
 
+## 6a. Landing v5 marketing layer (webapp only)
+
+The marketing landing ("playful paper", 2026-07-05 spec) adds a decoration-only
+layer on top of these tokens, defined in `webapp/app/globals.css` and used
+exclusively by `webapp/components/landing/v5/`:
+
+- **Pally** (`--font-pally`, vendored) for sticker chips, hand-written
+  annotations, and the giant footer wordmark — never body copy or product UI.
+- **Pastel tint tokens** `--tint-{fern,butter,blush,sky,lilac}` (+`-ink` pairs)
+  as bento fills / highlighter spans / paper scraps. Fern remains the only
+  *semantic* color; tints are wallpaper and must not leak into the app or
+  extension surfaces.
+- Utilities/keyframes: `.hl`, `.sticker`, `.scrap`, `pop-in`, `wobble`,
+  `type-reveal`, `confetti-fly`.
+
 ## 7. Dark mode
 
 **Provisional.** Dark mode is currently a neutral gray baseline that does *not*
