@@ -1,0 +1,202 @@
+import { ChromeStoreButton } from "../chrome-button";
+import { RotatingWord } from "../rotating-word";
+import { ArrowDoodle, Sparkle, Underline } from "../scribbles";
+import { BrandLogo } from "../brand-logo";
+import { Peep } from "../peep";
+import { AppMock } from "./app-mock";
+import { ExtensionMock } from "./extension-mock";
+import { Hl, Sticker, TINT } from "./bits";
+
+/* v5 hero — daylight paper. Headline with a highlighter swipe, then the
+   signature shot: the real dashboard in a browser frame with the extension
+   drawer physically docked onto its right edge, hand-labelled like a sketch
+   in a notebook. Both products, one picture, zero feature prose. */
+
+export function Hero() {
+  return (
+    <section id="top" className="relative isolate overflow-hidden px-5 pb-16 pt-32 sm:px-8 sm:pb-24 sm:pt-40">
+      {/* paper backdrop — dotted grid fading out, two faint tint pools */}
+      <div className="paper-dots pointer-events-none absolute inset-x-0 top-0 -z-20 h-[46rem] [mask-image:radial-gradient(90%_70%_at_50%_18%,black,transparent)]" />
+      <div
+        className="pointer-events-none absolute -top-24 right-[8%] -z-10 size-96 rounded-full opacity-60 blur-3xl"
+        style={{ background: "radial-gradient(closest-side, var(--tint-butter), transparent)" }}
+      />
+      <div
+        className="pointer-events-none absolute left-[4%] top-52 -z-10 size-[26rem] rounded-full opacity-70 blur-3xl"
+        style={{ background: "radial-gradient(closest-side, var(--tint-fern), transparent)" }}
+      />
+
+      {/* ── copy ── */}
+      <div className="relative mx-auto max-w-3xl text-center">
+        <div className="animate-fade-up flex justify-center" style={{ animationDelay: "0ms" }}>
+          <Sticker tint="butter" rotate={-2}>
+            <SparkleGlyph className="size-3.5" />
+            free extension + web app
+          </Sticker>
+        </div>
+
+        <h1
+          className="animate-fade-up mx-auto mt-6 max-w-[17ch] font-display text-[2.7rem] font-bold leading-[1.04] tracking-[-0.03em] text-foreground text-balance sm:text-[4.1rem]"
+          style={{ animationDelay: "70ms" }}
+        >
+          Never lose a{" "}
+          <span className="relative inline-block whitespace-nowrap">
+            <Hl tint="fern">job posting</Hl>
+            <Underline className="absolute -bottom-2 left-0 w-full text-primary/60" />
+          </span>{" "}
+          again.
+        </h1>
+
+        {/* Grid stack: an invisible sizer with the longest rotating word baked
+            in reserves the block height at every breakpoint, so the live line
+            never reflows the CTAs as the word cycles. */}
+        <div
+          className="animate-fade-up mx-auto mt-7 grid max-w-xl"
+          style={{ animationDelay: "140ms" }}
+        >
+          <p aria-hidden className="invisible col-start-1 row-start-1 text-lg leading-relaxed">
+            See a role on a Discord link? One click saves it — deadline, salary,
+            application questions and all — into a tracker that actually nags
+            you in time.
+          </p>
+          <p className="col-start-1 row-start-1 text-lg leading-relaxed text-muted-foreground">
+            See a role on{" "}
+            <RotatingWord
+              words={["LinkedIn", "Indeed", "a careers page", "Wellfound", "a Discord link"]}
+              className="font-semibold text-foreground"
+            />
+            ? One click saves it — deadline, salary, application questions and
+            all — into a tracker that actually nags you in time.
+          </p>
+        </div>
+
+        <div
+          className="animate-fade-up mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row"
+          style={{ animationDelay: "210ms" }}
+        >
+          <ChromeStoreButton size="lg" />
+          <a
+            href="/dashboard"
+            className="inline-flex h-13 cursor-pointer items-center justify-center gap-2 rounded-full border border-border bg-background px-6 text-base font-semibold text-foreground transition-all duration-200 hover:-translate-y-0.5 hover:border-foreground/25 hover:bg-secondary"
+          >
+            Open the web app
+          </a>
+        </div>
+        <p
+          className="animate-fade-up mt-4 text-[0.82rem] text-muted-foreground/80"
+          style={{ animationDelay: "260ms" }}
+        >
+          Free · no card · works on every job board
+        </p>
+      </div>
+
+      {/* ── signature shot ── */}
+      <div
+        className="animate-fade-up relative mx-auto mt-16 max-w-5xl sm:mt-24"
+        style={{ animationDelay: "340ms" }}
+      >
+        {/* tilted paper cards peeking out behind the browser frame */}
+        <div
+          className="scrap absolute -left-6 top-16 -z-10 hidden h-40 w-56 -rotate-6 rounded-2xl lg:block"
+          style={{ backgroundColor: TINT.sky.bg }}
+        />
+        <div
+          className="scrap absolute -right-4 -top-8 -z-10 hidden h-36 w-64 rotate-3 rounded-2xl lg:block"
+          style={{ backgroundColor: TINT.blush.bg }}
+        />
+
+        {/* hand-written annotations */}
+        <div className="pointer-events-none absolute -top-12 left-[3%] z-20 hidden rotate-[-4deg] items-center gap-2 lg:flex">
+          <span className="font-[family-name:var(--font-pally)] text-[1.05rem] font-semibold text-foreground/70">
+            everything lands here
+          </span>
+          <ArrowDoodle className="mt-4 w-12 rotate-[30deg] text-foreground/40" />
+        </div>
+        <div className="pointer-events-none absolute -right-2 -top-16 z-20 hidden rotate-[3deg] flex-col items-center gap-1 xl:flex">
+          <span className="font-[family-name:var(--font-pally)] text-[1.05rem] font-semibold text-foreground/70">
+            the extension catches it
+          </span>
+          <ArrowDoodle className="w-11 -scale-x-100 rotate-[10deg] text-foreground/40" />
+        </div>
+
+        {/* the dashboard, leaving air on the right for the docked drawer */}
+        <AppMock className="lg:mr-44" />
+
+        {/* the extension drawer docked over the frame's right edge */}
+        <div className="absolute -right-1 top-8 z-10 hidden rotate-[1.5deg] md:block lg:right-4">
+          <ExtensionMock />
+          <Confetti className="absolute -top-3 left-1/2" />
+        </div>
+
+        {/* floating toasts */}
+        <FloatToast className="-left-3 top-6 animate-float-slow sm:-left-7">
+          <BrandLogo slug="linkedin" label="LinkedIn" className="size-4" />
+          <span>Saved from LinkedIn</span>
+        </FloatToast>
+        <FloatToast className="-left-5 bottom-14 animate-float-slow [animation-delay:1.6s] sm:-left-10">
+          <span className="size-2 rounded-full bg-amber-500" />
+          <span>Deadline found · Friday</span>
+        </FloatToast>
+
+        {/* a peep resting on the frame */}
+        <Peep
+          name="sit"
+          className="absolute -top-[4.7rem] right-[30%] hidden w-24 lg:block"
+        />
+        <Sparkle className="absolute -left-9 -top-6 hidden w-5 text-sun lg:block" />
+      </div>
+    </section>
+  );
+}
+
+function FloatToast({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`absolute z-20 hidden items-center gap-2 rounded-full border border-border bg-background px-3.5 py-2 text-[0.74rem] font-semibold text-foreground shadow-[0_18px_40px_-20px_rgba(20,40,25,0.45)] sm:inline-flex ${className ?? ""}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** Six petals bursting from a point, looping gently. Pure CSS. */
+function Confetti({ className }: { className?: string }) {
+  const petals = [
+    { x: -26, y: -30, c: "var(--tint-fern-ink)", d: 0 },
+    { x: 22, y: -34, c: "var(--sun)", d: 0.12 },
+    { x: -34, y: -8, c: "var(--tint-blush-ink)", d: 0.24 },
+    { x: 34, y: -14, c: "var(--tint-sky-ink)", d: 0.3 },
+    { x: -14, y: -40, c: "var(--tint-lilac-ink)", d: 0.42 },
+    { x: 16, y: -24, c: "var(--primary)", d: 0.5 },
+  ];
+  return (
+    <span aria-hidden className={`pointer-events-none ${className ?? ""}`}>
+      {petals.map((p, i) => (
+        <span
+          key={i}
+          className="absolute block size-1.5 rounded-[2px]"
+          style={{
+            backgroundColor: p.c,
+            ["--fly-x" as string]: `${p.x}px`,
+            ["--fly-y" as string]: `${p.y}px`,
+            animation: `confetti-fly 2.6s ease-out ${p.d}s infinite`,
+          }}
+        />
+      ))}
+    </span>
+  );
+}
+
+function SparkleGlyph({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className={className}>
+      <path d="M12 2c1 5 2 6 7 7-5 1-6 2-7 7-1-5-2-6-7-7 5-1 6-2 7-7Z" />
+    </svg>
+  );
+}

@@ -18,6 +18,7 @@ export function Reveal({
   className,
   delay = 0,
   as = "div",
+  style,
   ...props
 }: RevealProps) {
   const Tag = as as React.ElementType;
@@ -44,7 +45,7 @@ export function Reveal({
     <Tag
       ref={ref as React.Ref<never>}
       className={cn(shown && "animate-fade-up", className)}
-      style={{ animationDelay: `${delay}ms` }}
+      style={{ animationDelay: `${delay}ms`, ...style }}
       {...props}
     >
       {children}

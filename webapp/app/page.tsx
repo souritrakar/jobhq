@@ -1,29 +1,32 @@
-import { SiteHeader } from "@/components/landing/site-header";
-import { Hero } from "@/components/landing/hero";
-import { TrustStrip } from "@/components/landing/trust-strip";
-import { ProductDemo } from "@/components/landing/product-demo";
-import { Features } from "@/components/landing/features";
-import { Comparison } from "@/components/landing/comparison";
-import { WhoItsFor } from "@/components/landing/who-its-for";
-import { Faq } from "@/components/landing/faq";
-import { Cta } from "@/components/landing/cta";
-import { SiteFooter } from "@/components/landing/site-footer";
+import { Nav } from "@/components/landing/v5/nav";
+import { Hero } from "@/components/landing/v5/hero";
+import { Shelf } from "@/components/landing/v5/shelf";
+import { Problem } from "@/components/landing/v5/problem";
+import { How } from "@/components/landing/v5/how";
+import { BentoExtension } from "@/components/landing/v5/bento-extension";
+import { BentoApp } from "@/components/landing/v5/bento-app";
+import { Who } from "@/components/landing/v5/who";
+import { Faq } from "@/components/landing/v5/faq";
+import { Closer } from "@/components/landing/v5/closer";
+
+/* Landing v5 — "a calm desk for a chaotic job search" (playful paper).
+   v4 sections remain in components/landing/ for revert. */
 
 export default function Home() {
   return (
     <>
-      <SiteHeader />
+      <Nav />
       <main className="flex-1">
         <Hero />
-        <TrustStrip />
-        <ProductDemo />
-        <Features />
-        <Comparison />
-        <WhoItsFor />
+        <Shelf />
+        <Problem />
+        <How />
+        <BentoExtension />
+        <BentoApp />
+        <Who />
         <Faq />
-        <Cta />
       </main>
-      <SiteFooter />
+      <Closer />
     </>
   );
 }

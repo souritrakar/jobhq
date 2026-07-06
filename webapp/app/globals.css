@@ -13,6 +13,50 @@
 @import "../design-system/tokens.css";
 @import "../design-system/theme.css";
 
+/* Product typeface — self-hosted Satoshi (variable woff2, 300–900). Declared as a
+   GLOBAL @font-face here instead of via next/font/local: next/font generates a
+   *.module.css, and @tailwindcss/postcss injects Preflight (global element selectors)
+   into that module, which Turbopack rejects under CSS-Modules purity ("Selector …
+   is not pure"). Defining the face + the --font-google-sans variable globally avoids
+   the generated module entirely. Swap the src to try another vendored face in ./fonts. */
+@font-face {
+  font-family: "Satoshi";
+  src: url("./fonts/satoshi.woff2") format("woff2");
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Playful accent face — Pally (vendored variable woff2). Landing-only: sticker
+   badges, eyebrow chips, the giant footer wordmark. Never body copy. */
+@font-face {
+  font-family: "Pally";
+  src: url("./fonts/pally.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --font-google-sans: "Satoshi", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-pally: "Pally", "Satoshi", ui-sans-serif, system-ui, sans-serif;
+
+  /* ── Landing-only pastel tints (v5 "playful paper") ─────────────────────
+     Decorative fills for bento tiles / highlighter spans / paper scraps.
+     Fern stays the ONLY semantic color; these are wallpaper, never signals.
+     Each tint ships with an -ink pair that clears AA for large/label text. */
+  --tint-fern: oklch(0.955 0.035 148);
+  --tint-fern-ink: oklch(0.42 0.09 152);
+  --tint-butter: oklch(0.962 0.055 95);
+  --tint-butter-ink: oklch(0.45 0.09 80);
+  --tint-blush: oklch(0.951 0.032 30);
+  --tint-blush-ink: oklch(0.46 0.1 30);
+  --tint-sky: oklch(0.955 0.028 235);
+  --tint-sky-ink: oklch(0.44 0.08 245);
+  --tint-lilac: oklch(0.953 0.032 300);
+  --tint-lilac-ink: oklch(0.45 0.09 300);
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @layer base {
@@ -153,6 +197,36 @@
   .pause-on-hover:hover .marquee-track {
     animation-play-state: paused;
   }
+
+  /* ── v5 playful-paper utilities ──────────────────────────────────────── */
+
+  /* Kira-style highlighter behind a key word. Slightly skewed + bleeding past
+     the glyphs so it reads hand-swiped, not <mark>. Pair with a tint var:
+     `<span class="hl" style="--hl: var(--tint-butter)">deadline</span>` */
+  .hl {
+    background: linear-gradient(104deg, transparent 1.5%, var(--hl, var(--tint-fern)) 3%, var(--hl, var(--tint-fern)) 97%, transparent 98.5%);
+    padding-inline: 0.14em;
+    margin-inline: -0.06em;
+    border-radius: 0.18em;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+
+  /* Pally sticker chip — tilted, chunky, paper-shadowed. The playful voice. */
+  .sticker {
+    font-family: var(--font-pally);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    border-radius: calc(infinity * 1px);
+    box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.6) inset, 0 10px 22px -12px rgba(20, 40, 25, 0.35);
+  }
+
+  /* Paper scrap — a torn-note collage piece (footer / problem beat). */
+  .scrap {
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.7) inset,
+      0 14px 30px -18px rgba(20, 40, 25, 0.4);
+  }
 }
 
 @keyframes fade-up {
@@ -235,6 +309,57 @@
   to {
     transform: scaleX(1);
     transform-origin: left;
+  }
+}
+
+/* ── v5 keyframes ─────────────────────────────────────────────────────── */
+
+/* Springy sticker entrance (scale-overshoot) for badges/scraps on reveal. */
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.6) rotate(var(--pop-rotate, 0deg));
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.06) rotate(var(--pop-rotate, 0deg));
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(var(--pop-rotate, 0deg));
+  }
+}
+.animate-pop-in {
+  opacity: 0;
+  animation: pop-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Sticker hover wobble — one playful shake, not a loop. */
+@keyframes wobble {
+  0%, 100% { transform: rotate(var(--pop-rotate, 0deg)); }
+  25% { transform: rotate(calc(var(--pop-rotate, 0deg) - 3deg)) scale(1.04); }
+  60% { transform: rotate(calc(var(--pop-rotate, 0deg) + 2.5deg)) scale(1.02); }
+}
+.hover-wobble:hover {
+  animation: wobble 0.45s ease-in-out;
+}
+
+/* Autofill demo — a field "types itself". Width reveal over monospace-ish
+   steps + the shared blink-caret. Applied per-line with inline delays. */
+@keyframes type-reveal {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
+/* Confetti micro-burst — six petals fly out from the checked circle. */
+@keyframes confetti-fly {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--fly-x, 20px), var(--fly-y, -24px)) scale(0.4) rotate(160deg);
   }
 }
 
