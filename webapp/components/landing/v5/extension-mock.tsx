@@ -24,9 +24,9 @@ export function ExtensionMock({ className }: { className?: string }) {
         <Icon.Close className="size-3.5 text-muted-foreground/60" />
       </div>
 
-      {/* tabs */}
+      {/* tabs — real segmented-control styling, no green fill */}
       <div className="mx-3.5 mt-3 grid grid-cols-3 gap-1 rounded-full bg-secondary p-1">
-        <span className="rounded-full bg-primary py-1 text-center text-[0.66rem] font-semibold text-primary-foreground">
+        <span className="rounded-full bg-background py-1 text-center text-[0.66rem] font-semibold text-foreground shadow-sm">
           Details
         </span>
         <span className="py-1 text-center text-[0.66rem] font-medium text-muted-foreground">
@@ -64,7 +64,7 @@ export function ExtensionMock({ className }: { className?: string }) {
             <span
               className={cn(
                 "truncate font-medium",
-                row.warm ? "text-amber-700" : "text-foreground",
+                row.warm ? "text-[var(--tint-butter-ink)]" : "text-foreground",
               )}
             >
               {row.value}
@@ -78,7 +78,7 @@ export function ExtensionMock({ className }: { className?: string }) {
         {["Full-time", "Remote", "React", "TypeScript"].map((chip) => (
           <span
             key={chip}
-            className="rounded-full bg-accent px-2 py-0.5 text-[0.62rem] font-medium text-accent-foreground"
+            className="rounded-full bg-secondary px-2 py-0.5 text-[0.62rem] font-medium text-muted-foreground"
           >
             {chip}
           </span>
@@ -89,7 +89,7 @@ export function ExtensionMock({ className }: { className?: string }) {
       <div className="mt-3.5 border-t border-border bg-card px-3.5 py-3">
         <div className="flex items-center justify-between">
           <span className="text-[0.68rem] font-medium text-muted-foreground">Status</span>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-status-saved px-2.5 py-1 text-[0.66rem] font-semibold text-status-saved-foreground">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1 text-[0.66rem] font-semibold text-muted-foreground">
             <span className="size-1.5 rounded-full bg-current" />
             Saved
             <Icon.ChevronRight className="size-2.5 rotate-90 opacity-60" />

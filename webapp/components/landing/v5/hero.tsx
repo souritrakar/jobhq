@@ -5,7 +5,7 @@ import { BrandLogo } from "../brand-logo";
 import { Peep } from "../peep";
 import { AppMock } from "./app-mock";
 import { ExtensionMock } from "./extension-mock";
-import { Hl, Sticker, TINT } from "./bits";
+import { Hl, Sticker } from "./bits";
 
 /* v5 hero — daylight paper. Headline with a highlighter swipe, then the
    signature shot: the real dashboard in a browser frame with the extension
@@ -29,7 +29,7 @@ export function Hero() {
       {/* ── copy ── */}
       <div className="relative mx-auto max-w-3xl text-center">
         <div className="animate-fade-up flex justify-center" style={{ animationDelay: "0ms" }}>
-          <Sticker tint="butter" rotate={-2}>
+          <Sticker rotate={-2}>
             <SparkleGlyph className="size-3.5" />
             free extension + web app
           </Sticker>
@@ -41,7 +41,7 @@ export function Hero() {
         >
           Never lose a{" "}
           <span className="relative inline-block whitespace-nowrap">
-            <Hl tint="fern">job posting</Hl>
+            <Hl>job posting</Hl>
             <Underline className="absolute -bottom-2 left-0 w-full text-primary/60" />
           </span>{" "}
           again.
@@ -95,28 +95,22 @@ export function Hero() {
         className="animate-fade-up relative mx-auto mt-16 max-w-5xl sm:mt-24"
         style={{ animationDelay: "340ms" }}
       >
-        {/* tilted paper cards peeking out behind the browser frame */}
-        <div
-          className="scrap absolute -left-6 top-16 -z-10 hidden h-40 w-56 -rotate-6 rounded-2xl lg:block"
-          style={{ backgroundColor: TINT.sky.bg }}
-        />
-        <div
-          className="scrap absolute -right-4 -top-8 -z-10 hidden h-36 w-64 rotate-3 rounded-2xl lg:block"
-          style={{ backgroundColor: TINT.blush.bg }}
-        />
+        {/* plain paper sheets peeking out behind the browser frame — depth, no color */}
+        <div className="scrap absolute -left-6 top-16 -z-10 hidden h-40 w-56 -rotate-6 rounded-2xl border border-border/70 bg-card lg:block" />
+        <div className="scrap absolute -right-4 -top-8 -z-10 hidden h-36 w-64 rotate-3 rounded-2xl border border-border/70 bg-card lg:block" />
 
-        {/* hand-written annotations */}
-        <div className="pointer-events-none absolute -top-12 left-[3%] z-20 hidden rotate-[-4deg] items-center gap-2 lg:flex">
-          <span className="font-[family-name:var(--font-pally)] text-[1.05rem] font-semibold text-foreground/70">
+        {/* hand-written annotations — the green pen */}
+        <div className="pointer-events-none absolute -top-12 left-[17%] z-20 hidden rotate-[-4deg] items-center gap-2 lg:flex">
+          <span className="font-[family-name:var(--font-pally)] text-[1.05rem] font-semibold text-primary">
             everything lands here
           </span>
-          <ArrowDoodle className="mt-4 w-12 rotate-[30deg] text-foreground/40" />
+          <ArrowDoodle className="mt-4 w-12 rotate-[30deg] text-primary/50" />
         </div>
         <div className="pointer-events-none absolute -right-2 -top-16 z-20 hidden rotate-[3deg] flex-col items-center gap-1 xl:flex">
-          <span className="font-[family-name:var(--font-pally)] text-[1.05rem] font-semibold text-foreground/70">
+          <span className="font-[family-name:var(--font-pally)] text-[1.05rem] font-semibold text-primary">
             the extension catches it
           </span>
-          <ArrowDoodle className="w-11 -scale-x-100 rotate-[10deg] text-foreground/40" />
+          <ArrowDoodle className="w-11 -scale-x-100 rotate-[10deg] text-primary/50" />
         </div>
 
         {/* the dashboard, leaving air on the right for the docked drawer */}
@@ -129,12 +123,12 @@ export function Hero() {
         </div>
 
         {/* floating toasts */}
-        <FloatToast className="-left-3 top-6 animate-float-slow sm:-left-7">
+        <FloatToast className="-left-3 -top-4 animate-float-slow sm:-left-7">
           <BrandLogo slug="linkedin" label="LinkedIn" className="size-4" />
           <span>Saved from LinkedIn</span>
         </FloatToast>
         <FloatToast className="-left-5 bottom-14 animate-float-slow [animation-delay:1.6s] sm:-left-10">
-          <span className="size-2 rounded-full bg-amber-500" />
+          <span className="size-2 rounded-full" style={{ backgroundColor: "var(--sun)" }} />
           <span>Deadline found · Friday</span>
         </FloatToast>
 
@@ -165,14 +159,14 @@ function FloatToast({
   );
 }
 
-/** Six petals bursting from a point, looping gently. Pure CSS. */
+/** Six petals bursting from a point, looping gently. Pure CSS — green + gold only. */
 function Confetti({ className }: { className?: string }) {
   const petals = [
     { x: -26, y: -30, c: "var(--tint-fern-ink)", d: 0 },
     { x: 22, y: -34, c: "var(--sun)", d: 0.12 },
-    { x: -34, y: -8, c: "var(--tint-blush-ink)", d: 0.24 },
-    { x: 34, y: -14, c: "var(--tint-sky-ink)", d: 0.3 },
-    { x: -14, y: -40, c: "var(--tint-lilac-ink)", d: 0.42 },
+    { x: -34, y: -8, c: "var(--primary)", d: 0.24 },
+    { x: 34, y: -14, c: "var(--tint-butter-ink)", d: 0.3 },
+    { x: -14, y: -40, c: "var(--fern-600)", d: 0.42 },
     { x: 16, y: -24, c: "var(--primary)", d: 0.5 },
   ];
   return (

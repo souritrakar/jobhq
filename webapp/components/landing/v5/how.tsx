@@ -13,7 +13,6 @@ export function How() {
       <div className="mx-auto max-w-6xl">
         <SectionHead
           eyebrow="how it works"
-          eyebrowTint="sky"
           title={<>Save in one click. Forget nothing.</>}
           intro="No forms, no copy-paste, no tab hoarding. The extension does the filing; the app does the remembering."
         />
@@ -21,7 +20,6 @@ export function How() {
         <div className="mt-16 grid gap-12 lg:grid-cols-[1fr_auto_1fr_auto_1fr] lg:items-start lg:gap-4">
           <Step
             n={1}
-            tint="fern"
             delay={0}
             title="See it, save it"
             blurb="A quiet Save button appears on every job page. One click, done."
@@ -33,7 +31,6 @@ export function How() {
 
           <Step
             n={2}
-            tint="butter"
             delay={140}
             title="Everything's captured"
             blurb="Deadline, salary, location, application questions — filed before you close the tab."
@@ -45,7 +42,6 @@ export function How() {
 
           <Step
             n={3}
-            tint="blush"
             delay={280}
             title="Nagged, nicely"
             blurb="A reminder lands before anything closes. Zero deadlines lost to tab #47."
@@ -60,14 +56,12 @@ export function How() {
 
 function Step({
   n,
-  tint,
   title,
   blurb,
   delay,
   children,
 }: {
   n: number;
-  tint: keyof typeof TINT;
   title: string;
   blurb: string;
   delay: number;
@@ -78,7 +72,7 @@ function Step({
       <div className="w-full max-w-xs">{children}</div>
       <span
         className="mt-6 grid size-9 place-items-center rounded-full font-[family-name:var(--font-pally)] text-[1.05rem] font-bold"
-        style={{ backgroundColor: TINT[tint].bg, color: TINT[tint].ink }}
+        style={{ backgroundColor: TINT.fern.bg, color: TINT.fern.ink }}
       >
         {n}
       </span>
@@ -171,8 +165,8 @@ function ReminderVignette() {
     <div className="space-y-2">
       <div className="rounded-2xl border border-border bg-card p-3.5 text-left shadow-[0_24px_50px_-30px_rgba(20,40,25,0.45)]">
         <div className="flex items-center gap-2">
-          <span className="grid size-7 shrink-0 place-items-center rounded-full bg-status-interviewing">
-            <Icon.Bell className="size-3.5 text-status-interviewing-foreground" />
+          <span className="grid size-7 shrink-0 place-items-center rounded-full bg-[var(--tint-butter)]">
+            <Icon.Bell className="size-3.5 text-[var(--tint-butter-ink)]" />
           </span>
           <div className="min-w-0">
             <p className="text-[0.76rem] font-bold text-foreground">

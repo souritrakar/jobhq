@@ -13,7 +13,6 @@ export function BentoApp() {
       <div className="mx-auto max-w-6xl">
         <SectionHead
           eyebrow="the web app"
-          eyebrowTint="butter"
           title={<>…then it all lives in one calm place</>}
           intro="Every saved job lands on a board that keeps itself honest — with the deadlines, drafts, and to-dos attached."
         />
@@ -29,10 +28,10 @@ export function BentoApp() {
             <PipelineVignette />
           </Tile>
 
-          {/* reminders */}
+          {/* reminders — the butter tile: deadlines are the warm thing */}
           <Tile
             tag="reminders"
-            tint="sky"
+            tint="butter"
             title="Deadlines that find you"
             blurb="Interview nudges 24h ahead, a Monday digest, overdue flags — by email or in-app."
             className="lg:col-span-2"
@@ -40,22 +39,22 @@ export function BentoApp() {
           >
             <div className="space-y-2">
               <ReminderRow
-                icon={<Icon.Clock className="size-3.5 text-status-rejected-foreground" />}
-                iconBg="bg-status-rejected"
+                icon={<Icon.Clock className="size-3.5 text-[var(--tint-butter-ink)]" />}
+                iconBg="bg-white/80"
                 title="Follow up with Mercury"
                 chip="Overdue"
-                chipClass="bg-status-rejected text-status-rejected-foreground"
+                chipClass="bg-[var(--tint-butter-ink)] text-white"
               />
               <ReminderRow
-                icon={<Icon.Bell className="size-3.5 text-status-interviewing-foreground" />}
-                iconBg="bg-status-interviewing"
+                icon={<Icon.Bell className="size-3.5 text-primary" />}
+                iconBg="bg-white/80"
                 title="Interview with Linear · 2pm"
                 chip="Today"
-                chipClass="bg-status-interviewing text-status-interviewing-foreground"
+                chipClass="bg-primary text-primary-foreground"
               />
               <ReminderRow
-                icon={<Icon.Mail className="size-3.5 text-primary" />}
-                iconBg="bg-fern-50"
+                icon={<Icon.Mail className="size-3.5 text-muted-foreground" />}
+                iconBg="bg-white/80"
                 title="Notion application closes"
                 chip="Fri"
                 chipClass="bg-white/80 text-muted-foreground"
@@ -66,7 +65,6 @@ export function BentoApp() {
           {/* cover letters */}
           <Tile
             tag="cover letters"
-            tint="lilac"
             title="A draft from your real résumé"
             blurb="Pick the job, pick the résumé — get a letter that sounds like you, exported to .docx or PDF."
             className="lg:col-span-3"
@@ -109,7 +107,7 @@ const COLUMNS: {
   {
     name: "Saved",
     count: 7,
-    pill: "bg-status-saved text-status-saved-foreground",
+    pill: "bg-secondary text-muted-foreground",
     cards: [
       { slug: "runway", co: "Runway", role: "AI Product Engineer" },
       { slug: "ramp", co: "Ramp", role: "Frontend Engineer" },
@@ -118,7 +116,7 @@ const COLUMNS: {
   {
     name: "Applied",
     count: 4,
-    pill: "bg-status-applied text-status-applied-foreground",
+    pill: "bg-secondary text-muted-foreground",
     cards: [
       { slug: "mercury", co: "Mercury", role: "Backend Engineer" },
       { slug: "figma", co: "Figma", role: "Product Engineer" },
@@ -127,13 +125,14 @@ const COLUMNS: {
   {
     name: "Interviewing",
     count: 2,
-    pill: "bg-status-interviewing text-status-interviewing-foreground",
+    pill: "bg-secondary text-muted-foreground",
     cards: [{ slug: "linear", co: "Linear", role: "Sr. Frontend Engineer" }],
   },
   {
+    /* fern is spent here — the column you're working toward */
     name: "Offer",
     count: 1,
-    pill: "bg-status-offer text-status-offer-foreground",
+    pill: "bg-[var(--tint-fern)] text-[var(--tint-fern-ink)]",
     cards: [{ slug: "notion", co: "Notion", role: "Product Engineer" }],
   },
 ];
@@ -214,7 +213,7 @@ function ReminderRow({
 
 function CoverLetterVignette() {
   return (
-    <div className="rounded-2xl border border-black/5 bg-white/85 p-3.5 shadow-[0_16px_36px_-24px_rgba(20,40,25,0.4)]">
+    <div className="rounded-2xl border border-border bg-background p-3.5 shadow-[0_16px_36px_-24px_rgba(20,40,25,0.4)]">
       <div className="flex items-center justify-between">
         <span className="inline-flex items-center gap-1.5 text-[0.7rem] font-semibold text-foreground">
           <Icon.File className="size-3.5 text-primary" /> resume_2026.pdf

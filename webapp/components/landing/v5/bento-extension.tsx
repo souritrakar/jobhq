@@ -13,7 +13,6 @@ export function BentoExtension() {
       <div className="mx-auto max-w-6xl">
         <SectionHead
           eyebrow="the extension"
-          eyebrowTint="fern"
           title={<>Catches jobs where they happen</>}
           intro="It lives in your browser, right on the posting — so saving a job costs one click, not one evening."
         />

@@ -158,10 +158,17 @@ exclusively by `webapp/components/landing/v5/`:
 
 - **Pally** (`--font-pally`, vendored) for sticker chips, hand-written
   annotations, and the giant footer wordmark — never body copy or product UI.
-- **Pastel tint tokens** `--tint-{fern,butter,blush,sky,lilac}` (+`-ink` pairs)
-  as bento fills / highlighter spans / paper scraps. Fern remains the only
-  *semantic* color; tints are wallpaper and must not leak into the app or
-  extension surfaces.
+- **Two-color discipline (the landing's identity): one green marker + one
+  highlighter.** Everything hand-made — stickers, scribbles, scratch-throughs,
+  annotations, step numbers, the wordmark — is drawn in fern; **butter** is the
+  single warm accent (headline highlight swipes, deadline warmth, one bento
+  tile). Everything else is neutral paper/gray. Tokens: `--tint-{fern,butter}`
+  (+`-ink` pairs). Do **not** add a third tint — the 2026-07-06 pass removed
+  blush/sky/lilac because the page read as color overload. In-page product
+  mocks follow the Bonsai register: neutral grays, big quiet numbers, fern
+  spent on exactly one moment per mock (real brand logos are exempt — they're
+  content). Fern remains the only *semantic* color; tints must not leak into
+  the app or extension surfaces.
 - Utilities/keyframes: `.hl`, `.sticker`, `.scrap`, `pop-in`, `wobble`,
   `type-reveal`, `confetti-fly`.
 

@@ -29,7 +29,7 @@ export function Faq() {
   return (
     <section id="faq" className="px-5 py-24 sm:px-8 sm:py-28">
       <div className="mx-auto max-w-2xl">
-        <SectionHead eyebrow="questions" eyebrowTint="blush" title="Fair questions" />
+        <SectionHead eyebrow="questions" title="Fair questions" />
 
         <div className="mt-12 divide-y divide-border/70 rounded-3xl border border-border bg-card px-6 sm:px-8">
           {QA.map((item) => (

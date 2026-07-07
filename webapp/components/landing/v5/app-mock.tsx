@@ -4,7 +4,8 @@ import { Icon } from "../dashboard-mock";
 
 /* Faithful abstract mock of the real dashboard home — sidebar (Home / Jobs /
    Reminders / Documents / Settings), greeting, stat strip, "Recently saved"
-   rows with genuine status pills. Wrapped in a light browser frame so the
+   rows. Two colors only: neutral paper + fern, spent on the single best
+   number and the single best row. Wrapped in a light browser frame so the
    extension drawer can visibly belong to the same window. */
 
 const NAV = [
@@ -20,28 +21,25 @@ type Row = {
   co: string;
   role: string;
   meta: string;
-  salary?: string;
-  when: string;
-  status?: "applied" | "interviewing" | "offer";
-  statusLabel?: string;
-};
-
-/* Literal class strings — Tailwind can't see dynamic `bg-status-${x}`. */
-const STATUS_PILL: Record<NonNullable<Row["status"]>, string> = {
-  applied: "bg-status-applied text-status-applied-foreground",
-  interviewing: "bg-status-interviewing text-status-interviewing-foreground",
-  offer: "bg-status-offer text-status-offer-foreground",
+  statusLabel: string;
+  /* fern is spent on exactly one row — the good news */
+  fern?: boolean;
 };
 
 const ROWS: Row[] = [
+  {
+    slug: "notion",
+    co: "Notion",
+    role: "Product Engineer, Growth",
+    meta: "SF · Company site",
+    statusLabel: "Offer",
+    fern: true,
+  },
   {
     slug: "linear",
     co: "Linear",
     role: "Senior Frontend Engineer",
     meta: "Remote · LinkedIn",
-    salary: "$170–210k",
-    when: "2h ago",
-    status: "interviewing",
     statusLabel: "Interviewing",
   },
   {
@@ -49,9 +47,6 @@ const ROWS: Row[] = [
     co: "Mercury",
     role: "Backend Engineer",
     meta: "NYC · Greenhouse",
-    salary: "$185k",
-    when: "1d ago",
-    status: "applied",
     statusLabel: "Applied",
   },
   {
@@ -59,17 +54,7 @@ const ROWS: Row[] = [
     co: "Runway",
     role: "AI Product Engineer",
     meta: "Remote · Wellfound",
-    when: "2d ago",
-  },
-  {
-    slug: "notion",
-    co: "Notion",
-    role: "Product Engineer, Growth",
-    meta: "SF · Company site",
-    salary: "$160–195k",
-    when: "3d ago",
-    status: "offer",
-    statusLabel: "Offer",
+    statusLabel: "Saved",
   },
 ];
 
@@ -81,12 +66,12 @@ export function AppMock({ className }: { className?: string }) {
         className,
       )}
     >
-      {/* browser chrome */}
+      {/* browser chrome — quiet gray, the product is the color */}
       <div className="flex items-center gap-2 border-b border-border bg-secondary/60 px-3.5 py-2">
         <span className="flex gap-1.5">
-          <span className="size-2.5 rounded-full bg-[#f6bdb6]" />
-          <span className="size-2.5 rounded-full bg-[#f4dcae]" />
-          <span className="size-2.5 rounded-full bg-[#bcd9bf]" />
+          <span className="size-2.5 rounded-full bg-border" />
+          <span className="size-2.5 rounded-full bg-border" />
+          <span className="size-2.5 rounded-full bg-border" />
         </span>
         <div className="mx-auto flex h-6 w-56 items-center justify-center gap-1.5 rounded-full border border-border bg-background text-[0.64rem] text-muted-foreground">
           <Icon.Lock className="size-2.5 text-muted-foreground/60" />
@@ -132,65 +117,63 @@ export function AppMock({ className }: { className?: string }) {
           ))}
         </aside>
 
-        {/* home */}
-        <main className="min-w-0 p-4">
+        {/* home — Bonsai register: quiet labels, big numbers, flat divided list.
+            Extra right padding at lg clears the docked extension drawer. */}
+        <main className="min-w-0 p-5 lg:pr-28">
           <p className="text-[0.62rem] text-muted-foreground">Monday, July 6</p>
-          <h3 className="mt-0.5 font-display text-[1.05rem] font-semibold tracking-[-0.015em] text-foreground">
+          <h3 className="mt-0.5 font-display text-[1.1rem] font-semibold tracking-[-0.015em] text-foreground">
             Good morning, Sam
           </h3>
 
-          {/* stat strip */}
-          <div className="mt-3 flex items-center gap-4 border-y border-border/70 py-2.5">
+          {/* stat strip — label over number, one green figure */}
+          <div className="mt-4 grid grid-cols-3 gap-4 border-y border-border/70 py-3.5">
             {[
               { n: 23, label: "Saved" },
               { n: 12, label: "Applied" },
-              { n: 4, label: "Interviewing" },
-            ].map((s, i) => (
-              <div key={s.label} className={cn("flex items-baseline gap-1.5", i > 0 && "border-l border-border/70 pl-4")}>
-                <span className="text-[1rem] font-bold tabular-nums text-foreground">{s.n}</span>
-                <span className="text-[0.64rem] text-muted-foreground">{s.label}</span>
+              { n: 4, label: "Interviewing", fern: true },
+            ].map((s) => (
+              <div key={s.label}>
+                <p className="text-[0.6rem] text-muted-foreground">{s.label}</p>
+                <p
+                  className={cn(
+                    "mt-0.5 text-[1.25rem] font-bold leading-none tabular-nums",
+                    s.fern ? "text-primary" : "text-foreground",
+                  )}
+                >
+                  {s.n}
+                </p>
               </div>
             ))}
           </div>
 
           {/* recently saved */}
-          <div className="mt-3 flex items-center justify-between">
+          <div className="mt-4 flex items-center justify-between">
             <p className="text-[0.72rem] font-semibold text-foreground">Recently saved</p>
             <span className="inline-flex items-center gap-1 text-[0.64rem] font-medium text-muted-foreground">
               View all <Icon.Arrow className="size-2.5" />
             </span>
           </div>
-          <div className="mt-1.5 divide-y divide-border/60 rounded-xl border border-border/70 bg-background">
+          <div className="mt-1 divide-y divide-border/60">
             {ROWS.map((r) => (
-              <div key={r.role} className="flex items-center gap-2.5 px-2.5 py-2">
+              <div key={r.role} className="flex items-center gap-3 py-2.5">
                 <BrandLogo slug={r.slug} label={r.co} className="size-6" />
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <p className="truncate text-[0.72rem] font-semibold leading-tight text-foreground">
-                      {r.role}
-                    </p>
-                    {r.status && (
-                      <span
-                        className={cn(
-                          "hidden shrink-0 items-center gap-1 rounded-full px-1.5 py-px text-[0.56rem] font-semibold md:inline-flex",
-                          STATUS_PILL[r.status],
-                        )}
-                      >
-                        <span className="size-1 rounded-full bg-current" />
-                        {r.statusLabel}
-                      </span>
-                    )}
-                  </div>
+                  <p className="truncate text-[0.72rem] font-semibold leading-tight text-foreground">
+                    {r.role}
+                  </p>
                   <p className="mt-px truncate text-[0.62rem] text-muted-foreground">
                     {r.co} · {r.meta}
                   </p>
                 </div>
-                <div className="shrink-0 text-right">
-                  {r.salary && (
-                    <p className="text-[0.64rem] font-semibold tabular-nums text-fern-700">{r.salary}</p>
+                <span
+                  className={cn(
+                    "inline-flex shrink-0 items-center gap-1.5 text-[0.62rem] font-medium",
+                    r.fern ? "font-semibold text-primary" : "text-muted-foreground",
                   )}
-                  <p className="text-[0.58rem] text-muted-foreground/80">{r.when}</p>
-                </div>
+                >
+                  <span className="size-1.5 rounded-full bg-current" />
+                  {r.statusLabel}
+                </span>
               </div>
             ))}
           </div>

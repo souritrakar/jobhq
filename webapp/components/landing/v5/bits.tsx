@@ -1,15 +1,18 @@
 import { cn } from "@/lib/utils";
 
-/* Small shared v5 pieces — the playful voice lives here so sections stay clean. */
+/* Small shared v5 pieces — the playful voice lives here so sections stay clean.
 
-type TintName = "fern" | "butter" | "blush" | "sky" | "lilac";
+   Palette discipline: the whole page is drawn with ONE green marker (fern —
+   stickers, scribbles, annotations, the wordmark) and ONE highlighter
+   (butter — highlight swipes, deadline warmth). Everything else is neutral
+   paper. Don't add a third color. */
+
+type TintName = "fern" | "butter" | "neutral";
 
 export const TINT: Record<TintName, { bg: string; ink: string }> = {
   fern: { bg: "var(--tint-fern)", ink: "var(--tint-fern-ink)" },
   butter: { bg: "var(--tint-butter)", ink: "var(--tint-butter-ink)" },
-  blush: { bg: "var(--tint-blush)", ink: "var(--tint-blush-ink)" },
-  sky: { bg: "var(--tint-sky)", ink: "var(--tint-sky-ink)" },
-  lilac: { bg: "var(--tint-lilac)", ink: "var(--tint-lilac-ink)" },
+  neutral: { bg: "var(--secondary)", ink: "var(--muted-foreground)" },
 };
 
 /** Pally sticker chip — tilted a touch so it reads placed-by-hand. */
@@ -45,14 +48,12 @@ export function Sticker({
 /** Section header — sticker eyebrow + big Satoshi headline + optional intro. */
 export function SectionHead({
   eyebrow,
-  eyebrowTint = "fern",
   title,
   intro,
   align = "center",
   className,
 }: {
   eyebrow?: React.ReactNode;
-  eyebrowTint?: TintName;
   title: React.ReactNode;
   intro?: React.ReactNode;
   align?: "center" | "left";
@@ -68,7 +69,7 @@ export function SectionHead({
     >
       {eyebrow && (
         <div className={cn(align === "center" ? "flex justify-center" : "flex")}>
-          <Sticker tint={eyebrowTint}>{eyebrow}</Sticker>
+          <Sticker>{eyebrow}</Sticker>
         </div>
       )}
       <h2 className="mt-5 font-display text-[1.9rem] font-bold leading-[1.08] tracking-[-0.025em] text-foreground text-balance sm:text-[2.6rem]">
@@ -83,10 +84,10 @@ export function SectionHead({
   );
 }
 
-/** Highlighter span over a key word. */
+/** Highlighter span over a key word — butter by default (the one highlighter). */
 export function Hl({
   children,
-  tint = "fern",
+  tint = "butter",
 }: {
   children: React.ReactNode;
   tint?: TintName;

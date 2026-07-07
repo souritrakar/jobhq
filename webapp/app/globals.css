@@ -41,20 +41,15 @@
   --font-google-sans: "Satoshi", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-pally: "Pally", "Satoshi", ui-sans-serif, system-ui, sans-serif;
 
-  /* ── Landing-only pastel tints (v5 "playful paper") ─────────────────────
-     Decorative fills for bento tiles / highlighter spans / paper scraps.
-     Fern stays the ONLY semantic color; these are wallpaper, never signals.
-     Each tint ships with an -ink pair that clears AA for large/label text. */
+  /* ── Landing-only tints (v5 "playful paper") ────────────────────────────
+     The page is drawn with ONE green marker + ONE highlighter: fern for
+     everything hand-made (stickers, scribbles, wordmark) and butter for
+     highlight swipes / deadline warmth. No third tint — restraint IS the
+     identity. Each tint ships with an -ink pair that clears AA for labels. */
   --tint-fern: oklch(0.955 0.035 148);
   --tint-fern-ink: oklch(0.42 0.09 152);
   --tint-butter: oklch(0.962 0.055 95);
   --tint-butter-ink: oklch(0.45 0.09 80);
-  --tint-blush: oklch(0.951 0.032 30);
-  --tint-blush-ink: oklch(0.46 0.1 30);
-  --tint-sky: oklch(0.955 0.028 235);
-  --tint-sky-ink: oklch(0.44 0.08 245);
-  --tint-lilac: oklch(0.953 0.032 300);
-  --tint-lilac-ink: oklch(0.45 0.09 300);
 }
 
 @custom-variant dark (&:is(.dark *));

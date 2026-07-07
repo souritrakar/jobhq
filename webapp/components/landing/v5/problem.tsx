@@ -7,16 +7,18 @@ import { Sticker, TINT } from "./bits";
    Show, don't lecture: the chaos is a scatter of paper scraps; the fix is a
    single tidy job card that a scribbled line "collects" them into. */
 
+/* The chaos is gray — color belongs to the fix, not the mess. One butter
+   scrap keeps a pulse of warmth. */
 const SCRAPS: {
   label: string;
   tint: keyof typeof TINT;
   rotate: number;
   className: string;
 }[] = [
-  { label: "tab #47", tint: "sky", rotate: -6, className: "left-[4%] top-2 hidden lg:inline-flex" },
-  { label: "screenshot_final2.png", tint: "lilac", rotate: 4, className: "right-[3%] top-0 hidden lg:inline-flex" },
+  { label: "tab #47", tint: "neutral", rotate: -6, className: "left-[4%] top-2 hidden lg:inline-flex" },
+  { label: "screenshot_final2.png", tint: "neutral", rotate: 4, className: "right-[3%] top-0 hidden lg:inline-flex" },
   { label: "⭐ bookmarked (never opened)", tint: "butter", rotate: -3, className: "left-[1%] top-[46%] hidden lg:inline-flex" },
-  { label: "notes app, somewhere", tint: "blush", rotate: 5, className: "right-[2%] top-[52%] hidden lg:inline-flex" },
+  { label: "notes app, somewhere", tint: "neutral", rotate: 5, className: "right-[2%] top-[52%] hidden lg:inline-flex" },
 ];
 
 export function Problem() {
@@ -31,7 +33,7 @@ export function Problem() {
             className={`absolute z-10 ${s.className}`}
           >
             <span
-              className="scrap inline-block rounded-lg px-3 py-1.5 font-[family-name:var(--font-pally)] text-[0.82rem] font-medium"
+              className="scrap inline-block rounded-lg border border-border/60 px-3 py-1.5 font-[family-name:var(--font-pally)] text-[0.82rem] font-medium"
               style={{
                 backgroundColor: TINT[s.tint].bg,
                 color: TINT[s.tint].ink,
@@ -48,12 +50,12 @@ export function Problem() {
             Right now your job search lives in{" "}
             <span className="relative inline-block">
               40 tabs
-              <Scratch className="absolute -bottom-1 left-0 w-full text-[var(--tint-sky-ink)] opacity-70" />
+              <Scratch className="absolute -bottom-1 left-0 w-full text-primary opacity-60" />
             </span>
             , three apps, and one{" "}
             <span className="relative inline-block whitespace-nowrap">
               guilty spreadsheet.
-              <Scratch className="absolute -bottom-1 left-0 w-full text-[var(--tint-blush-ink)] opacity-70" />
+              <Scratch className="absolute -bottom-1 left-0 w-full text-primary opacity-60" />
             </span>
           </h2>
           <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
@@ -67,7 +69,7 @@ export function Problem() {
           {SCRAPS.map((s) => (
             <span
               key={s.label}
-              className="scrap inline-block rounded-lg px-2.5 py-1 font-[family-name:var(--font-pally)] text-[0.75rem] font-medium"
+              className="scrap inline-block rounded-lg border border-border/60 px-2.5 py-1 font-[family-name:var(--font-pally)] text-[0.75rem] font-medium"
               style={{
                 backgroundColor: TINT[s.tint].bg,
                 color: TINT[s.tint].ink,
@@ -104,13 +106,13 @@ export function Problem() {
                   Linear · Saved from LinkedIn · $170–210k
                 </p>
               </div>
-              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-status-applied px-2.5 py-1 text-[0.68rem] font-semibold text-status-applied-foreground">
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[var(--tint-fern)] px-2.5 py-1 text-[0.68rem] font-semibold text-[var(--tint-fern-ink)]">
                 <span className="size-1.5 rounded-full bg-current" /> Applied
               </span>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border/70 pt-3 text-[0.74rem]">
               <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                <Icon.Clock className="size-3.5 text-amber-600" />
+                <Icon.Clock className="size-3.5 text-[var(--tint-butter-ink)]" />
                 Closes Friday — reminder set
               </span>
               <span className="inline-flex items-center gap-1.5 text-muted-foreground">
