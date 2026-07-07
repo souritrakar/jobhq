@@ -15,8 +15,14 @@ import { Closer } from "@/components/landing/v5/closer";
 export default function Home() {
   return (
     <>
+      <a
+        href="#content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-full focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-foreground focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring"
+      >
+        Skip to content
+      </a>
       <Nav />
-      <main className="flex-1">
+      <main id="content" className="flex-1">
         <Hero />
         <Shelf />
         <Problem />

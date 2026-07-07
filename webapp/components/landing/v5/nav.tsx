@@ -16,6 +16,11 @@ const NAV = [
  * v5 floating pill nav — a rounded paper bar hovering over the canvas
  * (Acctual register). Always light: the whole page is daylight paper now.
  */
+/** Shared focus-visible ring for the nav's plain links (the global
+    outline-ring/50 is too faint on paper to carry keyboard focus alone). */
+const FOCUS =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+
 export function Nav() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -27,6 +32,15 @@ export function Nav() {
     return () => window.removeEventListener("scroll", update);
   }, []);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
   return (
     <header className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-5 sm:pt-4">
       <div
@@ -37,7 +51,7 @@ export function Nav() {
             : "border-border/60 bg-background/70 shadow-[0_10px_30px_-24px_rgba(20,40,25,0.25)] backdrop-blur-md",
         )}
       >
-        <a href="#top" className="shrink-0" aria-label="JobTracker home">
+        <a href="#top" className={cn("shrink-0 rounded-full", FOCUS)} aria-label="JobTracker home">
           <Logo />
         </a>
 
@@ -46,7 +60,10 @@ export function Nav() {
             <a
               key={item.href}
               href={item.href}
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className={cn(
+                "rounded-md py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground",
+                FOCUS,
+              )}
             >
               {item.label}
             </a>
@@ -56,7 +73,10 @@ export function Nav() {
         <div className="hidden items-center gap-1.5 md:flex">
           <a
             href="/dashboard"
-            className="rounded-full px-4 py-2 text-sm font-semibold text-foreground/80 transition-colors hover:bg-secondary hover:text-foreground"
+            className={cn(
+              "rounded-full px-4 py-2 text-sm font-semibold text-foreground/80 transition-colors hover:bg-secondary hover:text-foreground",
+              FOCUS,
+            )}
           >
             Open app
           </a>
@@ -68,7 +88,11 @@ export function Nav() {
           onClick={() => setOpen((v) => !v)}
           aria-label="Toggle menu"
           aria-expanded={open}
-          className="grid size-10 place-items-center rounded-full text-foreground transition-colors hover:bg-secondary md:hidden"
+          aria-controls="mobile-menu"
+          className={cn(
+            "grid size-10 place-items-center rounded-full text-foreground transition-colors hover:bg-secondary md:hidden",
+            FOCUS,
+          )}
         >
           <svg viewBox="0 0 24 24" className="size-5" fill="none" aria-hidden>
             {open ? (
@@ -80,8 +104,11 @@ export function Nav() {
         </button>
       </div>
 
-      {/* Mobile sheet — a paper card dropping out of the pill */}
+      {/* Mobile sheet — a paper card dropping out of the pill. `inert` while
+          closed so the invisible links leave the tab order. */}
       <div
+        id="mobile-menu"
+        inert={!open}
         className={cn(
           "mx-auto mt-2 max-w-5xl overflow-hidden rounded-3xl border bg-background shadow-[0_24px_50px_-24px_rgba(20,40,25,0.4)] transition-all duration-300 ease-out md:hidden",
           open ? "max-h-96 border-border opacity-100" : "max-h-0 border-transparent opacity-0",
@@ -93,7 +120,10 @@ export function Nav() {
               key={item.href}
               href={item.href}
               onClick={() => setOpen(false)}
-              className="rounded-xl px-3 py-2.5 text-base font-medium text-foreground/80 transition-colors hover:bg-secondary"
+              className={cn(
+                "rounded-xl px-3 py-2.5 text-base font-medium text-foreground/80 transition-colors hover:bg-secondary",
+                FOCUS,
+              )}
             >
               {item.label}
             </a>
@@ -101,11 +131,18 @@ export function Nav() {
           <div className="mt-2 flex flex-col gap-2">
             <a
               href="/dashboard"
-              className="rounded-full border border-border px-4 py-2.5 text-center text-sm font-semibold text-foreground"
+              onClick={() => setOpen(false)}
+              className={cn(
+                "rounded-full border border-border px-4 py-2.5 text-center text-sm font-semibold text-foreground transition-colors hover:bg-secondary",
+                FOCUS,
+              )}
             >
               Open app
             </a>
-            <ChromeStoreButton className="w-full justify-center" />
+            <ChromeStoreButton
+              className="w-full justify-center"
+              onClick={() => setOpen(false)}
+            />
           </div>
         </nav>
       </div>

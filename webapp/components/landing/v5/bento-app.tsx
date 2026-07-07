@@ -9,12 +9,12 @@ import { cn } from "@/lib/utils";
 
 export function BentoApp() {
   return (
-    <section id="app" className="px-5 py-24 sm:px-8 sm:py-32">
+    <section id="app" className="scroll-mt-24 px-5 py-24 sm:px-8 sm:py-32">
       <div className="mx-auto max-w-6xl">
         <SectionHead
           eyebrow="the web app"
           title={<>…then it all lives in one calm place</>}
-          intro="Every saved job lands on a board that keeps itself honest — with the deadlines, drafts, and to-dos attached."
+          intro="Every saved job lands on a board that keeps itself honest, with the deadlines, drafts, and to-dos attached."
         />
 
         <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-6 lg:gap-5">
@@ -43,7 +43,7 @@ export function BentoApp() {
                 iconBg="bg-white/80"
                 title="Follow up with Mercury"
                 chip="Overdue"
-                chipClass="bg-[var(--tint-butter-ink)] text-white"
+                chipClass="bg-[var(--tint-butter-ink)] text-background"
               />
               <ReminderRow
                 icon={<Icon.Bell className="size-3.5 text-primary" />}

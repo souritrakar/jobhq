@@ -167,8 +167,11 @@ exclusively by `webapp/components/landing/v5/`:
   blush/sky/lilac because the page read as color overload. In-page product
   mocks follow the Bonsai register: neutral grays, big quiet numbers, fern
   spent on exactly one moment per mock (real brand logos are exempt — they're
-  content). Fern remains the only *semantic* color; tints must not leak into
-  the app or extension surfaces.
+  content). Tinted-tile budget: **one butter tile per bento**, plus the
+  extension bento's fern anchor as the page's single fern field. `--sun`
+  counts as butter-family (tiny decorative glints only). Fern remains the
+  only *semantic* color; tints must not leak into the app or extension
+  surfaces.
 - Utilities/keyframes: `.hl`, `.sticker`, `.scrap`, `pop-in`, `wobble`,
   `type-reveal`, `confetti-fly`.
 

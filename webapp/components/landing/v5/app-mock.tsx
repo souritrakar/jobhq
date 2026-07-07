@@ -83,8 +83,8 @@ export function AppMock({ className }: { className?: string }) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-[9.5rem_1fr]">
-        {/* sidebar */}
-        <aside className="hidden flex-col border-r border-border bg-background/60 p-2.5 sm:flex">
+        {/* sidebar — plain divs: this is an illustration, no real landmarks */}
+        <div className="hidden flex-col border-r border-border bg-background/60 p-2.5 sm:flex">
           <div className="flex items-center gap-1.5 px-1.5 pb-2.5">
             <span className="grid size-5 place-items-center rounded-md bg-primary text-[0.58rem] font-bold text-primary-foreground">
               J
@@ -115,15 +115,15 @@ export function AppMock({ className }: { className?: string }) {
               )}
             </div>
           ))}
-        </aside>
+        </div>
 
         {/* home — Bonsai register: quiet labels, big numbers, flat divided list.
             Extra right padding at lg clears the docked extension drawer. */}
-        <main className="min-w-0 p-5 lg:pr-28">
+        <div className="min-w-0 p-5 lg:pr-28">
           <p className="text-[0.62rem] text-muted-foreground">Monday, July 6</p>
-          <h3 className="mt-0.5 font-display text-[1.1rem] font-semibold tracking-[-0.015em] text-foreground">
+          <p className="mt-0.5 font-display text-[1.1rem] font-semibold tracking-[-0.015em] text-foreground">
             Good morning, Sam
-          </h3>
+          </p>
 
           {/* stat strip — label over number, one green figure */}
           <div className="mt-4 grid grid-cols-3 gap-4 border-y border-border/70 py-3.5">
@@ -177,7 +177,7 @@ export function AppMock({ className }: { className?: string }) {
               </div>
             ))}
           </div>
-        </main>
+        </div>
       </div>
     </div>
   );

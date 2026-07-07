@@ -17,7 +17,7 @@ const SCRAPS: {
 }[] = [
   { label: "tab #47", tint: "neutral", rotate: -6, className: "left-[4%] top-2 hidden lg:inline-flex" },
   { label: "screenshot_final2.png", tint: "neutral", rotate: 4, className: "right-[3%] top-0 hidden lg:inline-flex" },
-  { label: "⭐ bookmarked (never opened)", tint: "butter", rotate: -3, className: "left-[1%] top-[46%] hidden lg:inline-flex" },
+  { label: "bookmarked (never opened)", tint: "butter", rotate: -3, className: "left-[1%] top-[46%] hidden lg:inline-flex" },
   { label: "notes app, somewhere", tint: "neutral", rotate: 5, className: "right-[2%] top-[52%] hidden lg:inline-flex" },
 ];
 
@@ -30,6 +30,7 @@ export function Problem() {
           <Reveal
             key={s.label}
             delay={150 + i * 120}
+            aria-hidden="true"
             className={`absolute z-10 ${s.className}`}
           >
             <span
@@ -46,7 +47,7 @@ export function Problem() {
         ))}
 
         <Reveal className="mx-auto max-w-2xl text-center">
-          <h2 className="font-display text-[2rem] font-bold leading-[1.1] tracking-[-0.025em] text-foreground text-balance sm:text-[2.9rem]">
+          <h2 className="font-display text-[2.2rem] font-bold leading-[1.08] tracking-[-0.025em] text-foreground text-balance sm:text-[3.1rem]">
             Right now your job search lives in{" "}
             <span className="relative inline-block">
               40 tabs
@@ -65,7 +66,7 @@ export function Problem() {
         </Reveal>
 
         {/* mobile chaos — scraps wrap under the heading instead of floating */}
-        <div className="mt-6 flex flex-wrap justify-center gap-2 lg:hidden">
+        <div aria-hidden="true" className="mt-6 flex flex-wrap justify-center gap-2 lg:hidden">
           {SCRAPS.map((s) => (
             <span
               key={s.label}
@@ -86,14 +87,15 @@ export function Problem() {
           <CollectSquiggle className="mt-2 h-20 w-40 text-primary/50 sm:h-24" />
         </Reveal>
 
-        {/* the fix — one clean card, everything in its place */}
-        <Reveal delay={200} className="relative z-20 mx-auto mt-2 max-w-md">
+        {/* the fix — one clean card, everything in its place. Decorative:
+            the sr-only line carries the message for AT. */}
+        <p className="sr-only">
+          JobTracker resolves all of it into one job card: role, company,
+          salary, deadline reminder, saved answers, and a drafted cover letter.
+        </p>
+        <Reveal delay={200} aria-hidden="true" className="relative z-20 mx-auto mt-2 max-w-md">
           <div className="relative rounded-2xl border border-border bg-card p-4 shadow-[0_30px_60px_-32px_rgba(20,40,25,0.45)]">
-            <Sticker
-              tint="fern"
-              rotate={-3}
-              className="absolute -top-4 left-5 px-3 py-1 text-[0.8rem]"
-            >
+            <Sticker tint="fern" rotate={-3} className="absolute -top-4 left-5">
               one card. all of it.
             </Sticker>
             <div className="flex items-start gap-3 pt-2">

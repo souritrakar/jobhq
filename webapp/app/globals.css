@@ -79,8 +79,12 @@
       radial-gradient(60% 50% at 50% 0%, var(--fern-100) 0%, transparent 70%);
   }
 
-  /* ── Brand gradient style-system ──────────────────────────────────────────
-     One consistent gradient language for every product mockup / abstract-UI
+  /* ── Brand gradient style-system — v4 LANDING ONLY ────────────────────────
+     Used exclusively by the retired v4 sections kept on disk for revert
+     (comparison.tsx, product-demo.tsx, features.tsx). The live v5 page
+     deliberately avoids lit gradient stages — do not reach for these in v5;
+     delete this block if/when v4 is removed. */
+  /* One consistent gradient language for every product mockup / abstract-UI
      illustration (the way aiapply.co reuses its purple→orange wash). Built only
      from our tokens: fern green + sun gold + pine, on warm paper. Use
      `.brand-surface` as the card backdrop and float abstract UI on top. The
@@ -358,18 +362,19 @@
   }
 }
 
-/* One attention pulse on the injected Save button. */
+/* A couple of attention pulses on the injected Save button, then rest —
+   an endless pulser inside the How section fails WCAG 2.2.2. */
 @keyframes pulse-once {
   0%,
   100% {
-    box-shadow: 0 10px 24px -10px rgba(20, 80, 40, 0.7);
+    box-shadow: 0 10px 24px -10px rgba(20, 40, 25, 0.7);
   }
   50% {
     box-shadow: 0 0 0 6px color-mix(in oklch, var(--primary) 22%, transparent);
   }
 }
 .animate-pulse-once {
-  animation: pulse-once 2.4s ease-in-out infinite;
+  animation: pulse-once 2.4s ease-in-out 3;
 }
 
 .animate-fade-up {
@@ -430,12 +435,18 @@
   *::before,
   *::after {
     animation-duration: 0.001ms !important;
+    animation-delay: 0s !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
-  .animate-fade-up {
+  .animate-fade-up,
+  .animate-pop-in {
     opacity: 1;
+  }
+  /* frozen petals would stack as colored dots at the origin — just hide them */
+  .confetti-petal {
+    display: none;
   }
   .marquee-track,
   .animate-float-tilt {

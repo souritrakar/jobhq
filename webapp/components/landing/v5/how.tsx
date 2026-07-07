@@ -9,7 +9,7 @@ import { SectionHead, TINT } from "./bits";
 
 export function How() {
   return (
-    <section id="how" className="px-5 py-24 sm:px-8 sm:py-32">
+    <section id="how" className="scroll-mt-24 px-5 py-24 sm:px-8 sm:py-32">
       <div className="mx-auto max-w-6xl">
         <SectionHead
           eyebrow="how it works"
@@ -17,7 +17,7 @@ export function How() {
           intro="No forms, no copy-paste, no tab hoarding. The extension does the filing; the app does the remembering."
         />
 
-        <div className="mt-16 grid gap-12 lg:grid-cols-[1fr_auto_1fr_auto_1fr] lg:items-start lg:gap-4">
+        <div className="mt-14 grid gap-12 lg:grid-cols-[1fr_auto_1fr_auto_1fr] lg:items-start lg:gap-4">
           <Step
             n={1}
             delay={0}
@@ -69,14 +69,15 @@ function Step({
 }) {
   return (
     <Reveal delay={delay} className="flex flex-col items-center text-center">
-      <div className="w-full max-w-xs">{children}</div>
+      {/* vignette is an illustration — keep it out of the AT tree */}
+      <div aria-hidden="true" className="w-full max-w-xs">{children}</div>
       <span
         className="mt-6 grid size-9 place-items-center rounded-full font-[family-name:var(--font-pally)] text-[1.05rem] font-bold"
         style={{ backgroundColor: TINT.fern.bg, color: TINT.fern.ink }}
       >
         {n}
       </span>
-      <h3 className="mt-3 font-display text-[1.25rem] font-bold tracking-[-0.015em] text-foreground">
+      <h3 className="mt-3 font-display text-[1.2rem] font-bold tracking-[-0.015em] text-foreground">
         {title}
       </h3>
       <p className="mt-2 max-w-[26ch] text-[0.95rem] leading-relaxed text-muted-foreground">

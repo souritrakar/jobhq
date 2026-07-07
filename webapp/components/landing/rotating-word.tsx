@@ -29,7 +29,8 @@ export function RotatingWord({ words, className, interval = 1900 }: RotatingWord
 
   return (
     <span className={cn("relative inline-flex items-center", className)}>
-      <span key={i} className="animate-fade-up font-semibold text-primary">
+      {/* ink shade, not --primary: this is body-size copy and must clear AA */}
+      <span key={i} className="animate-fade-up font-semibold text-[var(--tint-fern-ink)]">
         {words[i]}
       </span>
       <span

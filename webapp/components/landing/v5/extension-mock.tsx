@@ -95,7 +95,7 @@ export function ExtensionMock({ className }: { className?: string }) {
             <Icon.ChevronRight className="size-2.5 rotate-90 opacity-60" />
           </span>
         </div>
-        <div className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary py-2 text-[0.74rem] font-semibold text-primary-foreground shadow-[0_8px_18px_-8px_oklch(0.58_0.13_150/0.7)]">
+        <div className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary py-2 text-[0.74rem] font-semibold text-primary-foreground shadow-[0_8px_18px_-8px_color-mix(in_oklch,var(--primary)_70%,transparent)]">
           <Icon.Check className="size-3.5" /> Save application
         </div>
       </div>

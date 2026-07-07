@@ -62,21 +62,23 @@ export function Closer() {
           </Reveal>
         ))}
 
-        <Reveal className="relative text-center">
+        {/* #install: landing spot for the "Add to Chrome" CTAs until the real
+            Web Store URL is wired into ChromeStoreButton. */}
+        <Reveal id="install" className="relative scroll-mt-32 text-center">
           <Sparkle className="absolute -top-8 left-[30%] w-5 text-sun" />
-          <h2 className="mx-auto max-w-[16ch] font-display text-[2.2rem] font-bold leading-[1.06] tracking-[-0.025em] text-foreground text-balance sm:text-[3.2rem]">
+          <h2 className="mx-auto max-w-[16ch] font-display text-[2.2rem] font-bold leading-[1.08] tracking-[-0.025em] text-foreground text-balance sm:text-[3.1rem]">
             Close the tabs. Keep the jobs.
           </h2>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <ChromeStoreButton size="lg" />
             <a
               href="/dashboard"
-              className="inline-flex h-13 cursor-pointer items-center justify-center rounded-full border border-border bg-background px-6 text-base font-semibold text-foreground transition-all duration-200 hover:-translate-y-0.5 hover:bg-secondary"
+              className="inline-flex h-13 cursor-pointer items-center justify-center rounded-full border border-border bg-background px-6 text-base font-semibold text-foreground transition-all duration-200 hover:-translate-y-0.5 hover:border-foreground/25 hover:bg-secondary active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               Open the web app
             </a>
           </div>
-          <p className="mt-4 text-[0.82rem] text-muted-foreground/80">
+          <p className="mt-4 text-[0.85rem] text-muted-foreground">
             Takes about 20 seconds. The spreadsheet won&apos;t miss you.
           </p>
         </Reveal>
@@ -85,12 +87,22 @@ export function Closer() {
       {/* ── link row ── */}
       <div className="mx-auto mt-20 flex max-w-5xl flex-wrap items-center justify-center gap-x-7 gap-y-2 border-t border-border/70 px-5 pt-8 text-[0.85rem] text-muted-foreground sm:justify-between sm:px-8">
         <span>© 2026 JobTracker</span>
+        {/* TODO: add a Privacy link back once /privacy exists — it 404'd. */}
         <nav className="flex flex-wrap items-center gap-x-6 gap-y-2" aria-label="Footer">
-          <a href="#how" className="transition-colors hover:text-foreground">How it works</a>
-          <a href="#extension" className="transition-colors hover:text-foreground">Extension</a>
-          <a href="#app" className="transition-colors hover:text-foreground">The app</a>
-          <a href="#faq" className="transition-colors hover:text-foreground">FAQ</a>
-          <a href="/privacy" className="transition-colors hover:text-foreground">Privacy</a>
+          {[
+            { href: "#how", label: "How it works" },
+            { href: "#extension", label: "Extension" },
+            { href: "#app", label: "The app" },
+            { href: "#faq", label: "FAQ" },
+          ].map((l) => (
+            <a
+              key={l.href}
+              href={l.href}
+              className="rounded-md py-1 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              {l.label}
+            </a>
+          ))}
         </nav>
       </div>
 

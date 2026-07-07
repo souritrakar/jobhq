@@ -1,7 +1,6 @@
 import { ChromeStoreButton } from "../chrome-button";
 import { RotatingWord } from "../rotating-word";
-import { ArrowDoodle, Sparkle, Underline } from "../scribbles";
-import { BrandLogo } from "../brand-logo";
+import { ArrowDoodle, Underline } from "../scribbles";
 import { Peep } from "../peep";
 import { AppMock } from "./app-mock";
 import { ExtensionMock } from "./extension-mock";
@@ -29,10 +28,7 @@ export function Hero() {
       {/* ── copy ── */}
       <div className="relative mx-auto max-w-3xl text-center">
         <div className="animate-fade-up flex justify-center" style={{ animationDelay: "0ms" }}>
-          <Sticker rotate={-2}>
-            <SparkleGlyph className="size-3.5" />
-            free extension + web app
-          </Sticker>
+          <Sticker rotate={-2}>free extension + web app</Sticker>
         </div>
 
         <h1
@@ -71,19 +67,19 @@ export function Hero() {
         </div>
 
         <div
-          className="animate-fade-up mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row"
+          className="animate-fade-up mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row"
           style={{ animationDelay: "210ms" }}
         >
           <ChromeStoreButton size="lg" />
           <a
             href="/dashboard"
-            className="inline-flex h-13 cursor-pointer items-center justify-center gap-2 rounded-full border border-border bg-background px-6 text-base font-semibold text-foreground transition-all duration-200 hover:-translate-y-0.5 hover:border-foreground/25 hover:bg-secondary"
+            className="inline-flex h-13 cursor-pointer items-center justify-center gap-2 rounded-full border border-border bg-background px-6 text-base font-semibold text-foreground transition-all duration-200 hover:-translate-y-0.5 hover:border-foreground/25 hover:bg-secondary active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             Open the web app
           </a>
         </div>
         <p
-          className="animate-fade-up mt-4 text-[0.82rem] text-muted-foreground/80"
+          className="animate-fade-up mt-4 text-[0.85rem] text-muted-foreground"
           style={{ animationDelay: "260ms" }}
         >
           Free · no card · works on every job board
@@ -91,7 +87,13 @@ export function Hero() {
       </div>
 
       {/* ── signature shot ── */}
+      <p className="sr-only">
+        Illustration: the JobTracker dashboard with saved jobs and pipeline
+        stats, with the browser-extension drawer docked beside it capturing a
+        job posting.
+      </p>
       <div
+        aria-hidden="true"
         className="animate-fade-up relative mx-auto mt-16 max-w-5xl sm:mt-24"
         style={{ animationDelay: "340ms" }}
       >
@@ -99,15 +101,15 @@ export function Hero() {
         <div className="scrap absolute -left-6 top-16 -z-10 hidden h-40 w-56 -rotate-6 rounded-2xl border border-border/70 bg-card lg:block" />
         <div className="scrap absolute -right-4 -top-8 -z-10 hidden h-36 w-64 rotate-3 rounded-2xl border border-border/70 bg-card lg:block" />
 
-        {/* hand-written annotations — the green pen */}
+        {/* hand-written annotations — the green pen (ink shade clears AA) */}
         <div className="pointer-events-none absolute -top-12 left-[17%] z-20 hidden rotate-[-4deg] items-center gap-2 lg:flex">
-          <span className="font-[family-name:var(--font-pally)] text-[1.05rem] font-semibold text-primary">
+          <span className="font-[family-name:var(--font-pally)] text-[1.05rem] font-semibold text-[var(--tint-fern-ink)]">
             everything lands here
           </span>
           <ArrowDoodle className="mt-4 w-12 rotate-[30deg] text-primary/50" />
         </div>
         <div className="pointer-events-none absolute -right-2 -top-16 z-20 hidden rotate-[3deg] flex-col items-center gap-1 xl:flex">
-          <span className="font-[family-name:var(--font-pally)] text-[1.05rem] font-semibold text-primary">
+          <span className="font-[family-name:var(--font-pally)] text-[1.05rem] font-semibold text-[var(--tint-fern-ink)]">
             the extension catches it
           </span>
           <ArrowDoodle className="w-11 -scale-x-100 rotate-[10deg] text-primary/50" />
@@ -122,12 +124,8 @@ export function Hero() {
           <Confetti className="absolute -top-3 left-1/2" />
         </div>
 
-        {/* floating toasts */}
-        <FloatToast className="-left-3 -top-4 animate-float-slow sm:-left-7">
-          <BrandLogo slug="linkedin" label="LinkedIn" className="size-4" />
-          <span>Saved from LinkedIn</span>
-        </FloatToast>
-        <FloatToast className="-left-5 bottom-14 animate-float-slow [animation-delay:1.6s] sm:-left-10">
+        {/* one floating toast — the annotations already tell the save story */}
+        <FloatToast className="-left-5 bottom-14 animate-float-slow sm:-left-10">
           <span className="size-2 rounded-full" style={{ backgroundColor: "var(--sun)" }} />
           <span>Deadline found · Friday</span>
         </FloatToast>
@@ -137,7 +135,6 @@ export function Hero() {
           name="sit"
           className="absolute -top-[4.7rem] right-[30%] hidden w-24 lg:block"
         />
-        <Sparkle className="absolute -left-9 -top-6 hidden w-5 text-sun lg:block" />
       </div>
     </section>
   );
@@ -174,7 +171,7 @@ function Confetti({ className }: { className?: string }) {
       {petals.map((p, i) => (
         <span
           key={i}
-          className="absolute block size-1.5 rounded-[2px]"
+          className="confetti-petal absolute block size-1.5 rounded-[2px]"
           style={{
             backgroundColor: p.c,
             ["--fly-x" as string]: `${p.x}px`,
@@ -184,13 +181,5 @@ function Confetti({ className }: { className?: string }) {
         />
       ))}
     </span>
-  );
-}
-
-function SparkleGlyph({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className={className}>
-      <path d="M12 2c1 5 2 6 7 7-5 1-6 2-7 7-1-5-2-6-7-7 5-1 6-2 7-7Z" />
-    </svg>
   );
 }

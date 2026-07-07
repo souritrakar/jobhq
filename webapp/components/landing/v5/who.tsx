@@ -28,7 +28,7 @@ const PEOPLE = [
 
 export function Who() {
   return (
-    <section className="px-5 py-24 sm:px-8 sm:py-28">
+    <section className="px-5 py-24 sm:px-8 sm:py-32">
       <div className="mx-auto max-w-5xl">
         <SectionHead
           eyebrow="who it's for"

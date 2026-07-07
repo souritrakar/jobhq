@@ -45,15 +45,16 @@ export function Tile({
       >
         {tag}
       </span>
-      <h3 className="mt-4 font-display text-[1.15rem] font-bold leading-snug tracking-[-0.015em] text-foreground">
+      <h3 className="mt-4 font-display text-[1.2rem] font-bold leading-snug tracking-[-0.015em] text-foreground">
         {title}
       </h3>
       {blurb && (
-        <p className="mt-1.5 max-w-[38ch] text-[0.9rem] leading-relaxed text-muted-foreground">
+        <p className="mt-1.5 max-w-[38ch] text-[0.95rem] leading-relaxed text-muted-foreground">
           {blurb}
         </p>
       )}
-      {children && <div className="mt-5 flex-1">{children}</div>}
+      {/* vignettes are illustrations — keep their fake data out of the AT tree */}
+      {children && <div aria-hidden="true" className="mt-5 flex-1">{children}</div>}
     </Reveal>
   );
 }

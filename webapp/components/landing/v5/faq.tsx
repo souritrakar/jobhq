@@ -27,16 +27,16 @@ const QA: { q: string; a: string }[] = [
 
 export function Faq() {
   return (
-    <section id="faq" className="px-5 py-24 sm:px-8 sm:py-28">
+    <section id="faq" className="scroll-mt-24 px-5 py-24 sm:px-8 sm:py-32">
       <div className="mx-auto max-w-2xl">
         <SectionHead eyebrow="questions" title="Fair questions" />
 
-        <div className="mt-12 divide-y divide-border/70 rounded-3xl border border-border bg-card px-6 sm:px-8">
+        <div className="mt-14 divide-y divide-border/70 rounded-3xl border border-border bg-card px-6 sm:px-8">
           {QA.map((item) => (
             <details key={item.q} className="group py-5">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-left font-display text-[1.02rem] font-semibold text-foreground [&::-webkit-details-marker]:hidden">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-lg text-left font-display text-[1.05rem] font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-card [&::-webkit-details-marker]:hidden">
                 {item.q}
-                <span className="grid size-7 shrink-0 place-items-center rounded-full border border-border text-muted-foreground transition-transform duration-200 group-open:rotate-45">
+                <span className="grid size-7 shrink-0 place-items-center rounded-full border border-border text-muted-foreground transition-all duration-200 group-open:rotate-45 group-hover:border-foreground/30 group-hover:text-foreground">
                   <svg viewBox="0 0 24 24" className="size-3.5" fill="none" aria-hidden>
                     <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                   </svg>

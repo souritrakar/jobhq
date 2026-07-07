@@ -23,8 +23,13 @@ export function Shelf() {
 
       <div className="marquee-mask pause-on-hover mt-7 overflow-hidden">
         <div className="marquee-track items-center gap-10 pr-10">
+          {/* second copy exists only to make the loop seamless — hide it from AT */}
           {[...SITES, ...SITES].map((site, i) => (
-            <span key={`${site.slug}-${i}`} className="flex shrink-0 items-center gap-2.5">
+            <span
+              key={`${site.slug}-${i}`}
+              aria-hidden={i >= SITES.length || undefined}
+              className="flex shrink-0 items-center gap-2.5"
+            >
               <BrandLogo slug={site.slug} label={site.name} className="size-7" />
               <span className="whitespace-nowrap text-[0.95rem] font-semibold text-foreground/70">
                 {site.name}

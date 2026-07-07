@@ -9,12 +9,12 @@ const SITES = ["linkedin", "indeed", "wellfound", "greenhouse", "lever", "ashby"
 
 export function BentoExtension() {
   return (
-    <section id="extension" className="px-5 py-24 sm:px-8 sm:py-32">
+    <section id="extension" className="scroll-mt-24 px-5 py-24 sm:px-8 sm:py-32">
       <div className="mx-auto max-w-6xl">
         <SectionHead
           eyebrow="the extension"
           title={<>Catches jobs where they happen</>}
-          intro="It lives in your browser, right on the posting — so saving a job costs one click, not one evening."
+          intro="It lives in your browser, right on the posting, so saving a job costs one click, not one evening."
         />
 
         <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-6 lg:gap-5">
@@ -36,7 +36,7 @@ export function BentoExtension() {
                   <BrandLogo slug={s} label={s} className="size-8" />
                 </span>
               ))}
-              <span className="ml-1 inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-2 text-[0.76rem] font-semibold text-primary-foreground shadow-[0_10px_24px_-10px_oklch(0.4_0.1_152/0.6)]">
+              <span className="ml-1 inline-flex select-none items-center gap-1.5 rounded-full bg-primary px-3.5 py-2 text-[0.76rem] font-semibold text-primary-foreground shadow-[0_10px_24px_-10px_color-mix(in_oklch,var(--fern-700)_60%,transparent)]">
                 <Icon.Bookmark className="size-3.5" /> Save
               </span>
             </div>
