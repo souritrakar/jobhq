@@ -110,11 +110,7 @@ export function TodoCard({
 
   return (
     <div className="flex flex-col">
-      {items.length === 0 ? (
-        <p className="py-0.5 text-[13px] text-muted-foreground/70">
-          No tasks yet — add one to stay on track.
-        </p>
-      ) : (
+      {items.length > 0 && (
         <ul className="-mt-1 flex flex-col">
           {items.map((r) => (
             <TodoRow
@@ -128,9 +124,9 @@ export function TodoCard({
         </ul>
       )}
 
-      {/* Inline composer — the fast path. Type + Enter = a plain to-do; the bell turns it into a
-          dated reminder. Sits where a list row would, so it reads as "add another". */}
-      <div className="mt-2 flex items-center gap-2.5">
+      {/* Inline composer — the fast path, always present (no empty-state filler above it). Type +
+          Enter = a plain to-do; the bell turns it into a dated reminder. */}
+      <div className={cn("flex items-center gap-2.5", items.length > 0 && "mt-2")}>
         <Plus className="size-4 shrink-0 text-muted-foreground/45" aria-hidden />
         <input
           value={draft}

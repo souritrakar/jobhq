@@ -15,7 +15,7 @@ function shell(heading: string, bodyHtml: string, cta: { label: string; href: st
       <tr><td style="padding-top:20px">
         <a href="${safeUrl(cta.href)}" style="background:#3f9b6a;color:#fff;text-decoration:none;padding:10px 18px;border-radius:9px;display:inline-block;font-size:14px;font-weight:600">${escapeHtml(cta.label)}</a>
       </td></tr>
-      <tr><td style="padding-top:24px;font-size:11px;color:#999">JobTracker. Manage reminders in your dashboard settings.</td></tr>
+      <tr><td style="padding-top:24px;font-size:11px;color:#999">jobhq. Manage reminders in your dashboard settings.</td></tr>
     </table>
   </td></tr></table></body></html>`
 }
@@ -36,9 +36,9 @@ export function reminderEmail(copy: { title: string; where: string | null }, hre
       <tr><td style="font-size:23px;font-weight:700;line-height:1.35;color:#1f1f1f">${escapeHtml(copy.title)}</td></tr>
       ${whereRow}
       <tr><td style="padding-top:30px">
-        <a href="${safeUrl(href)}" style="background:#3f9b6a;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;display:inline-block;font-size:15px;font-weight:600">View in JobTracker</a>
+        <a href="${safeUrl(href)}" style="background:#3f9b6a;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;display:inline-block;font-size:15px;font-weight:600">View in jobhq</a>
       </td></tr>
-      <tr><td style="padding-top:30px;font-size:12px;line-height:1.5;color:#a0a0a0">You're getting this because you set a reminder in JobTracker.</td></tr>
+      <tr><td style="padding-top:30px;font-size:12px;line-height:1.5;color:#a0a0a0">You're getting this because you set a reminder in jobhq.</td></tr>
     </table>
   </td></tr></table></body></html>`
 }
@@ -82,7 +82,7 @@ export function digestEmail(
       <tr><td style="padding-top:24px">
         <a href="${safeUrl(href)}" style="background:#3f9b6a;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;display:inline-block;font-size:15px;font-weight:600">Review jobs</a>
       </td></tr>
-      <tr><td style="padding-top:28px;font-size:12px;line-height:1.5;color:#a0a0a0">You're getting this because these roles have been sitting untouched in JobTracker.</td></tr>
+      <tr><td style="padding-top:28px;font-size:12px;line-height:1.5;color:#a0a0a0">You're getting this because these roles have been sitting untouched in jobhq.</td></tr>
     </table>
   </td></tr></table></body></html>`
 }

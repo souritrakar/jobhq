@@ -53,10 +53,14 @@ const ROOT_RELS =
   "</Relationships>"
 
 function buildDocumentXml(text: string): string {
+  // Match the product typeface (Satoshi). Word falls back per-machine when it isn't installed;
+  // 22 half-points = 11pt, the standard cover-letter body size.
+  const runProps =
+    '<w:rPr><w:rFonts w:ascii="Satoshi" w:hAnsi="Satoshi" w:cs="Satoshi"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr>'
   const paragraphs = toLines(text)
     .map((line) => {
       if (line.trim() === "") return "<w:p/>"
-      return `<w:p><w:r><w:t xml:space="preserve">${escapeXml(line)}</w:t></w:r></w:p>`
+      return `<w:p><w:r>${runProps}<w:t xml:space="preserve">${escapeXml(line)}</w:t></w:r></w:p>`
     })
     .join("")
   return (
@@ -82,6 +86,35 @@ export function downloadDocx(text: string, baseName: string): void {
 
 // ── PDF (via the print dialog) ───────────────────────────────────────────────
 
+// The print window is a fresh document, so the app's product typeface (Satoshi, a global
+// @font-face in globals.css) isn't available there by default. The bundled font URL isn't
+// knowable at build time, so recover the @font-face rule from the live CSSOM and re-declare it
+// in the popup. Same-origin stylesheets only; anything unreadable is skipped and the font stack
+// falls back to system sans.
+function satoshiFontFaceCss(): string {
+  try {
+    for (const sheet of Array.from(document.styleSheets)) {
+      let rules: CSSRuleList
+      try {
+        rules = sheet.cssRules
+      } catch {
+        continue // cross-origin sheet
+      }
+      for (const rule of Array.from(rules)) {
+        if (
+          rule instanceof CSSFontFaceRule &&
+          rule.style.getPropertyValue("font-family").includes("Satoshi")
+        ) {
+          return rule.cssText
+        }
+      }
+    }
+  } catch {
+    // CSSOM unavailable — fall through to the system font stack.
+  }
+  return ""
+}
+
 export function printPdf(text: string, title: string): void {
   const win = window.open("", "_blank", "noopener,noreferrer,width=820,height=900")
   if (!win) {
@@ -96,9 +129,10 @@ export function printPdf(text: string, title: string): void {
 
   const style = doc.createElement("style")
   style.textContent =
+    satoshiFontFaceCss() +
     "@page{margin:1in;}" +
     "html,body{margin:0;}" +
-    "body{font-family:Georgia,'Times New Roman',serif;font-size:12pt;line-height:1.55;color:#111;max-width:7in;margin:0 auto;padding:0.25in;}" +
+    "body{font-family:'Satoshi',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:11pt;line-height:1.55;color:#111;max-width:7in;margin:0 auto;padding:0.25in;}" +
     "p{margin:0 0 0.75em;white-space:pre-wrap;}"
   doc.head.appendChild(style)
 

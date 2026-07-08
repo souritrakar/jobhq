@@ -2,7 +2,7 @@ import { Reveal } from "./reveal";
 
 const FAQS = [
   {
-    q: "Is JobTracker free?",
+    q: "Is jobhq free?",
     a: "Yes — saving, tracking, and reminders are free to use. We may add optional paid AI features (like background applying) down the line, but the core tracker stays free.",
   },
   {
@@ -11,7 +11,7 @@ const FAQS = [
   },
   {
     q: "How is this different from LinkedIn's Saved Jobs or a spreadsheet?",
-    a: "Saved Jobs only works inside LinkedIn and never reminds you of anything. A spreadsheet needs constant manual updating. JobTracker captures jobs from everywhere, fills in the details for you, and actively reminds you before deadlines close.",
+    a: "Saved Jobs only works inside LinkedIn and never reminds you of anything. A spreadsheet needs constant manual updating. jobhq captures jobs from everywhere, fills in the details for you, and actively reminds you before deadlines close.",
   },
   {
     q: "Do I need an account to start?",

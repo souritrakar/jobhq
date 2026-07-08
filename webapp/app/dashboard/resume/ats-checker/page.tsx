@@ -2,7 +2,7 @@ import { ScanSearch } from "lucide-react"
 
 import { PageStub } from "@/components/dashboard/page-stub"
 
-export const metadata = { title: "Resume ATS Checker — JobTracker" }
+export const metadata = { title: "Resume ATS Checker — jobhq" }
 
 export default function ResumeAtsCheckerPage() {
   return (

@@ -1,22 +1,15 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
 import "./globals.css";
 
-// EXPERIMENT: Excon (Fontshare) as the single product typeface — headings, body, UI,
-// and mockups all share it for one consistent voice. Self-hosted variable woff2 spanning
-// the 100–800 weight range. The variable name stays --font-google-sans so the
-// design-system theme.css mappings need no change; swap the src below to experiment with
-// another face (outfit.woff2 / pally.woff2 are also vendored in ./fonts).
-const googleSans = localFont({
-  variable: "--font-google-sans",
-  display: "swap",
-  src: [{ path: "./fonts/satoshi.woff2", weight: "300 900", style: "normal" }],
-});
+// The product typeface (self-hosted Satoshi) is declared as a global @font-face in
+// globals.css, which also sets --font-google-sans. It is intentionally NOT loaded via
+// next/font/local: that generates a *.module.css which @tailwindcss/postcss fills with
+// Preflight, breaking Turbopack's CSS-Modules purity check. See the note in globals.css.
 
 export const metadata: Metadata = {
-  title: "JobTracker — Save & track jobs from anywhere | Chrome extension",
+  title: "jobhq — Save & track jobs from anywhere | Chrome extension",
   description:
-    "Save any job posting in one click — LinkedIn, Indeed, Greenhouse, or any careers page. JobTracker captures deadlines, tracks your applications, and reminds you before postings close. Free Chrome extension.",
+    "Save any job posting in one click — LinkedIn, Indeed, Greenhouse, or any careers page. jobhq captures deadlines, tracks your applications, and reminds you before postings close. Free Chrome extension.",
   keywords: [
     "job application tracker",
     "save jobs chrome extension",
@@ -25,7 +18,7 @@ export const metadata: Metadata = {
     "application deadline reminders",
   ],
   openGraph: {
-    title: "JobTracker — Never lose a job posting again",
+    title: "jobhq — Never lose a job posting again",
     description:
       "Save any job from anywhere on the web in one click. Track deadlines, applications, and get reminded before postings close.",
     type: "website",
@@ -40,7 +33,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${googleSans.variable} h-full antialiased`}
+      className="h-full antialiased"
       // Browser extensions (password managers, recorders, one-sec, etc.) inject attributes onto
       // <html>/<body> before React hydrates, which otherwise throws a hydration-mismatch overlay
       // on every full page load (e.g. the hard navigation after sign-out). Standard Next.js fix.

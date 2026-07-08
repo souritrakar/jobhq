@@ -15,12 +15,9 @@ export function NotesPanel({ jobId, notes }: { jobId: string; notes: string | nu
         <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
           <NotebookPen className="size-[19px]" />
         </span>
-        <div className="min-w-0">
-          <h2 className="text-[15px] font-semibold leading-tight tracking-tight text-foreground">
-            Notes
-          </h2>
-          <p className="text-[11.5px] leading-tight text-muted-foreground">Private to you</p>
-        </div>
+        <h2 className="min-w-0 text-[15px] font-semibold leading-tight tracking-tight text-foreground">
+          Notes
+        </h2>
       </div>
 
       <div className="px-5 pb-5 pt-3.5">

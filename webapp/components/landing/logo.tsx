@@ -9,7 +9,7 @@ type LogoProps = {
 };
 
 /**
- * JobTracker brand lockup — a bookmark (save) cradling a sprout leaf (grow),
+ * jobhq brand lockup — a bookmark (save) cradling a sprout leaf (grow),
  * paired with the wordmark.
  */
 export function Logo({ className, markOnly = false, light = false }: LogoProps) {
@@ -41,7 +41,7 @@ export function Logo({ className, markOnly = false, light = false }: LogoProps) 
             light ? "text-white" : "text-foreground",
           )}
         >
-          Job<span className={light ? "text-[oklch(0.82_0.14_150)]" : "text-primary"}>Tracker</span>
+          job<span className={light ? "text-[oklch(0.82_0.14_150)]" : "text-primary"}>hq</span>
         </span>
       )}
     </span>

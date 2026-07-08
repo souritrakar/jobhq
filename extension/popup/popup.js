@@ -13,7 +13,7 @@ const CONTENT_SCRIPTS = [
   "ui/button.js",
   "ui/application.js",
   "ui/modal.js",
-  "ui/reminders.js",
+  "ui/todo.js",
   "content.js",
 ];
 

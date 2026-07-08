@@ -2,17 +2,37 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowUpRight, Bell, Building2, MoreHorizontal, Trash2 } from "lucide-react"
+import { Bell, Building2, ExternalLink, MoreHorizontal, Trash2 } from "lucide-react"
 import type { JobStatus } from "@prisma/client"
 
 import { cn } from "@/lib/utils"
+import { savedLabel } from "@/lib/dates"
 import { buttonVariants } from "@/components/ui/button"
+import { Tooltip } from "@/components/ui/tooltip"
 import { displayCompany } from "@/components/dashboard/logo-tile"
 import { createReminder } from "@/lib/reminders/client"
 import { StatusMenu } from "./status-menu"
 import { Menu, MenuItem } from "./menu"
 import { ReminderPopover, type ReminderDraft } from "./reminder-popover"
 import { DeleteJobDialog } from "./delete-job-dialog"
+
+// A quiet middot separator between the identity line's facts.
+function MetaDot() {
+  return <span aria-hidden className="text-muted-foreground/40">·</span>
+}
+
+// Only let http(s) URLs into an href. `job.url` is captured/imported from arbitrary postings and
+// isn't trusted, so a `javascript:`/`data:` scheme must never reach an anchor (XSS). Returns the
+// URL when safe, else null so the caller falls back to non-clickable text.
+function safeHttpUrl(url: string | null): string | null {
+  if (!url) return null
+  try {
+    const { protocol } = new URL(url)
+    return protocol === "http:" || protocol === "https:" ? url : null
+  } catch {
+    return null
+  }
+}
 
 /**
  * The page's Tier-1 identity block + primary actions. Title leads at display weight; company and
@@ -30,11 +50,14 @@ export function JobDetailHeader({
     source: string | null
     url: string | null
     status: JobStatus
+    updatedAt: Date
   }
 }) {
   const router = useRouter()
   const [showDelete, setShowDelete] = useState(false)
   const company = displayCompany(job.company)
+  // Guarded, http(s)-only URL for the "Open original" anchor — raw job.url is untrusted (see safeHttpUrl).
+  const url = safeHttpUrl(job.url)
 
   // Fast-capture from the header: persist, then refresh so the rail's Reminders card picks it up.
   async function addReminder(draft: ReminderDraft) {
@@ -55,7 +78,10 @@ export function JobDetailHeader({
           <h1 className="text-2xl font-semibold leading-tight tracking-tight text-balance sm:text-[1.75rem]">
             {job.title}
           </h1>
-          <p className="mt-1 text-sm">
+          {/* Identity line: company anchors it in foreground weight; the source link (blue, when we
+              have a URL) and last-updated recency trail behind, dot-separated, so the provenance
+              reads at a glance without a dedicated card. */}
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[13px] leading-tight">
             <span
               className={cn(
                 "font-medium text-foreground",
@@ -64,38 +90,46 @@ export function JobDetailHeader({
             >
               {company ?? "Company unknown"}
             </span>
-          </p>
+            <MetaDot />
+            <span className="text-muted-foreground">Updated {savedLabel(job.updatedAt)}</span>
+          </div>
         </div>
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
-        <StatusMenu jobId={job.id} status={job.status} />
+        {/* Keyed by the server status so a date-driven change elsewhere (setting/clearing an
+            interview date auto-moves the stage) re-syncs the pill after router.refresh(); the
+            menu's own optimistic changes are unaffected since they don't alter the server prop. */}
+        <StatusMenu key={job.status} jobId={job.id} status={job.status} />
 
-        {job.url && (
-          <a
-            href={job.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-          >
-            Open original
-            <ArrowUpRight className="size-3.5" data-icon="inline-end" />
-          </a>
+        {url && (
+          <Tooltip label="Open original">
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Open original posting"
+              className={cn(buttonVariants({ variant: "outline", size: "icon-sm" }))}
+            >
+              <ExternalLink className="size-4" />
+            </a>
+          </Tooltip>
         )}
 
         <ReminderPopover
           company={company}
           onSubmit={addReminder}
+          tooltip="Remind me"
           renderTrigger={({ open }) => (
             <button
               type="button"
+              aria-label="Remind me"
               className={cn(
-                buttonVariants({ variant: "outline", size: "sm" }),
+                buttonVariants({ variant: "outline", size: "icon-sm" }),
                 open && "bg-muted text-foreground",
               )}
             >
-              <Bell className="size-3.5" data-icon="inline-start" />
-              Remind me
+              <Bell className="size-4" />
             </button>
           )}
         />

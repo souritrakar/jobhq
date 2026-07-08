@@ -22,7 +22,7 @@ export function JobDescription({ description }: { description: string }) {
 
   return (
     <section aria-labelledby="about-heading" className="flex flex-col gap-3">
-      <h2 id="about-heading" className="text-sm font-semibold tracking-tight">
+      <h2 id="about-heading" className="text-xl font-semibold tracking-tight">
         About the role
       </h2>
       <div

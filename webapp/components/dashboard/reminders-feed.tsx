@@ -258,11 +258,6 @@ export function RemindersFeed({ reminders: initial }: { reminders: Reminder[] })
           />
 
           <div className="flex items-center justify-end gap-2">
-            {draft.trim() && !hasDate && (
-              <span className="mr-auto text-[12px] text-muted-foreground">
-                Pick when to be reminded.
-              </span>
-            )}
             <Button size="sm" variant="ghost" onClick={closeComposer}>
               Cancel
             </Button>

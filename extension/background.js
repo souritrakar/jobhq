@@ -23,8 +23,38 @@ function dlog(...a) {
 // self.handleReminderAlarm / self.REM_PREFIX / self.SYNC_ALARM.
 importScripts("lib/reminder-alarms.js");
 
+// ---- form-sync cross-frame relay ----------------------------------------------------------
+// content scripts can't message each other directly, so the top-frame aggregator and each
+// sub-frame agent talk THROUGH here. We add sender.frameId / sender.tab.id (a content script
+// can't know its own tab id) and forward within the SAME tab. Fire-and-forget; lastError is
+// swallowed (a frame may have torn down between send and deliver). See ui/frame-bridge.js.
+function relayFormSync(msg, sender) {
+  const tabId = sender && sender.tab && sender.tab.id;
+  if (tabId == null) return;
+  const swallow = () => void chrome.runtime.lastError;
+  if (msg.type === "FS_UP") {
+    // sub-frame → top frame (frame 0), stamped with the origin frame id
+    chrome.tabs.sendMessage(
+      tabId,
+      { type: "FS_DOWN", fromFrameId: sender.frameId, payload: msg.payload },
+      { frameId: 0 },
+      swallow,
+    );
+  } else if (msg.type === "FS_TO_FRAME") {
+    // top frame → one specific sub-frame
+    chrome.tabs.sendMessage(tabId, { type: "FS_CMD", payload: msg.payload }, { frameId: msg.frameId }, swallow);
+  } else if (msg.type === "FS_BROADCAST") {
+    // top frame → every frame in the tab (only sub-frame agents listen for FS_CMD)
+    chrome.tabs.sendMessage(tabId, { type: "FS_CMD", payload: msg.payload }, swallow);
+  }
+}
+
 // Central message handler. Return true to keep the channel open for async sendResponse.
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg?.type === "FS_UP" || msg?.type === "FS_TO_FRAME" || msg?.type === "FS_BROADCAST") {
+    relayFormSync(msg, sender);
+    return false; // synchronous fire-and-forget relay
+  }
   if (msg?.type === "EXTRACT_JOB") {
     extractJob(msg.context || {})
       .then((r) => sendResponse({ ok: true, fields: r.fields, description: r.description }))
@@ -95,6 +125,29 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       .catch((err) => sendResponse({ ok: false, error: String(err) }));
     return true;
   }
+  // Update tracking fields of an already-saved job (currently the panel's status picker). Maps to
+  // PATCH /api/jobs/:id, the same endpoint the web app's StatusMenu uses.
+  if (msg?.type === "PATCH_JOB") {
+    patchJob(msg.id, msg.patch || {})
+      .then((job) => sendResponse({ ok: true, job }))
+      .catch((err) => sendResponse({ ok: false, error: String(err) }));
+    return true;
+  }
+  // The user's saved documents (resume/CV list in the panel's Resume tab).
+  if (msg?.type === "LIST_DOCUMENTS") {
+    apiFetch("/api/documents")
+      .then((docs) => sendResponse({ ok: true, documents: Array.isArray(docs) ? docs : [] }))
+      .catch((err) => sendResponse({ ok: false, error: String(err), documents: [] }));
+    return true;
+  }
+  // A document's raw bytes (base64) so the panel can build a File to drag onto a page upload field
+  // or to download. Bytes only — the caller pairs them with the fileName/mimeType it already holds.
+  if (msg?.type === "FETCH_DOCUMENT") {
+    fetchDocumentBytes(msg.id)
+      .then((base64) => sendResponse({ ok: true, base64 }))
+      .catch((err) => sendResponse({ ok: false, error: String(err) }));
+    return true;
+  }
   if (msg?.type === "GET_JOBS") {
     getJobs()
       .then((jobs) => sendResponse({ ok: true, jobs }))
@@ -119,6 +172,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       .catch((err) => sendResponse({ ok: false, error: String(err) }));
     return true;
   }
+  if (msg?.type === "SAVE_APPLICATION_ANSWERS") {
+    saveApplicationAnswers(msg.jobId, msg.answers)
+      .then((answers) => sendResponse({ ok: true, answers }))
+      .catch((err) => sendResponse({ ok: false, error: String(err) }));
+    return true;
+  }
   if (msg?.type === "LIST_JOB_REMINDERS") {
     listJobReminders(msg.jobId)
       .then((reminders) => sendResponse({ ok: true, reminders }))
@@ -133,6 +192,13 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
   if (msg?.type === "TOGGLE_REMINDER") {
     toggleReminder(msg.id, msg.done)
+      .then((reminder) => sendResponse({ ok: true, reminder }))
+      .catch((err) => sendResponse({ ok: false, error: String(err) }));
+    return true;
+  }
+  if (msg?.type === "UPDATE_REMINDER") {
+    // Generic PATCH used by the drawer's save-time todo reconcile (done and/or due changes).
+    updateReminderApi(msg.id, msg.fields || {})
       .then((reminder) => sendResponse({ ok: true, reminder }))
       .catch((err) => sendResponse({ ok: false, error: String(err) }));
     return true;
@@ -348,6 +414,31 @@ async function getJobById(id) {
   return body.data;
 }
 
+// PATCH tracking fields (status/deadline/notes/…) of a saved job. `updateJobSchema` validates the
+// partial, and `updateJob` folds status changes through the interview-date reconciliation.
+async function patchJob(id, patch) {
+  return apiFetch(`/api/jobs/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch || {}),
+  });
+}
+
+// Fetch a document's raw bytes as base64. The /raw route streams the file; we return only the bytes
+// (chrome messaging is JSON, so no ArrayBuffer) and let the content script rebuild the File with the
+// fileName + mimeType it already has from the list. `?download=1` avoids any inline rendering path.
+async function fetchDocumentBytes(id) {
+  const res = await fetch(`${API_BASE}/api/documents/${encodeURIComponent(id)}/raw?download=1`);
+  if (!res.ok) throw new Error(`Document fetch failed (${res.status})`);
+  const buf = await res.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  let binary = "";
+  const CHUNK = 0x8000; // chunk so String.fromCharCode never overflows the arg limit on big files
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(binary);
+}
+
 async function saveJob(job) {
   // The popup's "save current tab" sends only title/url; fall back to the hostname so
   // the API's required `company` validation passes. The content script's save panel
@@ -365,6 +456,7 @@ async function saveJob(job) {
   if (job.salary) payload.salary = job.salary;
   if (job.employmentType) payload.employmentType = job.employmentType;
   if (job.workplaceType) payload.workplaceType = job.workplaceType;
+  if (job.status) payload.status = job.status; // pipeline stage set in the save panel
   if (job.deadline) payload.deadline = job.deadline;
   if (job.notes) payload.notes = job.notes;
   // Optional extracted application form. Forwarded only when the content script attached it
@@ -395,6 +487,16 @@ async function autofillMatch(jobId, fields) {
   });
 }
 
+// Batch-save the live-captured application answers for a saved job. One PUT upserts every
+// (question, value) row in a single transaction server-side and clears emptied ones; resolves
+// to the saved { questionId: value } map. Called by the content script right after SAVE_JOB.
+async function saveApplicationAnswers(jobId, answers) {
+  return apiFetch(`/api/jobs/${encodeURIComponent(jobId)}/application/answers`, {
+    method: "PUT",
+    body: JSON.stringify({ answers: Array.isArray(answers) ? answers : [] }),
+  });
+}
+
 // --- Reminders (shared backend; same /api/* as the web app) ----------------------------------
 // apiFetch unwraps the `{ data }` envelope, so these return the reminder(s) directly.
 async function listJobReminders(jobId) {
@@ -408,6 +510,12 @@ async function createReminder(jobId, fields) {
 }
 async function toggleReminder(id, done) {
   return apiFetch(`/api/reminders/${id}`, { method: "PATCH", body: JSON.stringify({ done }) });
+}
+// Generic reminder PATCH: forwards whatever subset of { done, dueAt, hasTime, title } the caller
+// sends (the save-time todo reconcile uses this to push done AND due changes in one call). `dueAt`
+// may be null to clear a due date (the API schema allows it).
+async function updateReminderApi(id, fields) {
+  return apiFetch(`/api/reminders/${id}`, { method: "PATCH", body: JSON.stringify(fields || {}) });
 }
 async function deleteReminderApi(id) {
   return apiFetch(`/api/reminders/${id}`, { method: "DELETE" });

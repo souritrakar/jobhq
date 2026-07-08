@@ -17,6 +17,10 @@
 
   // Compact types share a row; everything else spans full width.
   const COMPACT = new Set(["short_text", "number", "url", "email", "tel", "date", "select"]);
+  // Free-text single-line types stay EDITABLE in the live mirror (the panel adds value here).
+  // long_text is editable too (its own textarea branch). Everything else is a selection/file the
+  // user answers on the page, so the mirror shows the value read-only. See the 2026-07-05 design.
+  const FREE_TEXT_SINGLE = new Set(["short_text", "number", "url", "email", "tel", "date"]);
   // Map our semantic type → native <input type>.
   const INPUT_TYPE = {
     short_text: "text",
@@ -28,11 +32,15 @@
   };
 
   const SVGNS = "http://www.w3.org/2000/svg";
-  // lucide-style geometry (24×24). A flag (not a star) reads as "review this later" rather than
-  // "favourite"; its banner fills amber when flagged. link marks url fields.
-  const FLAG_PATHS = '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/>';
+  // lucide-style geometry (24×24). A star marks a question flagged for review; it fills amber when
+  // active. link marks url fields. (Name kept as FLAG_PATHS — it's the review-marker glyph.)
+  const FLAG_PATHS =
+    '<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>';
   const LINK_PATHS =
     '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>';
+  const X_PATHS = '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>';
+  const FILE_PATHS =
+    '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>';
 
   let uid = 0;
   const nextId = () => "appf-" + ++uid;
@@ -297,6 +305,162 @@
     return grid;
   }
 
+  // ===========================================================================================
+  // Live mirror rendering — the two-way panel for form-sync. renderLive(items, handlers) →
+  // { node, updateAnswer }. items: [{ key, question, answer, onPage }]. Controls are editable
+  // mirrors of the page's form: an edit here fires handlers.onEdit(key, value) (form-sync
+  // writes the page); a page edit arrives via updateAnswer(key, value), which patches the ONE
+  // control in place — no re-render, so focus and caret never jump. A control the user is
+  // currently typing in is never overwritten.
+  // ===========================================================================================
+
+  function isFocused(node) {
+    const r = node.getRootNode ? node.getRootNode() : null;
+    return !!(r && r.activeElement === node);
+  }
+  const asArray = (v) => (Array.isArray(v) ? v : v == null || v === "" ? [] : [String(v)]);
+  const asText = (v) => (Array.isArray(v) ? v.join(", ") : v == null ? "" : String(v));
+
+  // Quiet per-field dismiss (×) — "this isn't an application question". Same resting behavior
+  // as the flag: hidden until the field is hovered/focused.
+  function dismissButton(onDismiss) {
+    const btn = el("button", {
+      type: "button",
+      class: "appdismiss",
+      title: "Remove — not part of this application",
+      "aria-label": "Remove this question",
+    });
+    btn.append(icon(X_PATHS));
+    btn.addEventListener("click", onDismiss);
+    return btn;
+  }
+
+  // A read-only "selected value" display for the mirror's SELECTION and FILE fields. The page owns
+  // the real widget (and, for a combobox, the only place its options ever exist) — so the panel
+  // never reproduces options; it just shows the current selection as chips, with a muted hint when
+  // empty. `setValue(v)` repaints in place (string | string[]). See the 2026-07-05 design (part A).
+  function valueDisplay(emptyHint, file) {
+    const box = el("div", { class: "appvalue" + (file ? " appvalue--file" : "") });
+    if (file) box.append(icon(FILE_PATHS));
+    const hint = el("span", { class: "appvalue-empty", text: emptyHint });
+    const chips = el("div", { class: "appvalue-chips" });
+    box.append(hint, chips);
+    const setValue = (v) => {
+      const vals = asArray(v).map((s) => String(s).trim()).filter(Boolean);
+      chips.replaceChildren(...vals.map((s) => el("span", { class: "appvalue-chip", text: s })));
+      box.classList.toggle("empty", vals.length === 0);
+    };
+    setValue("");
+    return { control: box, setValue };
+  }
+
+  // Build the control for a live item + its { setValue } binding. Free-text fields are editable
+  // mirrors (edits fire onEdit); selection/file fields are read-only value displays — answered on
+  // the page, reflected here. Bare consent checkboxes are handled by the caller.
+  function buildLiveControl(q, key, id, onEdit) {
+    const type = q.type;
+
+    if (type === "long_text") {
+      const ta = textareaControl(q, id);
+      ta.addEventListener("input", () => onEdit(key, ta.value));
+      return { control: ta, setValue: (v) => { if (!isFocused(ta)) ta.value = asText(v); } };
+    }
+    if (type === "file") {
+      return valueDisplay("Choose the file on the page — its name shows here.", true);
+    }
+    if (FREE_TEXT_SINGLE.has(type)) {
+      const built = textControl(q, id);
+      const input = built.matches && built.matches("input") ? built : built.querySelector("input");
+      input.addEventListener("input", () => onEdit(key, input.value));
+      return { control: built, setValue: (v) => { if (!isFocused(input)) input.value = asText(v); } };
+    }
+    // Selection fields — select, combobox (arrives as type "select"), radio, multi_select,
+    // checkbox-with-options: the page owns the widget + its options; the panel shows the selection.
+    return valueDisplay("Choose on the page →");
+  }
+
+  function buildLiveField(item, handlers) {
+    const q = item.question;
+    const key = item.key;
+    const id = nextId();
+    const onEdit = (k, v) => handlers.onEdit && handlers.onEdit(k, v);
+    let field;
+    const star = flagButton(q, () => {
+      field.classList.toggle("flagged", !!q.flagged);
+      if (handlers.onFlagChange) handlers.onFlagChange();
+    });
+    const dismiss = dismissButton(() => handlers.onDismiss && handlers.onDismiss(key));
+    const offPage = !item.onPage;
+    const stepTag = offPage
+      ? el("span", {
+          class: "appstep",
+          title: "Captured on another page or step of this application — edits stay in the panel",
+          text: "Other step",
+        })
+      : null;
+
+    // Single consent checkbox: the label IS the statement, inline with the box. Read-only, like
+    // every non-text field — you tick it on the page; the panel reflects its state.
+    if (q.type === "checkbox" && (!q.options || !q.options.length)) {
+      const consent = consentControl(q, id);
+      const box = consent.matches("input") ? consent : consent.querySelector("input");
+      box.disabled = true;
+      const actions = el("div", { class: "appfield-actions" }, [star, dismiss]);
+      field = el(
+        "div",
+        { class: "appfield wide" + (q.flagged ? " flagged" : "") + (offPage ? " offpage" : "") },
+        [el("div", { class: "appconsent-row" }, [consent, actions])],
+      );
+      if (stepTag) field.append(stepTag);
+      const help = helpNode(q);
+      if (help) field.append(help);
+      const setValue = (v) => {
+        box.checked = String(asText(v)).toLowerCase() === "true";
+      };
+      setValue(item.answer);
+      return { node: field, binding: { setValue } };
+    }
+
+    const { control, setValue } = buildLiveControl(q, key, id, onEdit);
+    setValue(item.answer);
+    const wide = !COMPACT.has(q.type) || q.type === "file";
+    const labelWrap = el("span", { class: "applabel-wrap" }, [labelRow(q, id)]);
+    if (stepTag) labelWrap.append(stepTag);
+    const head = el("div", { class: "appfield-head" }, [
+      labelWrap,
+      el("div", { class: "appfield-actions" }, [star, dismiss]),
+    ]);
+    field = el(
+      "div",
+      {
+        class:
+          "appfield" + (wide ? " wide" : "") + (q.flagged ? " flagged" : "") + (offPage ? " offpage" : ""),
+      },
+      [head, control],
+    );
+    const help = helpNode(q);
+    if (help) field.append(help);
+    return { node: field, binding: { setValue } };
+  }
+
+  function renderLive(items, handlers) {
+    handlers = handlers || {};
+    const grid = el("div", { class: "appgrid" });
+    const bindings = new Map();
+    (items || []).forEach((item) => {
+      const { node, binding } = buildLiveField(item, handlers);
+      grid.append(node);
+      if (binding) bindings.set(item.key, binding);
+    });
+    return {
+      node: grid,
+      updateAnswer(key, value) {
+        const b = bindings.get(key);
+        if (b) b.setValue(value);
+      },
+    };
+  }
+
   // Scoped styles. Everything sits under .apppane so it can't disturb the Details tab. Colours,
   // radii and rings come from the shared design tokens declared on :host in modal.js, so the
   // form stays consistent with the rest of the panel and there's one source of truth.
@@ -411,10 +575,54 @@
       .apppane .appconsent:hover{border:none;background:none;}
       .apppane .appconsent:has(.appopt-input:checked){border:none;background:none;color:var(--ink);}
       .apppane .appconsent .appopt-input{margin-top:2px;}
+
+      /* ---- live mirror additions ---- */
+      /* Field action cluster (flag + dismiss) at the row end. */
+      .apppane .appfield-actions{display:flex;align-items:center;gap:0;flex:0 0 auto;}
+      .apppane .applabel-wrap{flex:1 1 auto;min-width:0;display:flex;align-items:baseline;gap:8px;
+        flex-wrap:wrap;}
+      /* Dismiss (×): same quiet resting behavior as the flag; danger hue on hover. */
+      .apppane .appdismiss{flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+        width:32px;height:32px;margin:-7px -7px -7px 0;padding:0;border:none;background:none;
+        cursor:pointer;border-radius:7px;color:var(--ink-3);opacity:0;
+        transition:opacity .12s ease,background .12s ease,color .12s ease,transform .1s ease;}
+      .apppane .appfield:hover .appdismiss,
+      .apppane .appfield:focus-within .appdismiss,
+      .apppane .appdismiss:focus-visible{opacity:1;}
+      .apppane .appdismiss:hover{background:var(--danger-bg);color:var(--danger);}
+      .apppane .appdismiss:active{transform:scale(.9);}
+      .apppane .appdismiss svg{width:15px;height:15px;}
+      .apppane .appdismiss:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
+      /* A question captured on a previous step/page: quietly dimmed, tagged. */
+      .apppane .appfield.offpage{opacity:.78;}
+      .apppane .appstep{flex:0 0 auto;font-size:9.5px;font-weight:700;letter-spacing:.05em;
+        text-transform:uppercase;padding:2px 7px;border-radius:999px;background:var(--bg-sunken);
+        color:var(--ink-3);white-space:nowrap;}
+      /* File mirror: display-only filename (files can't be set programmatically). */
+      .apppane .appfile-live{display:flex;align-items:center;gap:9px;min-height:40px;
+        padding:9px 12px;border:1px dashed var(--line-strong);border-radius:var(--r2);
+        background:var(--bg-sunken);font-size:12.5px;color:var(--ink);overflow-wrap:anywhere;}
+      .apppane .appfile-live.empty{color:var(--ink-3);}
+      .apppane .appfile-live svg{width:15px;height:15px;flex:0 0 auto;color:var(--ink-3);}
+
+      /* Selected-value display (read-only) for selection + file mirror fields. A sunken, dashed
+         well that reads as "answered on the page, shown here" — clearly not an editable control.
+         Selections show value chips; the empty state shows a muted "answer on the page" hint. */
+      .apppane .appvalue{display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-height:40px;
+        padding:8px 12px;border:1px dashed var(--line-strong);border-radius:var(--r2);
+        background:var(--bg-sunken);overflow-wrap:anywhere;}
+      .apppane .appvalue--file svg{width:15px;height:15px;flex:0 0 auto;color:var(--ink-3);}
+      .apppane .appvalue-chips{display:flex;flex-wrap:wrap;gap:6px;min-width:0;}
+      .apppane .appvalue.empty .appvalue-chips{display:none;}
+      .apppane .appvalue:not(.empty) .appvalue-empty{display:none;}
+      .apppane .appvalue-empty{font-size:12.5px;color:var(--ink-3);}
+      .apppane .appvalue-chip{display:inline-flex;align-items:center;font-size:13px;font-weight:500;
+        color:var(--accent-ink);background:var(--accent-bg);border:1px solid var(--accent);
+        border-radius:var(--r2);padding:4px 10px;line-height:1.3;}
     `;
   }
 
-  UI.applicationForm = { render, css };
+  UI.applicationForm = { render, renderLive, css };
 
   // ===========================================================================================
   // Autofill engine — harvest the LIVE application page's input fields, then fill them from the
@@ -490,9 +698,58 @@
       .trim();
   }
 
-  // Nearest preceding <label>/<legend>/heading within the control's field wrapper. Forms put the
-  // question text in a sibling/heading above the control — especially custom widgets that have no
-  // linked label — so this DOM-proximity pass recovers it generally, with no per-site selectors.
+  // A label element's CAPTION — the text that names the field — without the add-ons ATS forms pack
+  // into the same label: a trailing action button ("ATTACH RESUME/CV"), async status text
+  // ("Analyzing resume…Success!"), autocomplete results ("No location found…"), or a helper block.
+  // Generic (no per-site classes): walk the label in document order and keep the text that comes
+  // BEFORE the control, the first interactive element (button/link/select), or a SECOND block — i.e.
+  // the leading caption — then drop a trailing required marker. Falls back to the label's full text
+  // when nothing qualifies (a bare label[for] with no inner structure).
+  const CAPTION_STOP = /^(BUTTON|A|SELECT|TEXTAREA|INPUT)$/;
+  const CAPTION_BLOCK = /^(DIV|P|SECTION|UL|OL|LI|TABLE|FIELDSET|FORM|HEADER|FOOTER|ASIDE|NAV)$/;
+  function labelCaption(labelEl, control) {
+    if (!labelEl || !document.createTreeWalker) return textOf(labelEl);
+    let out = "";
+    let blocks = 0;
+    const walker = document.createTreeWalker(labelEl, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
+    let n;
+    while ((n = walker.nextNode())) {
+      if (control && n === control) break;
+      if (n.nodeType === 1) {
+        if (CAPTION_STOP.test(n.tagName) || n.getAttribute("role") === "button") break;
+        if (CAPTION_BLOCK.test(n.tagName)) { blocks++; if (blocks > 1 && out) break; }
+      } else if (n.nodeType === 3) {
+        const t = n.textContent.replace(/\s+/g, " ").trim();
+        if (t) out += (out ? " " : "") + t;
+      }
+    }
+    out = out.replace(/[\s*✱•]+$/, "").trim(); // strip a trailing required marker
+    return out || textOf(labelEl);
+  }
+
+  // Is a preceding sibling a usable label for a control? A heading/label/legend, OR a generic
+  // caption block: text-bearing, short, and holding NO form controls of its own (so it's a label,
+  // not another field or a whole form section). Returns its caption text, else "".
+  function captionSibling(ch) {
+    const heading = /^(LABEL|LEGEND|H[1-6])$/.test(ch.tagName) || ch.getAttribute("role") === "heading";
+    if (!heading) {
+      if (
+        ch.querySelector &&
+        ch.querySelector(
+          "input,textarea,select,button,a[href],[role=button],[role=radio],[role=checkbox],[role=combobox],[contenteditable]",
+        )
+      )
+        return "";
+      const raw = textOf(ch);
+      if (!raw || raw.length > 200) return "";
+    }
+    return labelCaption(ch, null);
+  }
+
+  // Nearest preceding label for a control. Takes the CLOSEST qualifying sibling (heading/label OR a
+  // plain caption block — see captionSibling) as it climbs the field's wrapper. Accepting generic
+  // caption blocks is what makes a real per-question label (e.g. a bare <div> above the input, as
+  // Lever/Wellfound render) win over a far-off SECTION heading. No per-site selectors.
   function proximityLabel(el) {
     let node = el;
     for (let up = 0; up < 6 && node; up++) {
@@ -504,10 +761,8 @@
           if (found) return cap(found);
           break;
         }
-        if (/^(LABEL|LEGEND|H[1-6])$/.test(ch.tagName) || ch.getAttribute("role") === "heading") {
-          const t = textOf(ch);
-          if (t) found = t; // keep the closest heading/label that sits above the control
-        }
+        const t = captionSibling(ch);
+        if (t) found = t; // keep the closest qualifying sibling above the control
       }
       if (found) return cap(found);
       node = parent;
@@ -528,10 +783,10 @@
     const idName = el.id || (el.getAttribute && el.getAttribute("name"));
     if (idName) {
       const lab = document.querySelector(`label[for="${cssEsc(idName)}"]`);
-      if (lab) { const t = textOf(lab); if (t) return cap(t); }
+      if (lab) { const t = labelCaption(lab, el); if (t) return cap(t); }
     }
     const wrap = el.closest && el.closest("label");
-    if (wrap) { const t = textOf(wrap); if (t) return cap(t); }
+    if (wrap) { const t = labelCaption(wrap, el); if (t) return cap(t); }
     const prox = proximityLabel(el);
     if (prox) return prox;
     const ph = el.getAttribute && el.getAttribute("placeholder");
@@ -548,7 +803,21 @@
   function groupLabel(inputs) {
     const first = inputs[0];
     const fs = first.closest && first.closest("fieldset");
-    if (fs) { const lg = fs.querySelector("legend"); if (lg) { const t = textOf(lg); if (t) return cap(t); } }
+    if (fs) {
+      // A <fieldset> legend is THIS group's label only when the fieldset wraps a single question.
+      // When it holds several radio/checkbox groups (distinct names), the legend is a SECTION title
+      // (e.g. "US work authorization" over both "authorized?" and "need sponsorship?") — using it
+      // would stamp every group with the same wrong label — so fall through to the per-group label.
+      const names = new Set(
+        Array.from(fs.querySelectorAll("input[type=radio],input[type=checkbox]"))
+          .map((i) => i.name)
+          .filter(Boolean),
+      );
+      if (names.size <= 1) {
+        const lg = fs.querySelector("legend");
+        if (lg) { const t = labelCaption(lg, null); if (t) return cap(t); }
+      }
+    }
     const grp = first.closest && first.closest("[role=radiogroup],[role=group],[aria-labelledby],[aria-label]");
     if (grp) {
       const ll = grp.getAttribute("aria-labelledby");
@@ -591,6 +860,10 @@
   // ---- visibility / fillability ----
   function isVisible(el) {
     if (!el) return false;
+    // aria-hidden (self or ancestor) → removed from the a11y tree, so never a user-facing question
+    // and never a real fill target. This drops react-select's hidden required-proxy input (a text
+    // input mirroring the combobox value for native validation) that otherwise double-harvests.
+    if (el.closest && el.closest('[aria-hidden="true"]')) return false;
     const style = root.getComputedStyle ? getComputedStyle(el) : null;
     if (style && (style.display === "none" || style.visibility === "hidden" || style.visibility === "collapse"))
       return false;
@@ -605,6 +878,26 @@
     if (hp === "listbox" || hp === "menu" || hp === "tree" || hp === "grid" || hp === "true") return true;
     const ac = (el.getAttribute("aria-autocomplete") || "").toLowerCase();
     return ac === "list" || ac === "both";
+  }
+
+  // The visible box of a custom-widget input. React-select and friends render the focusable input as
+  // a 1–3px sliver at the control's left edge; the box the user sees is an ancestor a few levels up.
+  // Climb until the box grows past a single control row, returning the widest same-row ancestor so a
+  // badge anchored here lands on the widget's edge, not over its placeholder. Generic (no site CSS).
+  function widgetBox(el) {
+    if (!el.getBoundingClientRect) return el;
+    const ir = el.getBoundingClientRect();
+    const rowCap = Math.max(ir.height * 2.4, 56); // taller than one control row → we've left the widget
+    let best = el;
+    let bestW = ir.width;
+    let node = el.parentElement;
+    for (let up = 0; up < 4 && node; up++) {
+      const r = node.getBoundingClientRect();
+      if (r.height > rowCap) break;
+      if (r.width > bestW) { best = node; bestW = r.width; }
+      node = node.parentElement;
+    }
+    return best;
   }
 
   function isFillable(el) {
@@ -861,6 +1154,17 @@
     return false;
   }
 
+  // Structural page chrome — navigation, banners, search boxes, cookie bars — is never an
+  // application question, however well-labelled its controls are. Generic landmarks only
+  // (elements + ARIA roles); no per-site selectors. Our own overlay hosts are shadow-rooted,
+  // so document-level queries never see inside them, but the hosts are matched too for safety.
+  const PAGE_CHROME_SELECTOR =
+    "nav,header,footer,[role=search],[role=navigation],[role=banner],[role=contentinfo]," +
+    "#jobtracker-modal-host,#jobtracker-picker-host";
+  function inPageChrome(el) {
+    return !!(el.closest && el.closest(PAGE_CHROME_SELECTOR));
+  }
+
   function harvestQuestions() {
     const fields = [];
     let seq = 0;
@@ -871,11 +1175,14 @@
     // Field-id → the live element(s) the question spans. The on-page picker anchors its badge
     // to the bounding box of this set (group = all members; cluster = its option buttons).
     const anchors = new Map();
+    // Field-id → fill descriptor ({ kind, el | options }) — the same shape harvestFields feeds
+    // the fill engine, so the live form-sync can READ and WRITE each question's control(s).
+    const descriptors = new Map();
 
     // Phase 1: custom option-button clusters → a single-choice question (same detection as autofill).
     const consumedContainers = [];
     const optionCandidates = Array.from(document.querySelectorAll(OPTION_SELECTOR))
-      .filter((el) => isVisible(el))
+      .filter((el) => isVisible(el) && !inPageChrome(el))
       .filter((el) => { const t = textOf(el); return t && t.length <= 40; })
       .filter((el) => !el.querySelector(OPTION_SELECTOR));
     const candSet = new Set(optionCandidates);
@@ -909,13 +1216,14 @@
       const cf = { id: nextQid(), label, kind: "radio", options: live.map((el) => textOf(el)).slice(0, MAX_OPTIONS) };
       fields.push(cf);
       anchors.set(cf.id, live.slice());
+      descriptors.set(cf.id, { kind: "buttons", options: live.map((el) => ({ el, label: textOf(el) })) });
     }
     const inConsumed = (el) => consumedContainers.some((c) => c.contains(el));
 
     // Phase 2: native controls + file inputs.
     const candidates = Array.from(
       document.querySelectorAll("input, textarea, select, [contenteditable]"),
-    ).filter((el) => isQuestionControl(el) && !inConsumed(el));
+    ).filter((el) => isQuestionControl(el) && !inConsumed(el) && !inPageChrome(el));
 
     const radiosByName = new Map();
     const checksByName = new Map();
@@ -937,6 +1245,10 @@
       fields.push(f);
       inputs.forEach((i) => controlIds.set(i, f.id));
       anchors.set(f.id, inputs.slice());
+      descriptors.set(f.id, {
+        kind,
+        options: inputs.map((i) => ({ el: i, value: i.value, label: optionLabel(i) })),
+      });
       inputs.forEach((i) => consumed.add(i));
     };
     for (const [, inputs] of radiosByName) if (inputs.length) emitGroup(inputs, "radio");
@@ -967,13 +1279,32 @@
       if (ph && ph.trim()) f.placeholder = cap(ph);
       fields.push(f);
       controlIds.set(el, f.id);
-      anchors.set(f.id, [el]);
+      // A custom-widget combobox (react-select etc.) hides its real input as a 1–3px sliver at the
+      // left of the control; anchoring the picker badge to it would drop the badge over the widget's
+      // placeholder text. Anchor to the visible widget box instead so the badge sits at its edge.
+      anchors.set(f.id, [kind === "combobox" ? widgetBox(el) : el]);
+      descriptors.set(f.id, { kind, el });
     }
 
     const cleaned = fields.filter((f) => f.label && f.label.trim()).slice(0, MAX_FIELDS);
-    // controlIds/anchors may still reference dropped (unlabelled) ids — consumers resolve
-    // against the CLEANED field list, so those entries are simply never read.
-    return { fields: cleaned, total: cleaned.length, controlIds, anchors };
+    // Present questions in DOM (page) order, not harvest-phase order. Phase 1 (option clusters) and
+    // grouped radios/checkboxes are emitted before single inputs, so without this every choice
+    // question would sort ahead of every text/select/file question regardless of where it sits on
+    // the page. A group takes the position of its first member. `anchors` already holds each
+    // field's representative node(s), so this needs no extra bookkeeping.
+    const nodeOf = (f) => { const a = anchors.get(f.id); return (a && a[0]) || null; };
+    cleaned.sort((a, b) => {
+      const na = nodeOf(a);
+      const nb = nodeOf(b);
+      if (!na || !nb || na === nb) return 0;
+      const pos = na.compareDocumentPosition(nb);
+      if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return -1; // a precedes b
+      if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+      return 0;
+    });
+    // controlIds/anchors/descriptors may still reference dropped (unlabelled) ids — consumers
+    // resolve against the CLEANED field list, so those entries are simply never read.
+    return { fields: cleaned, total: cleaned.length, controlIds, anchors, descriptors };
   }
 
   UI.autofill = {

@@ -109,7 +109,7 @@ export async function draftApplicationAnswer(
     models: answerDraftModelChain(env.AI_DRAFT_MODEL, env.AI_DRAFT_FALLBACK_MODELS),
     temperature: ANSWER_DRAFT_TEMPERATURE,
     maxTokens: env.AI_DRAFT_MAX_TOKENS,
-    title: "JobTracker - AI Draft",
+    title: "jobhq - AI Draft",
   })
 
   return { value: cleanDraftedAnswer(result.content) }

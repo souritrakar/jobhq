@@ -1,50 +1,19 @@
 import type { JobStatus } from "@prisma/client"
 
 import { cn } from "@/lib/utils"
+import { STATUS_STYLES } from "@/lib/jobs/status-styles"
 
-// Pipeline status as a soft, low-saturation pill with a leading dot. All colors come from
-// the shared status tokens (design-system/tokens.css), so saved/applied/etc. stay
-// consistent and read as part of the paper world — never cool UI chrome. Pills are reserved
-// for genuine status; plain metadata (location, salary) stays muted text, not a pill.
-//
-// Every className below is a complete literal string so Tailwind's JIT generates it.
-const CONFIG: Record<JobStatus, { label: string; fill: string; fg: string; dot: string }> = {
-  SAVED: {
-    label: "Saved",
-    fill: "bg-status-saved",
-    fg: "text-status-saved-foreground",
-    dot: "bg-status-saved-foreground",
-  },
-  APPLIED: {
-    label: "Applied",
-    fill: "bg-status-applied",
-    fg: "text-status-applied-foreground",
-    dot: "bg-status-applied-foreground",
-  },
-  INTERVIEWING: {
-    label: "Interviewing",
-    fill: "bg-status-interviewing",
-    fg: "text-status-interviewing-foreground",
-    dot: "bg-status-interviewing-foreground",
-  },
-  OFFER: {
-    label: "Offer",
-    fill: "bg-status-offer",
-    fg: "text-status-offer-foreground",
-    dot: "bg-status-offer-foreground",
-  },
-  REJECTED: {
-    label: "Rejected",
-    fill: "bg-status-rejected",
-    fg: "text-status-rejected-foreground",
-    dot: "bg-status-rejected-foreground",
-  },
-  ARCHIVED: {
-    label: "Archived",
-    fill: "bg-status-archived",
-    fg: "text-status-archived-foreground",
-    dot: "bg-status-archived-foreground",
-  },
+// Pipeline status as a soft, low-saturation pill with a leading dot. Colors come from the shared
+// status styles (lib/jobs/status-styles.ts → design-system tokens), so saved/applied/etc. read the
+// same here as on the board and the filter tabs — part of the paper world, never cool UI chrome.
+// Pills are reserved for genuine status; plain metadata (location, salary) stays muted text.
+const LABELS: Record<JobStatus, string> = {
+  SAVED: "Saved",
+  APPLIED: "Applied",
+  INTERVIEWING: "Interviewing",
+  OFFER: "Offer",
+  REJECTED: "Rejected",
+  ARCHIVED: "Archived",
 }
 
 export function StatusPill({
@@ -57,7 +26,8 @@ export function StatusPill({
   subtle?: boolean
   className?: string
 }) {
-  const { label, fill, fg, dot } = CONFIG[status]
+  const label = LABELS[status]
+  const { fill, fg, dot } = STATUS_STYLES[status]
   return (
     <span
       className={cn(

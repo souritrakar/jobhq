@@ -34,9 +34,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   try {
     const { id } = await params
     const job = await getJob(await getServerUserId(), id)
-    return { title: `${job.title} — JobTracker` }
+    return { title: `${job.title} — jobhq` }
   } catch {
-    return { title: "Job — JobTracker" }
+    return { title: "Job — jobhq" }
   }
 }
 
@@ -69,6 +69,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           source: job.source,
           url: job.url,
           status: job.status,
+          updatedAt: job.updatedAt,
         }}
       />
 
@@ -107,11 +108,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           <TrackingPanel
             job={{
               id: job.id,
-              url: job.url,
-              source: job.source,
               interviewAt: job.interviewAt,
-              createdAt: job.createdAt,
-              updatedAt: job.updatedAt,
             }}
             reminders={reminders}
             resumes={resumes}

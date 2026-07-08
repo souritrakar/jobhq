@@ -21,7 +21,7 @@ export function Features() {
           eyebrow="What it does"
           title="Everything you opened. Everything you still need to do."
         >
-          Saving a role is the easy part. JobTracker keeps the rest — and hands it
+          Saving a role is the easy part. jobhq keeps the rest — and hands it
           back as a next action.
         </SectionIntro>
 
@@ -165,7 +165,7 @@ function OneClickMock() {
         tabIndex={-1}
         className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary py-2 text-[0.8rem] font-semibold text-primary-foreground"
       >
-        <Icon.Puzzle className="size-4" /> Save to JobTracker
+        <Icon.Puzzle className="size-4" /> Save to jobhq
       </button>
       {/* cursor */}
       <svg viewBox="0 0 24 24" className="absolute -bottom-1.5 right-7 size-5 text-foreground drop-shadow-md" fill="currentColor" aria-hidden>

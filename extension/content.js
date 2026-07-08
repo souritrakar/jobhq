@@ -16,6 +16,15 @@
   const JT = self.JobTracker || {};
   const UI = JT.ui || {};
   const SCOPE = JT.scope || {};
+  const FRAME_BRIDGE = UI.frameBridge || null;
+  // Only the top frame owns UI (button/modal/nav). Sub-frames (cross-origin iframe'd application
+  // forms — Greenhouse/Lever/Ashby embeds) run a headless form-sync agent that relays their
+  // questions up to the top-frame panel. See ui/frame-bridge.js.
+  const IS_TOP = self.top === self.self;
+  // The form-sync facade the panel drives. In the top frame this becomes the cross-frame
+  // aggregator (local + every sub-frame); it falls back to the bare local engine if the bridge is
+  // absent (e.g. unit tests). Assigned during top-frame wiring below.
+  let SYNC = UI.formSync;
   const FONT_STYLE_ID = "jobtracker-font";
   const DASHBOARD_URL = "http://localhost:3100/dashboard";
   const DASHBOARD_SAVED_URL = "http://localhost:3100/dashboard/saved";
@@ -103,11 +112,13 @@
       }
     }
 
-    // For an already-saved posting, refresh the cached reminders into the anchored record (best
-    // effort, fire-and-forget). The modal's reminders section fetches its own live list on open;
-    // this just keeps the local-first record in step so it carries `reminders` like details/questions.
+    // For an already-saved posting, seed the local-first to-do list from the server reminders so the
+    // To-do section shows what's already scheduled (incl. web-app-added ones and auto reminders).
+    // Server rows win for synced state; local unsynced adds and pending deletes are preserved. Best
+    // effort with a short timeout — a sleeping worker must never block the panel from opening.
     if (record && record.saved && record.saved.id) {
-      refreshReminders(anchorId, record.saved.id);
+      const seeded = await seedTodosFromServer(anchorId, record.saved.id, record);
+      if (seeded) record = seeded;
     }
 
     // Seed the modal with what we have before any extraction (url, a title hint). The restored
@@ -124,18 +135,71 @@
       source: (scoped && scoped.source) || hostname(),
       logoUrl: "",
     };
-    // ---- on-page field picker (deterministic question capture) ----
-    // State for this panel session: the tracked questions (seeded from the anchored record —
-    // cached picks/extractions or the saved job's server copy) and the modal tray handle.
+    // ---- live application form sync (deterministic, zero-LLM question capture) ----
+    // form-sync auto-detects the page's application fields the moment the panel opens, mirrors
+    // their values BOTH ways (page ⇄ panel), and keeps capturing across the form's steps/pages.
+    // Everything lives in the anchored local record ({ questions, draftAnswers, ignoredKeys });
+    // the DB is touched only on save. REVERT(field picker): the manual on-page picker
+    // (UI.picker / ui/field-picker.js) previously drove this tray — see git history to restore.
     const MAPPER = JT.questionMapper;
     let applicationApi = null;
-    let pickedQuestions = record && Array.isArray(record.questions) ? record.questions.slice() : [];
-    const savedView = !!(record && record.saved && record.saved.id);
-    const trayViewOpts = () =>
-      savedView ? { answers: (record && record.answers) || {}, readOnly: true } : undefined;
-    const persistPicked = () => mergeJobRecord(anchorId, { questions: pickedQuestions });
-    const refreshTray = () => {
-      if (applicationApi) applicationApi.setQuestions(pickedQuestions, trayViewOpts());
+    // From here on `record` is the AUTHORITATIVE in-memory copy of this posting's local record. Every
+    // session edit updates it and persists the WHOLE record in a single write (persistRecord) — so
+    // independent fields (details / questions / todos) can never clobber one another, and no write is
+    // lost to the two-hop read-modify-write that mergeJobRecord uses. It's loaded fully at open (incl.
+    // any server revalidation / todo seed above), so a full-record set never drops a field.
+    if (!record) record = {};
+    const persistRecord = () => setJobRecord(anchorId, { ...record, savedAt: Date.now() });
+
+    // Seed answers for the sync session: the saved job's server answers (record.answers is a
+    // { questionId: value } map; the cached questions carry those ids) UNDER local drafts.
+    // A draft overrides only when it actually DIVERGES from the server value — a draft that
+    // merely mirrors what was already saved must not mask a later edit made in the web app.
+    const seedAnswers = {};
+    const qByKey = new Map();
+    if (MAPPER && Array.isArray(record.questions)) {
+      for (const q of record.questions) {
+        if (!q || !q.label) continue;
+        const key = MAPPER.keyOf(q);
+        qByKey.set(key, q);
+        if (record.answers && q.id != null && q.id in record.answers) {
+          seedAnswers[key] = MAPPER.decodeAnswer(q, record.answers[q.id]);
+        }
+      }
+    }
+    for (const [key, draft] of Object.entries(record.draftAnswers || {})) {
+      const q = qByKey.get(key);
+      if (q && MAPPER && key in seedAnswers) {
+        const same = MAPPER.encodeAnswer(q, draft) === MAPPER.encodeAnswer(q, seedAnswers[key]);
+        if (same) continue; // already synced — let the server copy lead
+      }
+      seedAnswers[key] = draft;
+    }
+
+    // Persist the sync model (debounced — answer edits arrive per keystroke). Flushed on close.
+    let syncPersistTimer = null;
+    const persistSyncNow = () => {
+      if (syncPersistTimer) {
+        clearTimeout(syncPersistTimer);
+        syncPersistTimer = null;
+      }
+      if (!SYNC || !SYNC.isActive()) return;
+      // "Clear all" (Application tab): persist NOTHING application-related so the save writes no
+      // questions — form-sync keeps detecting underneath, but the user opted out for this job. Undo
+      // flips the flag and the live questions persist again on the next flush.
+      if (record.applicationCleared) {
+        record.questions = [];
+        record.draftAnswers = {};
+      } else {
+        record.questions = SYNC.getQuestions();
+        record.draftAnswers = SYNC.getAnswers();
+      }
+      record.ignoredKeys = SYNC.getIgnoredKeys();
+      persistRecord();
+    };
+    const schedulePersistSync = () => {
+      if (syncPersistTimer) clearTimeout(syncPersistTimer);
+      syncPersistTimer = setTimeout(persistSyncNow, 400);
     };
 
     // If this posting has already been saved (persisted per anchor), the panel opens straight
@@ -144,65 +208,116 @@
     UI.modal.open(initial, {
       dashboardUrl: DASHBOARD_URL,
       savedJob: savedRec && savedRec.id ? { id: savedRec.id, viewUrl: viewUrlFor(savedRec.id) } : null,
+      // ---- pipeline status ----
+      // Seed the picker from the restored/server status; default Saved. A change persists locally
+      // right away, and — once the posting is tracked — PATCHes the job so the stage matches the
+      // job page. On the first save the chosen status rides along in the payload (createJob honours it).
+      status: record.status || "SAVED",
+      onStatusChange: (status) => {
+        record.status = status;
+        persistRecord();
+        if (savedRec && savedRec.id) patchJobStatus(savedRec.id, status);
+      },
       // ---- Details (now user-triggered, like Application) ----
       // loadDetails restores a prior Details snapshot so reopening — including on a sub-URL —
       // isn't blank. onDetailsChange persists the live snapshot (debounced) so edits ride along.
       // onExtractDetails runs the LLM auto-fill ONLY when the user asks (no tokens on open).
-      loadDetails: () => Promise.resolve((record && record.details) || null),
-      onDetailsChange: (details) => mergeJobRecord(anchorId, { details }),
+      loadDetails: () => Promise.resolve(record.details || null),
+      onDetailsChange: (details) => {
+        record.details = details;
+        persistRecord();
+      },
       onExtractDetails: () => requestExtraction(),
-      // ---- Application (unchanged flow; now stored in the same anchored record) ----
-      // Restores the cached questions and — for an already-saved job — the current answers, so the
-      // panel shows the live values read-only (the user can copy them out). `saved` flips the form
-      // into that read-only answer view; a fresh, unsaved extraction stays an editable preview.
-      loadApplication: () =>
-        Promise.resolve(
-          record && record.questions
-            ? {
-                questions: record.questions,
-                answers: record.answers || null,
-                saved: !!(record.saved && record.saved.id),
-              }
-            : null,
-        ),
-      onApplicationExtracted: (questions) => {
-        // Flag toggles re-persist through this same hook (renderAppResult calls it).
-        pickedQuestions = questions;
-        mergeJobRecord(anchorId, { questions });
+      // ---- Application (live mirror; stored in the same anchored record) ----
+      // form-sync owns detection + values; the modal renders whatever model it pushes. Flag
+      // toggles re-persist through onApplicationExtracted (the questions are the same objects
+      // form-sync tracks, so getQuestions() sees the star immediately).
+      onApplicationExtracted: () => schedulePersistSync(),
+      // Clear all / undo for the Application tab. The flag lives in the anchored record so it
+      // survives close/reopen; persistSyncNow honours it (saves no questions while cleared).
+      applicationCleared: !!record.applicationCleared,
+      onApplicationClearedChange: (cleared) => {
+        record.applicationCleared = cleared;
+        persistSyncNow();
+      },
+      onAnswerEdit: (key, value) => {
+        if (SYNC) SYNC.setAnswer(key, value);
+        schedulePersistSync();
+      },
+      onQuestionDismiss: (key) => {
+        if (SYNC) SYNC.dismiss(key); // fires onModel → tray re-renders without the field
+        schedulePersistSync();
       },
       // REVERT(LLM extraction): restore the line below to bring back extract-on-demand.
       // onExtractApplication: () => requestApplicationExtraction(),
       onApplicationReady: (api) => {
         applicationApi = api;
       },
+      // ---- Resume tab documents (real, from the backend) ----
+      // loadDocuments lists the user's saved resumes/CVs; fetchDocumentFile returns one as a File so
+      // the panel can drag it onto a page upload field or download it.
+      loadDocuments,
+      fetchDocumentFile,
+      // ---- To-do (local-first) ----
+      // loadTodos restores the list (+ pending server-side deletions) from the anchored record so it
+      // survives close / collapse / refresh. onTodosChange persists every edit immediately — nothing
+      // touches the backend here; the reconcile against the reminder API runs only on save (saveJob).
+      loadTodos: () =>
+        Promise.resolve({
+          todos: record.todos || [],
+          deleted: record.todosDeleted || [],
+        }),
+      onTodosChange: (todos, deleted) => {
+        record.todos = todos;
+        record.todosDeleted = deleted;
+        persistRecord();
+      },
       onClose: () => {
+        persistSyncNow(); // flush BEFORE deactivate — deactivate clears the sync state
+        if (SYNC) SYNC.deactivate();
         if (UI.picker) UI.picker.deactivate();
       },
       // Autofill is only meaningful once the posting is saved (it fills from saved answers). Provide
       // the hook only then; the modal shows the Autofill button when this is present (read-only view).
       onAutofillMatch:
         savedRec && savedRec.id ? (fields) => requestAutofillMatch(savedRec.id, fields) : null,
-      onConfirm: (finalJob) => saveJob(finalJob, anchorId),
+      onConfirm: async (finalJob) => {
+        persistSyncNow(); // capture the freshest questions/answers before the payload is built
+        const result = await saveJob(finalJob, anchorId);
+        // saveJob wrote the `saved` marker straight to storage, but THIS panel's in-memory `record`
+        // (the authoritative copy every persist overwrites storage with) hasn't seen it. Fold it in
+        // now, or the next full-record persist — deterministically the sync flush in onClose — would
+        // overwrite storage WITHOUT `saved` and wipe the marker, making a reload show "Save" again.
+        if (result && result.id) {
+          record.saved = {
+            id: result.id,
+            url: result.url || (record.saved && record.saved.url) || finalJob.url || "",
+            savedAt: Date.now(),
+          };
+          record.status = result.status || finalJob.status || record.status || "SAVED";
+        }
+        return result;
+      },
     });
 
-    // Activate the picker the moment the panel opens (bookmark click) — affordances appear
-    // immediately, pre-marked for questions already tracked for this posting.
-    if (UI.picker && MAPPER) {
-      UI.picker
-        .activate({
-          selectedKeys: pickedQuestions.map((q) => MAPPER.keyOf(q)),
-          onPick: () => {
-            pickedQuestions = MAPPER.mergePicked(pickedQuestions, UI.picker.getSelected());
-            persistPicked();
-            refreshTray();
-          },
-          onUnpick: (key) => {
-            pickedQuestions = pickedQuestions.filter((q) => MAPPER.keyOf(q) !== key);
-            persistPicked();
-            refreshTray();
-          },
-        })
-        .catch(() => {});
+    // Start the live sync the moment the panel opens: previously captured questions restore
+    // instantly (off-page until re-found), the current page's fields stream in as detected, and
+    // every page edit mirrors into the tray. Deactivated on every panel close path (onClose).
+    if (SYNC && MAPPER && UI.autofill) {
+      SYNC.activate({
+        questions: Array.isArray(record.questions) ? record.questions : [],
+        answers: seedAnswers,
+        ignoredKeys: Array.isArray(record.ignoredKeys) ? record.ignoredKeys : [],
+        onModel: (items) => {
+          if (applicationApi) applicationApi.setModel(items);
+          schedulePersistSync();
+        },
+        onAnswer: (key, value, fromPage) => {
+          // Panel-originated edits already show in the panel; only page edits need pushing.
+          if (fromPage && applicationApi) applicationApi.updateAnswer(key, value);
+          schedulePersistSync();
+        },
+      }).catch(() => {});
     }
   }
 
@@ -294,13 +409,42 @@
     } catch (_) {}
   }
 
+  // Like mergeJobRecord, but resolves after the write lands (and to the merged record). Used where a
+  // later step must read back the merge synchronously — e.g. stamping `saved` before the to-do
+  // reconcile re-reads the record. Never rejects.
+  function mergeJobRecordAsync(id, partial) {
+    return new Promise((resolve) => {
+      try {
+        const key = recordKey(id);
+        chrome.storage.local.get(key, (r) => {
+          if (chrome.runtime.lastError) return resolve(null);
+          const prev = (r && r[key]) || {};
+          const next = { ...prev, ...partial, savedAt: Date.now() };
+          chrome.storage.local.set({ [key]: next }, () => resolve(next));
+        });
+      } catch (_) {
+        resolve(null);
+      }
+    });
+  }
+
   // Overwrite the whole anchor record (used by revalidation, which must also DELETE keys — a merge
   // can't remove `saved`). Resolves once written; never rejects.
   function setJobRecord(id, record) {
     return new Promise((resolve) => {
       try {
-        chrome.storage.local.set({ [recordKey(id)]: record }, () => resolve());
-      } catch (_) {
+        chrome.storage.local.set({ [recordKey(id)]: record }, () => {
+          // Surface (don't swallow) a failed local write — most often "Extension context
+          // invalidated" after reloading the unpacked extension while an old tab is still open,
+          // which silently drops edits until the tab is reloaded. A visible warning turns that
+          // confusing "my todos vanished" into an actionable "reload this tab".
+          if (chrome.runtime.lastError) {
+            console.warn("[JobTracker] Couldn't persist locally:", chrome.runtime.lastError.message);
+          }
+          resolve();
+        });
+      } catch (e) {
+        console.warn("[JobTracker] Couldn't persist locally:", (e && e.message) || e);
         resolve();
       }
     });
@@ -368,6 +512,9 @@
         extracted: true,
       },
       ...(serverQuestions ? { questions: serverQuestions, answers: serverAnswers || {} } : {}),
+      // The pipeline stage as it stands on the server — keeps the panel's status picker in step with
+      // any change made on the job page since this posting was last opened.
+      status: job.status || prev.status || "SAVED",
       saved: { id: job.id, url: job.url || "", savedAt: Date.now() },
     };
     await setJobRecord(anchorId, next);
@@ -385,16 +532,153 @@
     return next;
   }
 
-  // Cache the saved job's reminders into its anchored record (best effort). The reminders UI in
-  // the modal reads its live list straight from the worker; this keeps the local-first record in
-  // step so `reminders` rides alongside details/questions/answers. Never blocks panel open.
-  function refreshReminders(anchorId, jobId) {
-    try {
-      chrome.runtime.sendMessage({ type: "LIST_JOB_REMINDERS", jobId }, (res) => {
-        if (chrome.runtime.lastError || !res || !res.ok) return;
-        mergeJobRecord(anchorId, { reminders: Array.isArray(res.reminders) ? res.reminders : [] });
-      });
-    } catch (_) {}
+  // ---- local-first to-dos (synced to the reminder API only on save) --------------------------
+  // To-dos live in the anchored record (`record.todos`); pending server-side deletions in
+  // `record.todosDeleted`. The drawer edits them purely locally; content.js reconciles them against
+  // the reminder worker messages when the user saves. Todo shape mirrors ui/todo.js:
+  //   { id, title, done, dueAt?, hasTime?, remoteId?, type?, synced? }
+
+  // Promise wrapper over a reminder worker message (CREATE/UPDATE/DELETE). Rejects on failure.
+  function sendReminderMsg(message) {
+    return new Promise((resolve, reject) => {
+      try {
+        chrome.runtime.sendMessage(message, (res) => {
+          if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+          if (res && res.ok) resolve(res);
+          else reject(new Error((res && res.error) || "Reminder request failed"));
+        });
+      } catch (e) {
+        reject(e);
+      }
+    });
+  }
+
+  // Fetch the saved job's reminders (array) with a short timeout, so a sleeping worker can't hang
+  // the panel open. Resolves to the array, or null on timeout/failure (→ keep the local list as-is).
+  function fetchServerReminders(jobId) {
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (v) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(v);
+      };
+      const timer = setTimeout(() => finish(null), 2500);
+      try {
+        chrome.runtime.sendMessage({ type: "LIST_JOB_REMINDERS", jobId }, (res) => {
+          if (chrome.runtime.lastError || !res || !res.ok) return finish(null);
+          finish(Array.isArray(res.reminders) ? res.reminders : []);
+        });
+      } catch (_) {
+        finish(null);
+      }
+    });
+  }
+
+  // Map a server reminder to the drawer's todo shape, stamping the synced snapshot so a later
+  // reconcile can tell what changed locally.
+  function reminderToTodo(r) {
+    return {
+      id: r.id,
+      title: r.title || "",
+      done: !!r.done,
+      dueAt: r.dueAt || undefined,
+      hasTime: !!r.hasTime,
+      remoteId: r.id,
+      type: r.type || "user",
+      synced: { done: !!r.done, dueAt: r.dueAt || null, hasTime: !!r.hasTime },
+    };
+  }
+
+  // Seed record.todos from the server (source of truth on open) merged with local-only work:
+  // server rows win for their own state, local unsynced adds (no remoteId) are kept, and pending
+  // deletes (record.todosDeleted) drop the matching server rows so a pre-save delete survives a
+  // refresh. Returns the updated record, or null when the fetch failed (keep local as-is).
+  async function seedTodosFromServer(anchorId, jobId, prevRecord) {
+    const server = await fetchServerReminders(jobId);
+    if (!server) return null;
+    const rec = (await getJobRecord(anchorId)) || prevRecord || {};
+    const pendingDel = new Set(Array.isArray(rec.todosDeleted) ? rec.todosDeleted : []);
+    const serverTodos = server.map(reminderToTodo).filter((t) => !pendingDel.has(t.remoteId));
+    const localUnsynced = (Array.isArray(rec.todos) ? rec.todos : []).filter((t) => !t.remoteId);
+    const todos = serverTodos.concat(localUnsynced);
+    const next = { ...rec, todos, todosDeleted: Array.from(pendingDel) };
+    await setJobRecord(anchorId, next);
+    return next;
+  }
+
+  // Reconcile the local to-do list against the reminder API once the posting has a job id (called
+  // from saveJob). Creates un-synced todos, pushes done/due changes for synced ones, and deletes
+  // queued removals. Best effort per item: a failure leaves that item un-synced for the next save
+  // and never fails the save itself. Stamps remoteIds + synced snapshots back into the record.
+  async function reconcileTodos(jobId, anchorId) {
+    if (!jobId) return;
+    const rec = await getJobRecord(anchorId);
+    if (!rec) return;
+    const todos = Array.isArray(rec.todos) ? rec.todos.map((t) => ({ ...t })) : [];
+    const deleted = Array.isArray(rec.todosDeleted) ? rec.todosDeleted.slice() : [];
+    let mutated = false;
+
+    // Deletions first — drop from the queue only when the server confirms.
+    const stillDeleted = [];
+    for (const remoteId of deleted) {
+      try {
+        await sendReminderMsg({ type: "DELETE_REMINDER", id: remoteId });
+        mutated = true;
+      } catch (_) {
+        stillDeleted.push(remoteId);
+      }
+    }
+
+    // Creates + updates.
+    for (const t of todos) {
+      try {
+        if (!t.remoteId) {
+          const fields = { title: t.title };
+          if (t.dueAt) {
+            fields.dueAt = t.dueAt;
+            fields.hasTime = !!t.hasTime;
+          }
+          const res = await sendReminderMsg({ type: "CREATE_REMINDER", jobId, fields });
+          const created = res && res.reminder;
+          if (created && created.id) {
+            t.remoteId = created.id;
+            // CREATE starts undone; if the local todo is already checked off, push that too.
+            if (t.done) {
+              await sendReminderMsg({ type: "UPDATE_REMINDER", id: t.remoteId, fields: { done: true } });
+            }
+            t.synced = { done: !!t.done, dueAt: t.dueAt || null, hasTime: !!t.hasTime };
+            mutated = true;
+          }
+        } else {
+          const s = t.synced || {};
+          const patch = {};
+          if (!!s.done !== !!t.done) patch.done = !!t.done;
+          if ((s.dueAt || null) !== (t.dueAt || null) || !!s.hasTime !== !!t.hasTime) {
+            patch.dueAt = t.dueAt || null;
+            patch.hasTime = !!t.hasTime;
+          }
+          if (Object.keys(patch).length) {
+            await sendReminderMsg({ type: "UPDATE_REMINDER", id: t.remoteId, fields: patch });
+            mutated = true;
+          }
+          t.synced = { done: !!t.done, dueAt: t.dueAt || null, hasTime: !!t.hasTime };
+        }
+      } catch (_) {
+        // Leave this item un-synced; it'll be retried on the next save.
+      }
+    }
+
+    // Persist stamped remoteIds/synced + any deletions that couldn't be confirmed.
+    const fresh = (await getJobRecord(anchorId)) || rec;
+    await setJobRecord(anchorId, { ...fresh, todos, todosDeleted: stillDeleted });
+    // Re-register local alarms after the mutations (fire-and-forget).
+    if (mutated) {
+      try {
+        chrome.runtime.sendMessage({ type: "SYNC_REMINDER_ALARMS" }, () => void chrome.runtime.lastError);
+      } catch (_) {}
+    }
   }
 
   // ---- indexed capture helpers -------------------------------------------------------------
@@ -637,6 +921,95 @@
     });
   }
 
+  // Map the local draft answers ({ contentKey → value }) to the SERVER's stored question ids
+  // (content identity — questionMapper.keyOf — is the bridge) and batch-save them via the
+  // worker. The saved job's application rides back on the save response, so no extra read.
+  // On success the server's { questionId: value } view is cached so reopening mirrors the DB.
+  async function pushDraftAnswers(saved, anchorId) {
+    const MAPPER = (self.JobTracker || {}).questionMapper;
+    if (!MAPPER || !saved || !saved.id) return;
+    const rec = await getJobRecord(anchorId);
+    const drafts = rec && rec.draftAnswers;
+    if (!drafts || !Object.keys(drafts).length) return;
+    const serverQuestions =
+      saved.application && Array.isArray(saved.application.questions)
+        ? saved.application.questions
+        : null;
+    if (!serverQuestions || !serverQuestions.length) return;
+    const answers = MAPPER.answersForServer(serverQuestions, drafts);
+    if (!answers.length) return;
+    const res = await new Promise((resolve, reject) => {
+      try {
+        chrome.runtime.sendMessage(
+          { type: "SAVE_APPLICATION_ANSWERS", jobId: saved.id, answers },
+          (r) => {
+            if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+            if (r && r.ok) resolve(r.answers || null);
+            else reject(new Error((r && r.error) || "Saving answers failed"));
+          },
+        );
+      } catch (e) {
+        reject(e);
+      }
+    });
+    if (res && typeof res === "object") mergeJobRecord(anchorId, { answers: res });
+  }
+
+  // ---- documents (Resume tab) ----
+  // The user's saved resume/CV list, and a File builder for one — used to drag a document onto a
+  // page upload field or to download it. Bytes come from the worker (base64); the File is rebuilt
+  // here with the name/mime the list already carries.
+  function loadDocuments() {
+    return new Promise((resolve) => {
+      try {
+        chrome.runtime.sendMessage({ type: "LIST_DOCUMENTS" }, (res) => {
+          if (chrome.runtime.lastError || !res || !res.ok) return resolve([]);
+          resolve(res.documents || []);
+        });
+      } catch (_) {
+        resolve([]);
+      }
+    });
+  }
+  function base64ToBytes(b64) {
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  }
+  function fetchDocumentFile(doc) {
+    return new Promise((resolve, reject) => {
+      try {
+        chrome.runtime.sendMessage({ type: "FETCH_DOCUMENT", id: doc.id }, (res) => {
+          if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+          if (!res || !res.ok) return reject(new Error((res && res.error) || "Document fetch failed"));
+          try {
+            const bytes = base64ToBytes(res.base64);
+            resolve(
+              new File([bytes], doc.name || "document", {
+                type: doc.mimeType || "application/octet-stream",
+              }),
+            );
+          } catch (e) {
+            reject(e);
+          }
+        });
+      } catch (e) {
+        reject(e);
+      }
+    });
+  }
+
+  // Change the pipeline status of an already-tracked job — the panel's status picker after save.
+  // Best effort: the local record already holds the new status (persisted by onStatusChange), so a
+  // failed PATCH only means the job page lags until the next save/revalidate.
+  function patchJobStatus(jobId, status) {
+    if (!jobId || !status) return;
+    chrome.runtime.sendMessage({ type: "PATCH_JOB", id: jobId, patch: { status } }, () => {
+      void chrome.runtime.lastError; // swallow — non-fatal
+    });
+  }
+
   async function saveJob(job, anchorId) {
     const payload = {
       title: job.title,
@@ -651,6 +1024,9 @@
       logoUrl: job.logoUrl || "",
       notes: job.notes || "",
       deadline: job.deadline ? new Date(job.deadline).toISOString() : undefined,
+      // Pipeline stage set in the panel (Saved/Applied/…). createJob honours it on a first save;
+      // re-saving an already-tracked posting preserves the job's current status (server-side).
+      status: job.status || undefined,
       // Opt-in flag from the save panel. Forwarded to the worker, which decides whether
       // to kick off background AI prep once that backend exists (no-op until then).
       aiPrep: !!job.aiPrep,
@@ -664,20 +1040,39 @@
       payload.application = { questions };
     }
     return new Promise((resolve, reject) => {
-      chrome.runtime.sendMessage({ type: "SAVE_JOB", job: payload }, (res) => {
+      chrome.runtime.sendMessage({ type: "SAVE_JOB", job: payload }, async (res) => {
         if (chrome.runtime.lastError) {
           return reject(new Error(chrome.runtime.lastError.message));
         }
         if (res && res.ok) {
           const saved = res.job || {};
           // Remember that this posting is now tracked (per anchor) so reopening — including on
-          // a sub-URL — shows "View in dashboard" instead of prompting to save again.
-          mergeJobRecord(anchorId, { saved: { id: saved.id, url: payload.url || "", savedAt: Date.now() } });
+          // a sub-URL — shows "View in dashboard" instead of prompting to save again. Await the
+          // write so the record carries `saved` before the to-do reconcile re-reads it.
+          await mergeJobRecordAsync(anchorId, {
+            saved: { id: saved.id, url: payload.url || "", savedAt: Date.now() },
+            // Record the server's authoritative status (resaves preserve an existing stage, so this
+            // may differ from what we sent) so reopening the panel shows the right stage.
+            status: saved.status || payload.status || "SAVED",
+          });
+          // Push the live-captured draft answers now that the questions carry server ids
+          // (best effort; never fails the save — drafts stay local and retry next save).
+          await pushDraftAnswers(saved, anchorId).catch(() => {});
+          // Sync the local-first to-dos now that we have a job id (best effort; never fails the save).
+          await reconcileTodos(saved.id, anchorId).catch(() => {});
           // Persistent tick + a one-shot pop to confirm the save. It stays ticked from here on
           // (the record is now saved); navigation re-derives the state per page.
           lastAnchorId = anchorId;
           UI.button.setState("saved", { animate: true });
-          resolve({ id: saved.id, viewUrl: viewUrlFor(saved.id) });
+          // Return the pieces the panel needs to keep its OWN in-memory record in step (the marker
+          // was written to storage above, but the caller's `record` object hasn't seen it yet — see
+          // onConfirm). url/status let onConfirm rebuild `record.saved` without a re-read.
+          resolve({
+            id: saved.id,
+            viewUrl: viewUrlFor(saved.id),
+            url: payload.url || "",
+            status: saved.status || payload.status || "SAVED",
+          });
         } else {
           reject(new Error((res && res.error) || "Save failed"));
         }
@@ -700,6 +1095,27 @@
     }
   }
   if (!isInjectableDocument()) return;
+
+  // Sub-frame: no UI. Run the headless form-sync agent so an iframe'd application form (the whole
+  // point of all_frames) is visible to the top-frame panel, then stop — none of the button / nav /
+  // popup wiring below belongs in a child frame.
+  if (!IS_TOP) {
+    if (FRAME_BRIDGE && UI.formSync && JT.questionMapper && UI.autofill) {
+      FRAME_BRIDGE.startAgent(UI.formSync, FRAME_BRIDGE.chromeAgentTransport());
+    }
+    return;
+  }
+
+  // Top frame: the panel drives the cross-frame aggregator (local document + every sub-frame).
+  // Created eagerly so its relay listener is live before the panel opens — it captures a
+  // late-loading apply iframe's "hello" and any early frame messages.
+  if (FRAME_BRIDGE && FRAME_BRIDGE.createAggregator && UI.formSync) {
+    SYNC = FRAME_BRIDGE.createAggregator(
+      UI.formSync,
+      FRAME_BRIDGE.chromeAggregatorTransport(),
+      JT.questionMapper,
+    );
+  }
 
   injectFont();
   UI.button.show(openSavePanel);

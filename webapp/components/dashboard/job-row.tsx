@@ -1,8 +1,7 @@
 import Link from "next/link"
 
-import { cn } from "@/lib/utils"
+import { cn, formatSalary } from "@/lib/utils"
 import { savedLabel } from "@/lib/dates"
-import { siteNameFromUrl } from "@/lib/url"
 import { StatusPill } from "@/components/dashboard/status-pill"
 import { LogoTile, displayCompany } from "@/components/dashboard/logo-tile"
 import type { JobCardData } from "@/components/dashboard/job-card"
@@ -28,7 +27,6 @@ export function JobRow({
   showTimestamp?: boolean
 }) {
   const company = displayCompany(job.company)
-  const site = siteNameFromUrl(job.url)
   const showStatus = job.status !== "SAVED"
 
   return (
@@ -65,16 +63,6 @@ export function JobRow({
               <span className="truncate font-normal text-muted-foreground/70">{job.location}</span>
             </>
           )}
-          {site && (
-            <>
-              <span aria-hidden className="shrink-0 text-muted-foreground/40">
-                ·
-              </span>
-              {/* Source (Greenhouse, LinkedIn, …) carries the brand's primary fern so the
-                  origin reads as a branded, first-class detail on the metadata line. */}
-              <span className="shrink-0 font-medium text-primary">{site}</span>
-            </>
-          )}
         </p>
       </div>
 
@@ -84,7 +72,7 @@ export function JobRow({
       <div className="flex shrink-0 flex-col items-end gap-0.5 pl-2 text-right">
         {job.salary && (
           <span className="whitespace-nowrap text-sm font-medium tabular-nums text-primary">
-            {job.salary}
+            {formatSalary(job.salary)}
           </span>
         )}
         {showTimestamp && (

@@ -90,7 +90,7 @@ export function Problem() {
         {/* the fix — one clean card, everything in its place. Decorative:
             the sr-only line carries the message for AT. */}
         <p className="sr-only">
-          JobTracker resolves all of it into one job card: role, company,
+          jobhq resolves all of it into one job card: role, company,
           salary, deadline reminder, saved answers, and a drafted cover letter.
         </p>
         <Reveal delay={200} aria-hidden="true" className="relative z-20 mx-auto mt-2 max-w-md">

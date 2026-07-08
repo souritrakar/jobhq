@@ -60,7 +60,7 @@ export function SiteFooter() {
 
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-border pt-6 sm:flex-row">
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} JobTracker. Built for job seekers who
+            © {new Date().getFullYear()} jobhq. Built for job seekers who
             apply everywhere.
           </p>
           <div className="flex items-center gap-3">

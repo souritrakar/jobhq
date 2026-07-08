@@ -28,7 +28,7 @@ const STEPS = [
     key: "remind",
     label: "Never miss out",
     title: "Deadlines that nudge you first",
-    body: "JobTracker reads the closing date off the posting and reminds you before it lapses — so a role never slips away.",
+    body: "jobhq reads the closing date off the posting and reminds you before it lapses — so a role never slips away.",
     panel: RemindPanel,
   },
 ] as const;
@@ -188,7 +188,7 @@ function CapturePanel() {
             tabIndex={-1}
             className="mt-5 inline-flex items-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-primary-foreground"
           >
-            <Icon.Puzzle className="size-4" /> Save to JobTracker
+            <Icon.Puzzle className="size-4" /> Save to jobhq
           </button>
         </div>
       </div>
@@ -258,7 +258,7 @@ function RemindPanel() {
           <span className="grid size-6 place-items-center rounded-md bg-primary text-primary-foreground">
             <Icon.Clock className="size-3.5" />
           </span>
-          <span className="text-xs font-bold text-foreground">JobTracker</span>
+          <span className="text-xs font-bold text-foreground">jobhq</span>
           <span className="ml-auto font-mono text-[0.6rem] text-muted-foreground">now</span>
         </div>
         <p className="mt-2 text-xs leading-snug text-foreground">

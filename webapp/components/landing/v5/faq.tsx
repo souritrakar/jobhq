@@ -13,7 +13,7 @@ const QA: { q: string; a: string }[] = [
   },
   {
     q: "Does it apply to jobs for me?",
-    a: "No, and that's deliberate. Auto-apply bots send bad applications fast. JobTracker does the filing — capturing, remembering, reminding, refilling your own answers — so the application you send is yours, just faster.",
+    a: "No, and that's deliberate. Auto-apply bots send bad applications fast. jobhq does the filing — capturing, remembering, reminding, refilling your own answers — so the application you send is yours, just faster.",
   },
   {
     q: "Do I need the web app if I have the extension?",

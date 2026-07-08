@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 /**
  * Comparison — a product-story section (Linear / Ramp register), NOT a table.
  * Three "leaves work behind" alternatives rendered as quiet cards with a messy
- * hand-drawn watermark, then one bold, clean, structured JobTracker card that
+ * hand-drawn watermark, then one bold, clean, structured jobhq card that
  * resolves the chaos. Reflows 1-col → 2-col → 3-up + full-width hero card.
  */
 
@@ -69,10 +69,10 @@ export function Comparison() {
       <div className="mx-auto max-w-6xl">
         <SectionIntro
           variant="center"
-          eyebrow="Why JobTracker"
+          eyebrow="Why jobhq"
           title="Saved jobs, tabs, and apply tools still leave work behind."
         >
-          Most tools help with one part of the search. JobTracker starts earlier:
+          Most tools help with one part of the search. jobhq starts earlier:
           the moment you find a role, it captures the posting, tracks what still
           needs doing, and brings it back before you forget.
         </SectionIntro>
@@ -105,7 +105,7 @@ export function Comparison() {
           ))}
         </div>
 
-        {/* the resolution — JobTracker, clean & structured */}
+        {/* the resolution — jobhq, clean & structured */}
         <Reveal as="article" className="mt-4" delay={120}>
           <div className="relative overflow-hidden rounded-[1.75rem] border border-primary/25 bg-card shadow-[0_30px_70px_-44px_rgba(20,40,25,0.5)]">
             <div className="pointer-events-none absolute inset-0 brand-surface opacity-[0.06]" />
@@ -117,7 +117,7 @@ export function Comparison() {
                     J
                   </span>
                   <span className="font-display text-lg font-semibold tracking-[-0.01em] text-foreground">
-                    JobTracker
+                    jobhq
                   </span>
                 </div>
                 <p className="mt-3 font-display text-[1.5rem] font-semibold leading-[1.15] tracking-[-0.02em] text-foreground text-balance">

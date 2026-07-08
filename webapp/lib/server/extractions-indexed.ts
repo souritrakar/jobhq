@@ -116,7 +116,7 @@ export async function reduceBlocksIfOversized(
       models: extractionModels(),
       temperature: 0,
       maxTokens: 400,
-      title: "JobTracker Indexed Outline",
+      title: "jobhq Indexed Outline",
     })
     const regions = parseOutlineRegions(asObject(res.content), blocks.length)
     if (regions) {
@@ -163,7 +163,7 @@ export async function extractJobIndexed(
     const { result, parsed } = await runIndexedCall(
       buildIndexedDetailsMessages(blocks, input.titleHint),
       DETAILS_RESPONSE_FORMAT,
-      "JobTracker Indexed Details",
+      "jobhq Indexed Details",
     )
     // A still-unparsable reply after the retry is a FAILURE (surface the retry UI) — resolving
     // it would silently show an empty form/blank fields as if the page had none.

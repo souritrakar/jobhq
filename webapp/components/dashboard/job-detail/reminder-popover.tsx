@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Tooltip } from "@/components/ui/tooltip"
 import { ReminderSchedule } from "@/components/dashboard/reminder-schedule"
 import { buildDue, type ChipKey } from "@/lib/reminders/schedule"
 
@@ -25,17 +26,22 @@ export function ReminderPopover({
   company,
   onSubmit,
   align = "end",
+  tooltip,
 }: {
   renderTrigger: (api: { open: boolean }) => ReactNode
   company?: string
   onSubmit: (draft: ReminderDraft) => Promise<void>
   align?: "start" | "end"
+  /** When set, an icon-only trigger gets this label on hover/focus (composed onto the trigger). */
+  tooltip?: string
 }) {
   const [open, setOpen] = useState(false)
 
+  const trigger = <Popover.Trigger render={renderTrigger({ open }) as React.ReactElement} />
+
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
-      <Popover.Trigger render={renderTrigger({ open }) as React.ReactElement} />
+      {tooltip ? <Tooltip label={tooltip}>{trigger}</Tooltip> : trigger}
       <Popover.Portal>
         <Popover.Positioner
           side="bottom"

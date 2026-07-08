@@ -23,7 +23,7 @@ export function AuthShell({
   return (
     <div className="w-full max-w-sm">
       <div className="mb-6 flex flex-col items-center gap-4 text-center">
-        <Link href="/" aria-label="JobTracker home">
+        <Link href="/" aria-label="jobhq home">
           <Logo />
         </Link>
         <div className="flex flex-col gap-1.5">

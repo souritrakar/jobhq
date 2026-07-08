@@ -54,6 +54,58 @@ const envSchema = z.object({
     .string()
     .default("z-ai/glm-4.7-flash,google/gemini-3.1-flash-lite"),
 
+  // Content-safety moderation for the cover-letter guardrails (input instructions + output letter).
+  // A purpose-built content-safety classifier reached over the SAME OpenRouter chat API — reusing
+  // OPENROUTER_API_KEY, no separate account. Default: NVIDIA's Nemotron content-safety model, whose
+  // taxonomy is BROAD (profanity, harassment, hate/identity hate, sexual, violence, self-harm …), so
+  // it blocks abusive/profane instructions and lone slurs — not just narrow "harm" categories that a
+  // guard like Llama Guard misses. It returns "User Safety: safe|unsafe" (+ categories); the parser
+  // (lib/llm/moderation.ts) also understands Llama Guard's "safe|unsafe\n<S-codes>" so MODERATION_MODEL
+  // can be swapped (e.g. to meta-llama/llama-guard-4-12b or openai/gpt-oss-safeguard-20b) without code
+  // changes. When OPENROUTER_API_KEY is absent the guard fails open (allows) so local/dev still works.
+  MODERATION_MODEL: z.string().default("nvidia/nemotron-3.5-content-safety:free"),
+
+  // INPUT INTENT GATE for the cover-letter instructions (lib/llm/cover-letter-intent.ts). A cheap,
+  // INDEPENDENT classifier that runs BEFORE generation and blocks instructions that are off-task
+  // (asking for a poem/code/translation/answer instead of a cover letter), prompt injection, or
+  // system-prompt extraction — so the expensive generator only runs when the input is on-task. This
+  // is what content-safety moderation does NOT cover (scope/injection is not a "harm" category); the
+  // two gates are complementary. Reaches OpenRouter via OPENROUTER_API_KEY. Fails OPEN (treats as
+  // on-task) on error — the generation prompt is itself task-locked, so a slipped-through off-task
+  // input still only ever yields a cover letter. `COVER_LETTER_INTENT_ENABLED` is the kill switch.
+  //   INTENT_MODEL           — primary classifier slug (validated: gemini-3.1-flash-lite, 0 false-positives).
+  //   INTENT_FALLBACK_MODELS — comma-separated fallbacks OpenRouter tries in order.
+  INTENT_MODEL: z.string().default("google/gemini-3.1-flash-lite"),
+  INTENT_FALLBACK_MODELS: z.string().default("google/gemini-3.5-flash"),
+  COVER_LETTER_INTENT_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((v) => v === "true"),
+
+  // Cover-letter QUALITY GATE (Stage 5 — evaluator-optimizer). After a letter is generated it is
+  // graded by a cheap rubric JUDGE; only when the judge flags genuine gaps is a dedicated REVISER
+  // asked to improve it (see lib/server/cover-letter-pipeline.ts + docs/COVER_LETTER.md). Three
+  // distinct model families keep the judge honest (self-enhancement bias) and the reviser strong:
+  // generator = Claude Haiku (above), judge = DeepSeek V4 Flash, reviser = Claude Haiku. All reached
+  // over the same OpenRouter chat API / OPENROUTER_API_KEY. Every stage fails OPEN (an unavailable
+  // judge/reviser degrades to "ship the vetted draft", never to a blocked user).
+  //   EVAL_MODEL / EVAL_FALLBACK_MODELS       — the judge chain (cheap; ~$0.05/$0.24 per M tokens).
+  //   REVISE_MODEL / REVISE_FALLBACK_MODELS   — the reviser chain (prose editing; the exception path).
+  //   COVER_LETTER_EVAL_ENABLED               — kill switch; when false Stage 5 is skipped entirely
+  //     (draft → guard → moderate → done), so we can disable the gate instantly if it misbehaves.
+  //   EVAL_MAX_REVISIONS                      — how many revise passes a flagged draft may get (v1: 1).
+  EVAL_MODEL: z.string().default("deepseek/deepseek-v4-flash"),
+  EVAL_FALLBACK_MODELS: z.string().default("google/gemini-3.1-flash-lite"),
+  REVISE_MODEL: z.string().default("anthropic/claude-haiku-4.5"),
+  REVISE_FALLBACK_MODELS: z
+    .string()
+    .default("z-ai/glm-4.7-flash,google/gemini-3.1-flash-lite"),
+  COVER_LETTER_EVAL_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((v) => v === "true"),
+  EVAL_MAX_REVISIONS: z.coerce.number().int().min(0).max(2).default(1),
+
   // OpenRouter also powers the per-question "AI draft" on the job detail page (POST
   // /api/jobs/:id/application/draft) — short, grounded answers from the job + the user's resume.
   // A fast, cheap model fits: default Gemini 3.5 Flash, falling back to slugs we already know are
@@ -138,7 +190,7 @@ const envSchema = z.object({
   // app boots without it; email sends then no-op with a logged warning (see lib/email/client.ts).
   // EMAIL_FROM must be a verified sending domain in production.
   RESEND_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().default("JobTracker <reminders@jobtracker.app>"),
+  EMAIL_FROM: z.string().default("jobhq <reminders@jobtracker.app>"),
   // TEST-MODE override: when set, EVERY outgoing email is redirected to this address regardless of
   // the real recipient. Needed while sending from Resend's shared `onboarding@resend.dev` sandbox
   // sender, which only delivers to the Resend account owner. Remove once a domain is verified in

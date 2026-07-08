@@ -86,7 +86,7 @@ export function Closer() {
 
       {/* ── link row ── */}
       <div className="mx-auto mt-20 flex max-w-5xl flex-wrap items-center justify-center gap-x-7 gap-y-2 border-t border-border/70 px-5 pt-8 text-[0.85rem] text-muted-foreground sm:justify-between sm:px-8">
-        <span>© 2026 JobTracker</span>
+        <span>© 2026 jobhq</span>
         {/* TODO: add a Privacy link back once /privacy exists — it 404'd. */}
         <nav className="flex flex-wrap items-center gap-x-6 gap-y-2" aria-label="Footer">
           {[

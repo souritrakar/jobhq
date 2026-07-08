@@ -1,6 +1,6 @@
 import { Banknote, MapPin } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+import { cn, formatSalary } from "@/lib/utils"
 import { savedLabel } from "@/lib/dates"
 import { LogoTile, displayCompany } from "@/components/dashboard/logo-tile"
 import type { JobCardData } from "@/components/dashboard/job-card"
@@ -56,7 +56,7 @@ export function KanbanCard({
           {job.salary && (
             <div className="flex items-center gap-1.5 text-xs font-semibold leading-none text-fern-700">
               <Banknote className="size-3.5 shrink-0 text-fern-700/70" />
-              <span className="min-w-0 truncate">{job.salary}</span>
+              <span className="min-w-0 truncate">{formatSalary(job.salary)}</span>
             </div>
           )}
           {job.location && (

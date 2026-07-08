@@ -1,16 +1,16 @@
-import { Nav } from "@/components/landing/v5/nav";
-import { Hero } from "@/components/landing/v5/hero";
-import { Shelf } from "@/components/landing/v5/shelf";
-import { Problem } from "@/components/landing/v5/problem";
-import { How } from "@/components/landing/v5/how";
-import { BentoExtension } from "@/components/landing/v5/bento-extension";
-import { BentoApp } from "@/components/landing/v5/bento-app";
-import { Who } from "@/components/landing/v5/who";
-import { Faq } from "@/components/landing/v5/faq";
-import { Closer } from "@/components/landing/v5/closer";
+import { Nav } from "@/components/landing/v6/nav";
+import { Hero } from "@/components/landing/v6/hero";
+import { Sources } from "@/components/landing/v6/sources";
+import { Problem } from "@/components/landing/v6/problem";
+import { FeatureExtension } from "@/components/landing/v6/feature-extension";
+import { FeatureDuo } from "@/components/landing/v6/feature-duo";
+import { FeatureApp } from "@/components/landing/v6/feature-app";
+import { Faq } from "@/components/landing/v6/faq";
+import { Closer } from "@/components/landing/v6/closer";
 
-/* Landing v5 — "a calm desk for a chaotic job search" (playful paper).
-   v4 sections remain in components/landing/ for revert. */
+/* Landing v6 — "notion+todoist for jobs": pastel product stages holding
+   believable mini-product mockups (the Circleback/Todoist register).
+   v5 remains in components/landing/v5/ for revert. */
 
 export default function Home() {
   return (
@@ -24,12 +24,11 @@ export default function Home() {
       <Nav />
       <main id="content" className="flex-1">
         <Hero />
-        <Shelf />
+        <Sources />
         <Problem />
-        <How />
-        <BentoExtension />
-        <BentoApp />
-        <Who />
+        <FeatureExtension />
+        <FeatureDuo />
+        <FeatureApp />
         <Faq />
       </main>
       <Closer />

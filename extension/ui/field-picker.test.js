@@ -28,12 +28,14 @@ function stubHarvest(fields, anchors) {
   NS.scope = { settle: () => Promise.resolve() };
 }
 
+// Only long-text (textarea/contenteditable) answers are pickable — those are the free-text
+// responses worth saving to reuse. Fixtures use textareas so they get badges.
 function twoFields() {
-  const a1 = fakeAnchor({ top: 10, left: 10, width: 300, height: 40 });
-  const a2 = fakeAnchor({ top: 80, left: 10, width: 300, height: 40 });
+  const a1 = fakeAnchor({ top: 10, left: 10, width: 300, height: 80 });
+  const a2 = fakeAnchor({ top: 120, left: 10, width: 300, height: 80 });
   const fields = [
-    { id: "q1", label: "Full name", kind: "text", required: true },
-    { id: "q2", label: "Country", kind: "select", options: ["US", "CA"] },
+    { id: "q1", label: "Why do you want to work here?", kind: "textarea", required: true },
+    { id: "q2", label: "Cover letter", kind: "textarea" },
   ];
   const anchors = new Map([["q1", [a1]], ["q2", [a2]]]);
   return { fields, anchors };
@@ -70,6 +72,25 @@ describe("activation & registry", () => {
     expect(badges().length).toBe(0);
   });
 
+  it("badges ONLY long-text (textarea) answers — short text, selects, files excluded", async () => {
+    const a1 = fakeAnchor({ top: 10, left: 10, width: 300, height: 40 });
+    const a2 = fakeAnchor({ top: 60, left: 10, width: 300, height: 40 });
+    const a3 = fakeAnchor({ top: 110, left: 10, width: 300, height: 40 });
+    const a4 = fakeAnchor({ top: 160, left: 10, width: 300, height: 80 });
+    stubHarvest(
+      [
+        { id: "q1", label: "First name", kind: "text" },
+        { id: "q2", label: "Country", kind: "select", options: ["US", "CA"] },
+        { id: "q3", label: "Resume", kind: "file" },
+        { id: "q4", label: "Why do you want this role?", kind: "textarea" },
+      ],
+      new Map([["q1", [a1]], ["q2", [a2]], ["q3", [a3]], ["q4", [a4]]]),
+    );
+    await picker.activate({});
+    expect(badges().length).toBe(1); // only the textarea
+    expect(picker.isActive()).toBe(true);
+  });
+
   it("pre-marks badges for selectedKeys", async () => {
     const { fields, anchors } = twoFields();
     stubHarvest(fields, anchors);
@@ -97,9 +118,9 @@ describe("pick / unpick flow", () => {
     expect(badge.classList.contains("selected")).toBe(true);
     expect(onPick).toHaveBeenCalledTimes(1);
     const [question, key] = onPick.mock.calls[0];
-    expect(question).toEqual({ label: "Full name", type: "short_text", required: true });
+    expect(question).toEqual({ label: "Why do you want to work here?", type: "long_text", required: true });
     expect(typeof key).toBe("string");
-    expect(picker.getSelected().map((q) => q.label)).toEqual(["Full name"]);
+    expect(picker.getSelected().map((q) => q.label)).toEqual(["Why do you want to work here?"]);
   });
 
   it("unpick reverts to idle and fires onUnpick", async () => {

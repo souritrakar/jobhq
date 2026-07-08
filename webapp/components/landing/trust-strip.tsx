@@ -8,7 +8,7 @@ const SOURCES = [
 ];
 
 /**
- * Platform row — a clean, calm statement that JobTracker works where people
+ * Platform row — a clean, calm statement that jobhq works where people
  * already look. Static and uncluttered (no marquee): the four logos sit on one
  * line and wrap to a tidy grid on small screens.
  */

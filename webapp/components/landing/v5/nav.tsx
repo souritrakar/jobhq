@@ -51,7 +51,7 @@ export function Nav() {
             : "border-border/60 bg-background/70 shadow-[0_10px_30px_-24px_rgba(20,40,25,0.25)] backdrop-blur-md",
         )}
       >
-        <a href="#top" className={cn("shrink-0 rounded-full", FOCUS)} aria-label="JobTracker home">
+        <a href="#top" className={cn("shrink-0 rounded-full", FOCUS)} aria-label="jobhq home">
           <Logo />
         </a>
 

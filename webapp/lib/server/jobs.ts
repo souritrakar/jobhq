@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client"
+import type { JobStatus, Prisma } from "@prisma/client"
 
 import { ApiError } from "@/lib/api/errors"
 import { prisma } from "@/lib/db"
@@ -207,13 +207,45 @@ async function resaveJob(userId: string, id: string, input: CreateJobInput) {
   })
 }
 
+// Keep the pipeline status in step with the interview date. Setting a date on a job that isn't
+// already INTERVIEWING promotes it and remembers where it was; clearing the date restores that
+// remembered stage. Any MANUAL status change forgets the remembered stage, so a later date-clear
+// never undoes a deliberate move. Returns just the status/memory fields to fold into the job
+// update (empty when nothing should change).
+export function interviewStatusTransition(
+  current: { status: JobStatus; interviewAt: Date | null; statusBeforeInterview: JobStatus | null },
+  input: UpdateJobInput,
+): { status?: JobStatus; statusBeforeInterview?: JobStatus | null } {
+  // A manual status change wins and forgets any pending revert. Clients send either `status` or
+  // `interviewAt` in a patch, never both, so these branches never collide.
+  if (input.status !== undefined) {
+    return current.statusBeforeInterview !== null ? { statusBeforeInterview: null } : {}
+  }
+
+  if (input.interviewAt === undefined) return {} // date isn't part of this patch
+
+  // Promote on the first date, stashing the prior stage — unless the job is already INTERVIEWING,
+  // where there's nothing meaningful to remember.
+  if (current.interviewAt === null && input.interviewAt !== null && current.status !== "INTERVIEWING") {
+    return { status: "INTERVIEWING", statusBeforeInterview: current.status }
+  }
+
+  // Restore the stashed stage when the date is removed from a job the date had promoted.
+  if (input.interviewAt === null && current.status === "INTERVIEWING" && current.statusBeforeInterview !== null) {
+    return { status: current.statusBeforeInterview, statusBeforeInterview: null }
+  }
+
+  return {}
+}
+
 export async function updateJob(
   userId: string,
   id: string,
   input: UpdateJobInput,
 ) {
-  // Ensure the job exists and belongs to the user before updating.
-  await getJob(userId, id)
+  // Ensure the job exists and belongs to the user before updating; the loaded row also gives us
+  // the current status/interviewAt needed for the auto-INTERVIEWING transition below.
+  const current = await getJob(userId, id)
   // `application` is a relation, not a scalar column — handle it via upsert, never via the
   // scalar spread (which Prisma would reject). Re-extraction replaces the question set.
   const { application, resumeDocumentId, ...fields } = input
@@ -241,6 +273,7 @@ export async function updateJob(
       // Scalar FK: a string sets the selection, null clears it, undefined leaves it untouched.
       ...(resumeDocumentId !== undefined ? { resumeDocumentId } : {}),
       ...(applicationWrite ? { application: applicationWrite } : {}),
+      ...interviewStatusTransition(current, input),
     },
     include: { application: true },
   })
@@ -304,8 +337,13 @@ export async function updateJobStatuses(
     else idsByStatus.set(status, [id])
   }
 
+  // A manual (board) status move forgets any pending interview-date revert, so clearing a date
+  // later never undoes this deliberate move — same rule as the single-job path.
   const writes = Array.from(idsByStatus, ([status, ids]) =>
-    prisma.job.updateMany({ where: { id: { in: ids }, userId }, data: { status } }),
+    prisma.job.updateMany({
+      where: { id: { in: ids }, userId },
+      data: { status, statusBeforeInterview: null },
+    }),
   )
   const results = await prisma.$transaction(writes)
   return { count: results.reduce((sum, r) => sum + r.count, 0) }

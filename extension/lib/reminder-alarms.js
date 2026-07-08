@@ -49,7 +49,7 @@ async function handleReminderAlarm(name) {
   chrome.notifications.create("jtrem:" + id, {
     type: "basic",
     iconUrl: "icons/icon128.png",
-    title: "JobTracker reminder",
+    title: "jobhq reminder",
     message: company + r.title,
     priority: 1,
   });

@@ -79,7 +79,7 @@ export async function streamCoverLetter(
     models: chain, // OpenRouter tries these in order if the primary is unavailable.
     messages: toWireMessages(messages),
     temperature: opts.temperature ?? 0.7,
-    max_tokens: opts.maxTokens ?? 700,
+    max_tokens: opts.maxTokens ?? 1024,
     // GLM 4.7 is a reasoning model; for prose we don't want chain-of-thought. Disabling it keeps
     // the whole token budget (and cost) on the letter and avoids truncation mid-thought. The flag
     // is a no-op for non-reasoning fallbacks.
@@ -117,7 +117,7 @@ async function connect(payload: string): Promise<Response> {
         Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
         // Optional OpenRouter attribution headers (shown in their dashboard/rankings).
         // Header values must be Latin1 (ByteString) — keep this ASCII-only; an em-dash here throws.
-        "X-Title": "JobTracker - Cover Letter",
+        "X-Title": "jobhq - Cover Letter",
       },
       body: payload,
       signal: controller.signal,

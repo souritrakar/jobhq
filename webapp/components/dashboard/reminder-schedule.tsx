@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { CalendarDays } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -50,6 +50,22 @@ export function ReminderSchedule({
   const customActive = chip === "custom"
   const customSelected = customActive && customDate ? fromYmd(customDate) : undefined
 
+  // A reminder can't be scheduled in the past. Work out the day the reminder lands on, and — when
+  // that's today — floor the time picker at "now" so earlier slots are barred. Future days (and the
+  // always-future chips) carry no floor.
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const selectedDay =
+    chip === "today" ? today : chip === "custom" && customDate ? fromYmd(customDate) : undefined
+  const restrictToday = selectedDay !== undefined && selectedDay.getTime() === today.getTime()
+  const minTime = restrictToday ? `${pad(now.getHours())}:${pad(now.getMinutes())}` : undefined
+
+  // If the day flips to today (or the clock advances past a previously valid pick), drop the stale
+  // time so buildDue auto-assigns a safe future moment instead of firing immediately / in the past.
+  useEffect(() => {
+    if (minTime && time && time < minTime) onTimeChange("")
+  }, [minTime, time, onTimeChange])
+
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {CHIPS.map((c) => {
@@ -69,6 +85,7 @@ export function ReminderSchedule({
                   autoFocus
                   selected={customSelected}
                   defaultMonth={customSelected}
+                  disabled={{ before: today }}
                   onSelect={(date) => {
                     if (!date) return
                     onCustomDateChange(toYmd(date))
@@ -97,7 +114,7 @@ export function ReminderSchedule({
 
       {/* Time sits at the right edge of the chip row (wraps under on narrow popovers). */}
       <div className="ml-auto">
-        <TimePicker value={time} onChange={onTimeChange} />
+        <TimePicker value={time} onChange={onTimeChange} minTime={minTime} />
       </div>
     </div>
   )

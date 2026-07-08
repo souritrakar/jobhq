@@ -1,7 +1,7 @@
 import { BrandLogo } from "./brand-logo";
 import { cn } from "@/lib/utils";
 
-/* A realistic mock of the JobTracker app — modelled on simplify.jobs / Linear:
+/* A realistic mock of the jobhq app — modelled on simplify.jobs / Linear:
    a status sidebar, a board of saved jobs, and a "Next up" panel. Real company
    logos, clean line icons, restrained noise. This is the hero product shot, and
    it restructures across breakpoints (3-pane → 2-pane → stacked) rather than
@@ -88,7 +88,7 @@ export function DashboardMock({ className }: { className?: string }) {
           <Icon.Refresh className="size-3.5 text-muted-foreground/70" />
           <div className="flex h-7 flex-1 items-center gap-2 rounded-full border border-border bg-background px-3 text-xs text-muted-foreground">
             <Icon.Lock className="size-3 text-muted-foreground/60" />
-            app.jobtracker.com
+            app.jobhq.com
           </div>
           <span className="grid size-6 place-items-center rounded-md bg-primary/10">
             <Icon.Puzzle className="size-3.5 text-primary" />

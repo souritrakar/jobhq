@@ -13,10 +13,27 @@ export function interviewReminderFireAt(interviewAt: Date, leadHours = DEFAULT_L
 }
 
 /**
+ * Whether to schedule a delivery for an interview reminder: only while the interview itself is still
+ * ahead of `now`. A past interview would otherwise fire "now" (QStash delivers a past notBefore
+ * immediately) — a heads-up for something already over. An interview inside the lead window still
+ * schedules on purpose so the nudge goes out right away. Pure, so the timing rule is unit-tested.
+ */
+export function shouldScheduleInterviewReminder(interviewAt: Date, now: Date): boolean {
+  return interviewAt.getTime() > now.getTime()
+}
+
+/**
  * Keep exactly one SYSTEM interview reminder per job in sync with Job.interviewAt.
- * - interviewAt set    → upsert reminder (fire = interviewAt - lead), (re)schedule QStash.
+ * - interviewAt set    → upsert reminder, (re)schedule QStash.
  * - interviewAt cleared → delete reminder + cancel its QStash message.
  * Idempotent via the (jobId, systemKey) unique constraint.
+ *
+ * Two distinct times are in play, and keeping them apart is the whole point:
+ *   • `dueAt` = the interview instant itself — the ONLY time the user ever sees (the To-do row,
+ *     the reminders feed, the interview card all read `dueAt`). It is what the reminder is *about*.
+ *   • `fireAt` = interviewAt - lead (24h) — when we actually deliver the heads-up. This lives only
+ *     in the QStash schedule (notBefore) and is never surfaced, so the user is never shown a
+ *     confusing "due yesterday" time for an interview that is tomorrow.
  */
 export async function upsertInterviewReminder(
   userId: string,
@@ -55,15 +72,24 @@ export async function upsertInterviewReminder(
       title,
       type: "SYSTEM",
       systemKey: INTERVIEW_KEY,
-      dueAt: fireAt,
+      // Show the interview time; deliver the heads-up `fireAt` (24h earlier) via QStash below.
+      dueAt: interviewAt,
       hasTime: true,
       deliveredAt: null,
     },
-    update: { title, dueAt: fireAt, deliveredAt: null, done: false },
+    update: { title, dueAt: interviewAt, deliveredAt: null, done: false },
     select: { id: true },
   })
 
-  const messageId = await scheduleReminderDelivery(row.id, fireAt)
+  // Only schedule a delivery while the interview is still ahead of us. If it's already in the past
+  // (past date, or a same-day edit to an earlier time), fireAt is past too — QStash treats a past
+  // notBefore as "deliver now", which would fire a heads-up for an interview that already happened.
+  // The row still exists so the UI can show "Interview has passed"; it just won't fire. When the
+  // interview is within the next lead window, fireAt is slightly past on purpose so the nudge goes
+  // out right away ("your interview is soon").
+  const messageId = shouldScheduleInterviewReminder(interviewAt, new Date())
+    ? await scheduleReminderDelivery(row.id, fireAt)
+    : null
   await prisma.reminder.update({ where: { id: row.id }, data: { qstashMessageId: messageId } })
 }
 

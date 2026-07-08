@@ -32,8 +32,10 @@ export function PanelCard({
   className?: string
   children: ReactNode
 }) {
+  // No `overflow-hidden` on the Card: content is padded so nothing bleeds to its rounded corners,
+  // and clipping would trap escaping UI (e.g. the resume picker's dropdown) inside it.
   return (
-    <Card className={cn("overflow-hidden", className)}>
+    <Card className={cn(className)}>
       <div className="flex items-center gap-2.5 px-4 pt-4">
         <span className={cn("grid size-7 shrink-0 place-items-center rounded-lg", BADGE_TONE[tone])}>
           <Icon className="size-4" />

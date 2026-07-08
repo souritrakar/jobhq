@@ -135,6 +135,10 @@ model Job {
 
   // Tracking
   status      JobStatus @default(SAVED)
+  // The stage the job held before an interview date auto-promoted it to INTERVIEWING. Set when a
+  // date is added, restored (and cleared) when the date is removed, and cleared on any manual
+  // status change — so clearing a date only ever undoes a promotion the date itself caused.
+  statusBeforeInterview JobStatus?
   deadline    DateTime?
   interviewAt DateTime? // scheduled interview time; drives the auto "interview" SYSTEM reminder
   notes       String?

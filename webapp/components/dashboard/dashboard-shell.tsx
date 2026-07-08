@@ -137,7 +137,7 @@ function SidebarBody({
   return (
     <div className="flex h-full flex-col gap-4 p-3">
       <div className="flex items-center justify-between gap-2 px-1.5 pt-1.5">
-        <Link href="/dashboard" onClick={onNavigate} aria-label="JobTracker home">
+        <Link href="/dashboard" onClick={onNavigate} aria-label="jobhq home">
           <Logo />
         </Link>
         <NotificationsBell
@@ -150,7 +150,7 @@ function SidebarBody({
           Opens the "save a job from a link" modal (no extension required). */}
       <ImportJobDialog
         trigger={
-          <Button className="h-9 w-full justify-center gap-2 text-sm font-medium">
+          <Button size="lg" className="w-full justify-center gap-2 rounded-md">
             <Plus className="size-4" strokeWidth={2.5} />
             Save a job
           </Button>

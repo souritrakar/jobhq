@@ -175,6 +175,56 @@ exclusively by `webapp/components/landing/v5/`:
 - Utilities/keyframes: `.hl`, `.sticker`, `.scrap`, `pop-in`, `wobble`,
   `type-reveal`, `confetti-fly`.
 
+## 6b. Landing v6 marketing layer (webapp only) — CURRENT
+
+Landing v6 ("notion+todoist for jobs", 2026-07-06) supersedes v5 on the live
+page (`webapp/components/landing/v6/`; v5 kept on disk for revert). It was
+rebuilt against circleback.ai / todoist.com / notion.com / kira-learning.com
+references after v5 still read as AI-generated. What changed:
+
+- **Stage palette replaces the two-color rule (landing only).** Butter is
+  retired; fern stays the ONLY accent (CTAs, links, checks). New landing-only
+  tokens in `webapp/app/globals.css`: `--stage-{peri,apricot,sage}` with
+  `-soft`/`-ink` pairs plus `--hl-apricot`. These are saturated pastel **block
+  backgrounds** (full-bleed rounded-[2rem] feature stages, the Circleback
+  register), never button/link/text accent colors, and must not leak into the
+  app or extension.
+- **Mockups are believable mini-products, not skeletons.** Real strings, real
+  brand logos, real `bg-status-*` chips, macOS `Window` chrome (`v6/bits.tsx`).
+  Gray-bar skeleton mocks are banned; that was v5's core failure.
+- Pally survives only as hand-written annotations (`Note` + `ArrowDoodle`) and
+  the giant closer wordmark. Eyebrow budget: exactly two colored sentence-case
+  `SectionLabel`s per page.
+- Taste guardrails come from the `design-taste-frontend` skill
+  (`.agents/skills/`, installed from Leonxlnx/taste-skill): zero em-dashes in
+  visible copy, max one marquee, no pill eyebrows on every section.
+
+### v6.1 mockup-realism pass (2026-07-07)
+
+A studied pass against circleback.ai, notion.com, and evernote.com after the
+mockups still read as "vibe coded": too rounded, too colorful, too crowded,
+too animated. The register inside every product mockup is now:
+
+- **Radii scale (Shape Lock).** Marketing panels `rounded-2xl` (16px, was
+  2rem), `Window` chrome and popup `rounded-xl` (12px), inner cards
+  `rounded-lg` (8px), status chips `rounded-[5px]` (Notion chips), buttons
+  inside mockups `rounded-md`. Page-level CTAs stay pill (marketing layer).
+- **Color inside a mockup ≈ zero.** White/gray surfaces, near-black text,
+  gray meta; fern is the only accent (product CTAs, checkmarks). Status chips
+  keep their muted `bg-status-*` pastels (semantic), everything else that was
+  tinted (banners, badges, icon circles, deadline text) went gray. Real brand
+  colors are allowed only where authentic (LinkedIn-blue Apply, company logos).
+- **Nothing fake-alive.** No "Drop here" drag target, no sparkle "auto-filled"
+  banner, no blinking caret, no pulsing/floating animations, no hand-drawn
+  arrows over the hero. Mockups are STILL, like every reference.
+- **Density like a real app.** Hairline-under-every-row is banned inside
+  mockups (spacing groups rows, the Circleback register); Notion-style
+  realism tricks instead: differing column counts, a 2-line card title,
+  quiet `+ Add job` ghost rows, `Show 2 more...` overflow lines.
+- **Composition.** Hero = ONE still window (no popup overlap, no annotations).
+  The save popup lives only in the extension stage, top-right over the
+  posting window, where a Chrome popup actually opens.
+
 ## 7. Dark mode
 
 **Provisional.** Dark mode is currently a neutral gray baseline that does *not*

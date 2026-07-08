@@ -43,6 +43,14 @@ import {
 
 type SaveState = "idle" | "saving" | "saved"
 
+// Local (not UTC) "YYYY-MM-DD" for a <input type="date"> min, so "earliest start" can't be a past
+// day. Computed in the viewer's timezone to match how the browser renders the date field.
+function localToday(): string {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
 export function SettingsForm({ initial }: { initial?: Partial<ProfileSettings> }) {
   const seed = useMemo<ProfileSettings>(
     () => ({ ...EMPTY_PROFILE, ...initial }),
@@ -125,7 +133,6 @@ export function SettingsForm({ initial }: { initial?: Partial<ProfileSettings> }
       <SectionCard
         icon={UserRound}
         title="Personal details"
-        description="The basics every application form asks for."
       >
         <Field label="First name">
           <Input
@@ -182,7 +189,6 @@ export function SettingsForm({ initial }: { initial?: Partial<ProfileSettings> }
       <SectionCard
         icon={MapPin}
         title="Location & address"
-        description="Used for location and mailing-address fields."
       >
         <Field label="Country">
           <Input
@@ -238,7 +244,6 @@ export function SettingsForm({ initial }: { initial?: Partial<ProfileSettings> }
       <SectionCard
         icon={ShieldCheck}
         title="Work eligibility"
-        description="Common screening questions on most applications."
       >
         <SelectField
           label="Work authorization"
@@ -266,7 +271,6 @@ export function SettingsForm({ initial }: { initial?: Partial<ProfileSettings> }
       <SectionCard
         icon={Link2}
         title="Professional links"
-        description="Profiles recruiters frequently ask for."
       >
         <Field label="LinkedIn" full>
           <Input
@@ -298,7 +302,6 @@ export function SettingsForm({ initial }: { initial?: Partial<ProfileSettings> }
       <SectionCard
         icon={SlidersHorizontal}
         title="Job preferences"
-        description="Defaults for salary, availability, and work style."
       >
         <Field label="Current title" hint="Optional">
           <Input
@@ -354,6 +357,7 @@ export function SettingsForm({ initial }: { initial?: Partial<ProfileSettings> }
         <Field label="Earliest start date" hint="Optional">
           <Input
             type="date"
+            min={localToday()}
             value={profile.earliestStartDate}
             onChange={(e) => set("earliestStartDate", e.target.value)}
           />
@@ -486,7 +490,7 @@ function SectionCard({
 }: {
   icon: React.ComponentType<{ className?: string }>
   title: string
-  description: string
+  description?: string
   children: React.ReactNode
 }) {
   return (
@@ -497,7 +501,7 @@ function SectionCard({
         </span>
         <div>
           <h2 className="text-sm font-medium">{title}</h2>
-          <p className="text-sm text-muted-foreground">{description}</p>
+          {description && <p className="text-sm text-muted-foreground">{description}</p>}
         </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">{children}</div>

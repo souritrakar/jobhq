@@ -1,3 +1,7 @@
+> **SUPERSEDED (2026-07-04):** the manual picker was replaced by automatic live
+> form-sync — see `2026-07-04-live-application-sync-design.md`. `ui/field-picker.js`
+> stays on disk (no longer activated) for the revert path.
+
 # On-page Application Field Picker — deterministic, user-driven question capture
 
 **Date:** 2026-07-02
@@ -69,13 +73,21 @@ UI.picker.setSelectedKeys(keys) // external sync (e.g. record refreshed)
 
 ## 4. What gets a badge
 
-Exactly the harvest's logical questions — `harvestQuestions()` output (labeled, visible,
-fillable controls; file inputs included; radio/checkbox groups and custom button-clusters
-already collapsed to one question each). To anchor badges, `harvestQuestions()` is extended to
-also return `anchors: Map<fieldId, Element[]>` — the element(s) each question spans (single
-control, group members, or cluster options); the badge anchors to the bounding box of that set.
+**Scope (revised 2026-07-02): only `long_text` questions** — `<textarea>` and contenteditable,
+i.e. every multi-line free-text box. These are the free-text/paragraph answers ("why us",
+essays, cover-letter-style prompts) worth saving to reuse; short text, selects, radios, dates,
+and file uploads are trivial or profile data that autofill already covers, so they get no badge.
+Enforced by `const PICKABLE_TYPES = new Set(["long_text"])` in `field-picker.js` — `refresh()`
+skips any harvested question whose mapped `type` isn't in the set.
+
+Within that scope, badges track the harvest's logical questions — `harvestQuestions()` output
+(labeled, visible, fillable controls). To anchor badges, `harvestQuestions()` returns
+`anchors: Map<fieldId, Element[]>` — the element(s) each question spans; the badge anchors to the
+bounding box of that set.
 
 Deterministic exclusions (no badge):
+- **Anything that isn't `long_text`** (the scope rule above) — short text, select/combobox,
+  radio, checkbox, date, number, file.
 - Consent/legal **checkboxes** — same keyword regex as the backend (`privacy policy|terms|
   consent|gdpr|data processing|newsletter|marketing|promotional`), checkbox-kind only.
 - Unlabeled fields (already dropped by the harvest).
@@ -83,20 +95,35 @@ Deterministic exclusions (no badge):
 
 ## 5. Badge anatomy, positioning, states
 
-- **Anatomy:** 26px circular button; rest state = white fill, 1.5px fern border, fern "+" glyph;
-  subtle shadow; Satoshi font for the hover tooltip ("Track this question" / "Tracked — click
-  to remove").
-- **Positioning:** vertically centered on the anchor rect's right edge; **outside** the control
-  when ≥40px of viewport space exists to its right, else tucked inside at the top-right corner
-  offset above the control's border (the label/input gap) — never covering field text or the
-  question label. Recomputed on scroll + resize (rAF-batched, capture-phase listeners so inner
-  scroll containers count) and after each mutation re-harvest. A badge whose anchor is gone or
-  invisible hides.
-- **States:** `idle (+)` → click → `working` (glyph swaps to a rotating spinner, ~500ms fixed
-  delay — the perceived-effort treatment) → `selected` (solid fern fill `#3f9b6a`, white check,
-  ~1.08 scale pop, then settle). Click while selected → brief `working` → `idle` with a
-  shrink-fade pulse (clear deselect feedback). Keyboard: badges are real `<button>`s with
-  aria-pressed + labels.
+Final design (2026-07-02) — a **Simplify-style "Save" pill**, modelled on how Simplify pins its
+mark inside a field's corner. (Earlier iterations, superseded: a right-edge gutter badge — broke
+on multi-column rows and needed external space; then a corner-straddling badge paired with a fern
+**field-highlight overlay** — rejected because our high-z layer painted the tint *over* the field
+content and read as an injected element. The highlight is gone entirely; the badge now never
+touches the field's own area.)
+
+- **Anatomy:** a pill (28px tall) tucked **inside** the anchor rect's top-right corner, `PAD=8px`
+  in. Idle = **icon-only circle** (fern bookmark glyph, white fill, 1.5px fern border, opacity
+  0.6) — the "save for later" metaphor, quiet so it doesn't compete with the form. Real `<button>`
+  with `aria-pressed` + aria-label.
+- **Positioning:** **right-anchored** (`style.right = viewportW − (rect.right − PAD)`, `left:auto`)
+  so the pill grows **leftward** as it expands, never spilling past the field's right edge or
+  off-screen. Works because we only badge textareas, whose top-right is empty space, so it never
+  covers the answer text. Recomputed on scroll + resize (rAF-batched, capture-phase) and after each
+  mutation re-harvest. Hidden when the anchor is gone, invisible, off-screen, or its right edge is
+  under the open save panel.
+- **Expand on intent:** on hover / focus / `.near`, the pill goes full opacity and **expands
+  leftward** to reveal a `Save` label (label `max-width` 0→130px + `padding-right`). Bloom is
+  driven by a passive `pointermove` listener (the layer is `pointer-events:none`, so the page still
+  gets every event) that adds `.near` to the badge of the field under the cursor — so N idle badges
+  stay recessive while the one you're aiming at opens up.
+- **Mode chip:** a persistent bottom-left pill — bookmark dot + "Save the long-answer questions
+  you'll want to reuse · N saved" (live count) — carries discoverability so idle badges stay quiet.
+- **States:** `idle (bookmark · "Save")` → click → `working` (spinner · "Saving…", ~500ms fixed
+  delay — the perceived-effort treatment) → `selected` (solid fern fill `#3f9b6a`, white check ·
+  "Saved", ~1.08 scale pop; stays full-opacity so saved fields read at a glance). Click while
+  selected → brief `working` → `idle` with a shrink-fade pulse. The label shows only while
+  hovered/focused, in every state.
 - **Identity:** the layer keeps a registry `fieldKey → badge` (the existing structural
   `fieldKey(kind, label, el, optionLabels)` from `application.js`). One badge per key —
   duplicates structurally impossible; a re-rendered control re-associates with its old badge

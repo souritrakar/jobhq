@@ -75,7 +75,7 @@ export function AppMock({ className }: { className?: string }) {
         </span>
         <div className="mx-auto flex h-6 w-56 items-center justify-center gap-1.5 rounded-full border border-border bg-background text-[0.64rem] text-muted-foreground">
           <Icon.Lock className="size-2.5 text-muted-foreground/60" />
-          app.jobtracker.com
+          app.jobhq.com
         </div>
         <span className="grid size-5 place-items-center rounded-md bg-primary/10">
           <Icon.Puzzle className="size-3 text-primary" />
@@ -90,7 +90,7 @@ export function AppMock({ className }: { className?: string }) {
               J
             </span>
             <span className="text-[0.74rem] font-semibold tracking-[-0.01em] text-foreground">
-              JobTracker
+              jobhq
             </span>
           </div>
           <div className="mb-2 flex items-center justify-center gap-1 rounded-lg bg-primary py-1.5 text-[0.66rem] font-semibold text-primary-foreground">

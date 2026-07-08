@@ -1,6 +1,6 @@
 import { Banknote, Briefcase, Laptop, MapPin } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+import { cn, formatSalary } from "@/lib/utils"
 
 /**
  * The scannable spec bar — the job's most-load-bearing attributes as an icon-led strip directly
@@ -23,7 +23,7 @@ export function JobFacts({
   if (job.salary)
     facts.push(
       <Fact key="salary" icon={Banknote} label="Salary" accent>
-        {job.salary}
+        {formatSalary(job.salary)}
       </Fact>,
     )
   if (job.location)

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "JobTracker (Demo)",
+  "name": "jobhq (Demo)",
   "version": "0.1.0",
-  "description": "Capture and track job postings while you browse. Demo scaffold for the JobTracker extension.",
+  "description": "Capture and track job postings while you browse. Demo scaffold for the jobhq extension.",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -11,7 +11,7 @@
   },
   "action": {
     "default_popup": "popup/popup.html",
-    "default_title": "JobTracker",
+    "default_title": "jobhq",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png"
@@ -25,6 +25,7 @@
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*"],
+      "all_frames": true,
       "js": [
         "parsers/clean-dom.js",
         "parsers/block-capture.js",
@@ -34,11 +35,11 @@
         "ui/button.js",
         "ui/application.js",
         "ui/field-picker.js",
+        "ui/form-sync.js",
+        "ui/frame-bridge.js",
+        "ui/doc-drag.js",
         "ui/modal.js",
-        "ui/reminders.js",
-        "vendor/readability.bundle.js",
-        "vendor/dom-to-semantic-markdown.bundle.js",
-        "vendor/remark-mdast.bundle.js",
+        "ui/todo.js",
         "content.js"
       ],
       "run_at": "document_idle"

@@ -50,6 +50,23 @@
   --tint-fern-ink: oklch(0.42 0.09 152);
   --tint-butter: oklch(0.962 0.055 95);
   --tint-butter-ink: oklch(0.45 0.09 80);
+
+  /* ── Landing v6 stage palette ("notion+todoist for jobs") ────────────────
+     Fern remains the ONLY accent (CTAs, links, checks). These are STAGE tints:
+     full-bleed rounded color blocks that hold product mockups, the Circleback/
+     Todoist register. Butter yellow is retired on v6; apricot carries warmth
+     (deadlines, highlighter swipes). Each tint has an -ink pair clearing AA on
+     its own fill, and a -deep variant for the saturated block backgrounds. */
+  --stage-peri: oklch(0.845 0.062 278); /* periwinkle block (extension) */
+  --stage-peri-soft: oklch(0.945 0.026 278);
+  --stage-peri-ink: oklch(0.4 0.1 278);
+  --stage-apricot: oklch(0.9 0.058 55); /* apricot block (questions/deadline warmth) */
+  --stage-apricot-soft: oklch(0.962 0.028 55);
+  --stage-apricot-ink: oklch(0.47 0.105 45);
+  --stage-sage: oklch(0.91 0.045 150); /* sage block (autofill/app) */
+  --stage-sage-soft: oklch(0.958 0.024 150);
+  --stage-sage-ink: oklch(0.4 0.085 152);
+  --hl-apricot: oklch(0.92 0.075 60); /* headline highlighter swipe */
 }
 
 @custom-variant dark (&:is(.dark *));

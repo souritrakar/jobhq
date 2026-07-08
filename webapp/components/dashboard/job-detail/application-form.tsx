@@ -28,21 +28,15 @@ export function ApplicationForm({
 
   return (
     <section aria-labelledby="application-heading" className="flex flex-col gap-3">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <h2 id="application-heading" className="text-sm font-semibold tracking-tight">
-            Application
-          </h2>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">
-            {questions.length > 0
-              ? "Fill it in — review your answers, then save your changes."
-              : "The questions this posting asks will appear here."}
-          </p>
-        </div>
+      <div className="flex items-center justify-between gap-3">
+        <h2 id="application-heading" className="text-xl font-semibold tracking-tight">
+          Application questions
+        </h2>
         {questions.length > 0 && (
-          <p className="hidden shrink-0 items-center gap-1.5 text-[13px] tabular-nums text-muted-foreground sm:flex">
+          <p className="hidden shrink-0 items-baseline gap-1.5 text-[13px] tabular-nums text-muted-foreground sm:flex">
             <span>
-              {questions.length} {questions.length === 1 ? "question" : "questions"}
+              <span className="text-lg font-semibold text-foreground">{questions.length}</span>{" "}
+              {questions.length === 1 ? "question" : "questions"}
             </span>
             {required > 0 && (
               <>

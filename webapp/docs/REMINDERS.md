@@ -123,10 +123,19 @@ red text:
   that takes precedence over the neutral "N open" pill.
 
 `deliveredAt` still rides the `Reminder` DTO (`toClientReminder`) and is used as *informational*
-context — **not** a completion signal — on the job page's **Interview** control, which reads the
-SYSTEM interview reminder to swap its sub-label: "We'll remind you 24h before" → "We reminded you ·
-<when>" (fired) → "Reminder done." (ticked), with a "This interview has passed." fallback once the
-interview datetime is in the past and nothing has fired.
+context — **not** a completion signal — on the job page's **Interview** control
+(`job-detail/interview-date.tsx`). That control escalates through two urgency states plus the
+handled/error ones, and shows the "We'll remind you 24h before" line **only while it's true**:
+
+- **Scheduled** (future day, not today) — calm/neutral; sub-label "We'll remind you 24h before".
+- **Day of** (interview is today, not yet passed) — the loud state: filled `status-interviewing`
+  tint, bolder/larger type, a "Today" chip, label reads "Today, 2:00 PM". The 24h line is **hidden**
+  (that heads-up has already gone out); the sub-label becomes "Interview today · <time>".
+- **Reminded** ("We reminded you · <when>", `deliveredAt` set, still future/non-today) → **Reminder
+  done** (ticked) → **Interview has passed** (past + nothing handled, amber).
+
+The control also **only persists on Done/Clear**: picking a day/time edits a local draft, so a
+half-finished pick (the 9:00 fallback) is never saved — nor its reminder mis-scheduled — mid-edit.
 
 ## Channels (`lib/server/notification-dispatch.ts`)
 
@@ -148,9 +157,19 @@ state), **all channels default on**.
 
 - **Interview reminder** — one `SYSTEM` reminder per job, kept in sync with `Job.interviewAt`
   (default lead 24h) via `upsertInterviewReminder`, idempotent through `@@unique([jobId, systemKey])`
-  (`systemKey = "interview"`). Set from the job page's "Interview" control
-  (`components/dashboard/job-detail/interview-date.tsx`); clearing the date deletes the reminder +
-  cancels its QStash message.
+  (`systemKey = "interview"`). **Two times, kept apart** (the important bit): the row's `dueAt` is
+  the **interview instant itself** — the only time ever shown to the user (To-do row, feed, interview
+  card all read `dueAt`) — while the QStash delivery is scheduled at `fireAt = interviewAt - lead`
+  (24h). `fireAt` lives only in the schedule (`notBefore`) and is never surfaced, so the user is
+  never shown a "due yesterday" time for an interview that's tomorrow. (Earlier this stored `fireAt`
+  in `dueAt`, which made the To-do read as a day-early "overdue" — that was the bug.) Set from the
+  job page's "Interview" control; clearing the date deletes the reminder + cancels its QStash
+  message. The picker bars past days (`disabled={{ before: today }}`) and floors the time at "now"
+  when today is chosen, so an interview can't be set in the past. Server-side,
+  `shouldScheduleInterviewReminder(interviewAt, now)` gates the QStash publish: an interview already
+  in the past keeps its row (so the UI can show "passed") but is not scheduled, avoiding a
+  fire-immediately nudge from a past `notBefore`. An interview inside the 24h lead window still
+  schedules on purpose so the heads-up goes out right away.
 - **Daily digest** — `runDigest(now)` emails every user whose `SAVED` jobs are untouched ≥ 3 days a
   single "needs attention" summary (in-app + email). Triggered by `POST /api/cron/reminders-digest`
   (QStash-signed) on a daily schedule.
@@ -171,6 +190,11 @@ clicking it opens the deep link. Requires the `alarms` + `notifications` permiss
 
 > **Known v1 gap:** reminders created on the web *after* the extension's last sync won't OS-notify
 > until the next sync. Email + in-app cover that window.
+>
+> **Interview lead-time nuance:** the extension alarm keys off `dueAt`, which for an interview
+> reminder is now the interview instant (not `fireAt`), so its local OS notification lands at the
+> interview time rather than 24h before. The server QStash channel still delivers the 24h heads-up.
+> Honoring the lead on the extension too would mean exposing `fireAt` on the DTO (deferred).
 
 ## Data model additions (`prisma/schema.prisma`)
 

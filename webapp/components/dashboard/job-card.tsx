@@ -2,6 +2,7 @@ import Link from "next/link"
 import { Banknote, Globe, MapPin } from "lucide-react"
 import type { Job as DbJob, JobStatus } from "@prisma/client"
 
+import { formatSalary } from "@/lib/utils"
 import { savedLabel } from "@/lib/dates"
 import { siteNameFromUrl } from "@/lib/url"
 import { StatusPill } from "@/components/dashboard/status-pill"
@@ -90,7 +91,7 @@ export function JobCard({ job }: { job: JobCardData }) {
           {job.salary && (
             <div className="flex items-center gap-2 text-[15px] font-semibold leading-none text-fern-700">
               <Banknote className="size-4 shrink-0 text-fern-700/70" />
-              <span className="min-w-0 truncate">{job.salary}</span>
+              <span className="min-w-0 truncate">{formatSalary(job.salary)}</span>
             </div>
           )}
           {job.location && (

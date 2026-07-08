@@ -12,8 +12,11 @@ import { toJobCardData } from "@/components/dashboard/job-card"
 
 export const dynamic = "force-dynamic"
 
-// How many of the most-recent saves to surface on the home screen.
+// How many of the most-recent saves to surface on the home screen, and how far back "recently"
+// reaches — the home feed only shows the last few days so it stays a genuine "just saved" list;
+// everything older lives under "View all".
 const RECENT_LIMIT = 12
+const RECENT_WINDOW_DAYS = 3
 
 export default async function HomePage() {
   const userId = await getServerUserId()
@@ -21,7 +24,10 @@ export default async function HomePage() {
     getJobStats(userId),
     listJobs(userId, { limit: RECENT_LIMIT }),
   ])
-  const recent = recentJobs.map(toJobCardData)
+  const cutoff = Date.now() - RECENT_WINDOW_DAYS * 24 * 60 * 60 * 1000
+  const recent = recentJobs
+    .filter((job) => new Date(job.createdAt).getTime() >= cutoff)
+    .map(toJobCardData)
 
   // Counts are always shown (0 is real data) so users can scan pipeline volume at a glance.
   const tiles: Stat[] = [

@@ -23,3 +23,7 @@ npm-debug.log*
 # Misc
 .playwright-mcp/
 *.tsbuildinfo
+.claude/settings.local.json
+
+# External reference repos (mined for code, not part of our app)
+reference/

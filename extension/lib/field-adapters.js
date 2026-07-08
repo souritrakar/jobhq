@@ -231,6 +231,9 @@
   // Adapters. Each wraps one control and exposes the same surface:
   //   isEmpty()           — at its default/unset state (safe to fill without clobbering)
   //   isFilledWith(t)     — already holds the target (idempotency / verification)
+  //   read()              — current value as the ANSWER shape: a string for single-value
+  //                         controls, a string[] of option labels for multi-value groups.
+  //                         Powers the live page→panel mirror (form-sync).
   //   snapshot()          — capture current state, return a restore() closure (for Undo)
   //   async write(t)      — framework-correct write, best-effort with escalation; returns "did it
   //                         stick" but fillField re-verifies via isFilledWith as the source of truth
@@ -253,6 +256,9 @@
       isFilledWith(t) {
         const v = targetText(t);
         return v != null && stuck(coerceValue(el, v));
+      },
+      read() {
+        return value();
       },
       snapshot() {
         const prev = el.value;
@@ -298,6 +304,9 @@
       isFilledWith(t) {
         const v = targetText(t);
         return v != null && normEq(value(), v);
+      },
+      read() {
+        return value().trim();
       },
       snapshot() {
         const prev = el.textContent;
@@ -384,6 +393,18 @@
         const cur = el.options[el.selectedIndex];
         return !!cur && (vals.includes(cur.value) || vals.some((v) => normEq(v, textOf(cur))));
       },
+      read() {
+        // Answers speak in option LABELS (what the user sees), matching the harvested question's
+        // options; the placeholder row (value "") reads as unanswered.
+        if (el.multiple) {
+          return Array.from(el.selectedOptions || [])
+            .filter((o) => o.value !== "")
+            .map((o) => textOf(o) || o.value);
+        }
+        if (el.value === "") return "";
+        const cur = el.options[el.selectedIndex];
+        return cur ? textOf(cur) || cur.value : "";
+      },
       snapshot() {
         const prev = options().map((o) => o.selected);
         return () => {
@@ -432,6 +453,10 @@
         const o = match(vals);
         return !!(o && o.el.checked);
       },
+      read() {
+        const cur = opts.find((o) => o.el.checked);
+        return cur ? cur.label || cur.value : "";
+      },
       snapshot() {
         const prev = opts.find((o) => o.el.checked) || null;
         return () => {
@@ -462,6 +487,9 @@
         const w = wanted(targetOptionValues(t));
         return w.length > 0 && w.every((o) => o.el.checked);
       },
+      read() {
+        return opts.filter((o) => o.el.checked).map((o) => o.label || o.value);
+      },
       snapshot() {
         const prev = opts.map((o) => o.el.checked);
         return () => opts.forEach((o, i) => o.el.checked !== prev[i] && nativeClick(o.el));
@@ -484,6 +512,9 @@
       },
       isFilledWith(t) {
         return el.checked === truthy(targetText(t));
+      },
+      read() {
+        return el.checked ? "true" : "";
       },
       snapshot() {
         const prev = el.checked;
@@ -511,6 +542,11 @@
       isFilledWith(t) {
         const w = wanted(targetOptionValues(t));
         return w.length > 0 && w.every((o) => isSelectedOption(o.el));
+      },
+      read() {
+        // Clusters are harvested as single-choice (kind "radio"), so read the first selected label.
+        const cur = opts.find((o) => isSelectedOption(o.el));
+        return cur ? cur.label : "";
       },
       snapshot() {
         const prev = opts.filter((o) => isSelectedOption(o.el));
@@ -564,6 +600,9 @@
       isFilledWith(t) {
         const v = targetText(t);
         return v != null && normEq(shown(), v);
+      },
+      read() {
+        return shown();
       },
       snapshot() {
         const prev = el.value;

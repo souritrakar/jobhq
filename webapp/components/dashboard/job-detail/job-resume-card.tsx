@@ -259,11 +259,7 @@ export function JobResumeCard({
         <p className="text-[13px] leading-relaxed text-muted-foreground">
           Upload a resume ({ALLOWED_LABEL}) to tailor your cover letter and answers to it.
         </p>
-      ) : (
-        <p className="text-[13px] leading-relaxed text-muted-foreground">
-          Used to tailor your cover letter and application answers for this job.
-        </p>
-      )}
+      ) : null}
 
       <Link
         href={{

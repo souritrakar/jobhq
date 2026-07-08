@@ -6,6 +6,7 @@ import type { JobStatus } from "@prisma/client"
 
 import { cn } from "@/lib/utils"
 import { useStatusSync } from "@/lib/jobs/use-status-sync"
+import { STATUS_STYLES } from "@/lib/jobs/status-styles"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -81,11 +82,8 @@ export function SavedJobsBrowser({ jobs: initialJobs }: { jobs: JobCardData[] })
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-1">
+      <header>
         <h1 className="text-2xl font-semibold tracking-tight">Saved jobs</h1>
-        <p className="text-sm text-muted-foreground">
-          Every posting you&apos;ve captured, in one place.
-        </p>
       </header>
 
       {!isEmpty && (
@@ -104,22 +102,30 @@ export function SavedJobsBrowser({ jobs: initialJobs }: { jobs: JobCardData[] })
             {/* Status filter — list view only; the board shows every stage as a column. */}
             {view === "list" && (
               <div className="flex flex-wrap gap-1 rounded-md border border-border bg-card p-1">
-                {FILTERS.map((f) => (
-                  <button
-                    key={f.value}
-                    type="button"
-                    onClick={() => setFilter(f.value)}
-                    aria-pressed={filter === f.value}
-                    className={cn(
-                      "cursor-pointer rounded-md px-2.5 py-1 text-sm font-medium transition-colors",
-                      filter === f.value
-                        ? "bg-secondary text-secondary-foreground"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {f.label}
-                  </button>
-                ))}
+                {FILTERS.map((f) => {
+                  const active = filter === f.value
+                  // The active tab wears its own status color (same soft fill + foreground as the
+                  // pill and board), so selecting "Interviewing" tints the control the interviewing
+                  // hue. "All" has no status, so it keeps the neutral selected treatment.
+                  const activeClass =
+                    f.value === "ALL"
+                      ? "bg-secondary text-secondary-foreground"
+                      : cn(STATUS_STYLES[f.value].fill, STATUS_STYLES[f.value].fg)
+                  return (
+                    <button
+                      key={f.value}
+                      type="button"
+                      onClick={() => setFilter(f.value)}
+                      aria-pressed={active}
+                      className={cn(
+                        "cursor-pointer rounded-md px-2.5 py-1 text-sm font-medium transition-colors",
+                        active ? activeClass : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {f.label}
+                    </button>
+                  )
+                })}
               </div>
             )}
 

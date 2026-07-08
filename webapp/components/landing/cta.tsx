@@ -24,7 +24,7 @@ export function Cta() {
             </h2>
             <p className="mx-auto mt-5 max-w-lg text-lg leading-relaxed text-fern-100/80">
               Install the extension, save the next job you find, and let
-              JobTracker handle the rest. Free, forever, for the basics.
+              jobhq handle the rest. Free, forever, for the basics.
             </p>
             <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <ChromeStoreButton size="lg" />

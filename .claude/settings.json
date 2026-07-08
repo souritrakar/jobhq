@@ -6,5 +6,8 @@
         "mcp"
       ]
     }
+  },
+  "enabledPlugins": {
+    "context-engineering@context-engineering-marketplace": true
   }
 }

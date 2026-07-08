@@ -35,7 +35,7 @@ export function SiteHeader() {
       )}
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-5 sm:px-8">
-        <a href="#top" className="shrink-0" aria-label="JobTracker home">
+        <a href="#top" className="shrink-0" aria-label="jobhq home">
           <Logo light={!scrolled} />
         </a>
 

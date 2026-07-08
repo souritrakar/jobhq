@@ -44,8 +44,9 @@ function toSummary(doc: ClientDocument): ResumeSummary {
  * row at the foot. Uploads go straight to the real documents store (R2) via the shared client, so a
  * newly uploaded resume is immediately a first-class, parseable selection — not a session stub.
  *
- * Selection is optional: with none chosen the parent generates a less-personalized letter and shows
- * the gentle hint below.
+ * A resume is mandatory: the parent preselects one on load, and selecting a row only ever switches
+ * the choice (never clears it). When the user has no documents at all, the list is empty and the
+ * upload row below is the only path forward.
  */
 export function ResumePicker({
   resumes,
@@ -98,7 +99,7 @@ export function ResumePicker({
             <button
               key={resume.id}
               type="button"
-              onClick={() => onSelect(active ? null : resume.id)}
+              onClick={() => onSelect(resume.id)}
               aria-pressed={active}
               className={cn(
                 "group flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors",
@@ -168,14 +169,13 @@ export function ResumePicker({
         <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
           <Info className="mt-px size-3.5 shrink-0" />
           <span>
-            No resumes yet. Upload one ({ALLOWED_LABEL}) for a tailored letter, or generate from the
-            job alone.
+            No resumes yet — upload one ({ALLOWED_LABEL}) to generate a cover letter.
           </span>
         </p>
       ) : !selectedId ? (
         <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
           <Info className="mt-px size-3.5 shrink-0" />
-          <span>Optional, but adding a resume makes the letter noticeably more tailored.</span>
+          <span>Select a resume to continue.</span>
         </p>
       ) : null}
     </div>

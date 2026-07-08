@@ -52,7 +52,7 @@ export function Hero() {
             aria-hidden
             className="invisible col-start-1 row-start-1 text-lg leading-relaxed text-white/70"
           >
-            Save any job from a careers page in one click. JobTracker captures the
+            Save any job from a careers page in one click. jobhq captures the
             deadline, tracks every application, and reminds you before it closes.
           </p>
           <p className="col-start-1 row-start-1 text-lg leading-relaxed text-white/70">
@@ -61,7 +61,7 @@ export function Hero() {
               words={["LinkedIn", "Indeed", "a careers page", "Wellfound", "a Discord link"]}
               className="font-semibold text-white"
             />{" "}
-            in one click. JobTracker captures the deadline, tracks every
+            in one click. jobhq captures the deadline, tracks every
             application, and reminds you before it closes.
           </p>
         </div>

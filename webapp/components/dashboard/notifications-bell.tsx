@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type ComponentType } from "react"
 import { useRouter } from "next/navigation"
-import { Bell, Check } from "lucide-react"
+import { Bell, Briefcase, CalendarClock, Check, Clock } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { savedLabel } from "@/lib/dates"
@@ -11,8 +11,24 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from "@/lib/notifications/client"
-import type { NotificationDto } from "@/lib/notifications/types"
+import type { NotificationDto, NotificationKind } from "@/lib/notifications/types"
 import { Menu } from "@/components/dashboard/job-detail/menu"
+
+// Each notification kind carries a semantic mark: an icon so the *type* of nudge is legible before
+// the text is read, and a restrained tint that reuses the app's existing urgency language — fern
+// (brand) for a reminder to act, amber for a time-pressing interview, calm muted for a digest
+// roundup. Color is spent only to rank, never to decorate.
+const KIND_MARK: Record<
+  NotificationKind,
+  { Icon: ComponentType<{ className?: string }>; tint: string }
+> = {
+  reminder: { Icon: Clock, tint: "bg-primary/10 text-primary" },
+  interview: {
+    Icon: CalendarClock,
+    tint: "bg-amber-500/12 text-amber-600 dark:text-amber-400",
+  },
+  digest: { Icon: Briefcase, tint: "bg-muted text-muted-foreground" },
+}
 
 /**
  * The dashboard notifications bell: a server-seeded, focus-revalidated dropdown.
@@ -90,7 +106,7 @@ export function NotificationsBell({
   return (
     <Menu
       align="start"
-      panelClassName="w-80 max-w-[calc(100vw-1.5rem)] p-0"
+      panelClassName="w-96 max-w-[calc(100vw-1.5rem)] p-0"
       renderTrigger={({ open, toggle }) => (
         <button
           type="button"
@@ -115,9 +131,16 @@ export function NotificationsBell({
       )}
     >
       {({ close }) => (
-        <div className="flex max-h-[26rem] flex-col">
-          <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5">
-            <span className="text-sm font-semibold">Notifications</span>
+        <div className="flex max-h-[28rem] flex-col">
+          <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
+            <div className="flex items-baseline gap-2">
+              <span className="text-sm font-semibold tracking-tight">Notifications</span>
+              {unread > 0 && (
+                <span className="text-xs font-medium tabular-nums text-muted-foreground">
+                  {unread} new
+                </span>
+              )}
+            </div>
             <button
               type="button"
               onClick={onMarkAll}
@@ -130,12 +153,12 @@ export function NotificationsBell({
           </div>
 
           {items.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
-              <span className="grid size-9 place-items-center rounded-full bg-muted text-muted-foreground">
-                <Bell className="size-4" />
+            <div className="flex flex-col items-center gap-2.5 px-6 py-14 text-center">
+              <span className="grid size-10 place-items-center rounded-full bg-muted text-muted-foreground">
+                <Bell className="size-4.5" />
               </span>
-              <p className="text-sm font-medium">You're all caught up</p>
-              <p className="max-w-[14rem] text-xs text-muted-foreground">
+              <p className="mt-0.5 text-sm font-medium">You're all caught up</p>
+              <p className="max-w-[15rem] text-xs leading-relaxed text-muted-foreground">
                 Reminders, interviews, and digests will show up here.
               </p>
             </div>
@@ -164,26 +187,32 @@ function NotificationRow({
   onClick: () => void
 }) {
   const isUnread = !item.readAt
+  const { Icon, tint } = KIND_MARK[item.kind]
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "flex w-full items-start gap-2.5 px-3 py-3 text-left transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none",
-        isUnread && "bg-primary/[0.04]",
+        "flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none",
+        isUnread && "bg-primary/[0.05]",
       )}
     >
-      <span className="mt-1.5 shrink-0">
-        <span
-          className={cn(
-            "block size-2 rounded-full",
-            isUnread ? "bg-primary" : "bg-transparent",
-          )}
-          aria-hidden
-        />
+      {/* Kind mark — the row's anchor. The unread badge rides its corner so the "new" signal and the
+          "what kind" signal read as one glance instead of two competing dots. */}
+      <span className="relative mt-0.5 shrink-0">
+        <span className={cn("grid size-8 place-items-center rounded-full", tint)}>
+          <Icon className="size-4" />
+        </span>
+        {isUnread && (
+          <span
+            aria-hidden
+            className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-primary ring-2 ring-background"
+          />
+        )}
       </span>
+
       <span className="min-w-0 flex-1">
-        <span className="flex items-start justify-between gap-2">
+        <span className="flex items-start justify-between gap-3">
           <span
             className={cn(
               "min-w-0 line-clamp-2 break-words text-[13px] leading-snug text-foreground",
@@ -192,16 +221,84 @@ function NotificationRow({
           >
             {item.title}
           </span>
-          <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground/70">
+          <span className="mt-px shrink-0 text-[11px] tabular-nums text-muted-foreground/70">
             {savedLabel(item.createdAt)}
           </span>
         </span>
-        {item.body && (
-          <span className="mt-0.5 block line-clamp-2 text-xs text-muted-foreground">
-            {item.body}
-          </span>
-        )}
+        {item.body && <NotificationBody text={item.body} />}
       </span>
     </button>
+  )
+}
+
+// Leading block markers on a body line, kept generic so the renderer never needs to know which
+// notification produced the text: a heading ("#".."###"), or a bullet ("•", "-", "*") + a space.
+const HEADING_LINE = /^\s*#{1,3}\s+/
+const BULLET_LINE = /^\s*[•\-*]\s+/
+
+// Renders a notification's plain-text body with a typographic hierarchy. The body is authored as
+// newline-delimited lines (see lib/reminders/copy.ts): some are bullets, some headings, the rest
+// prose. HTML would collapse the newlines into one run, so a digest's list flattens into a single
+// sentence — here each block gets structure *and* its own type treatment so a glance separates the
+// substance from the connective text:
+//   • heading  — a small structural label (uppercase, tight), the loudest block
+//   • bullets  — the payload (each role/item): foreground weight, sized above prose
+//   • prose    — the quiet lead-in and asides: muted and small
+// Deliberately tiny and format-driven — no per-notification special-casing.
+function NotificationBody({ text }: { text: string }) {
+  const blocks: { type: "h" | "ul" | "p"; items: string[] }[] = []
+  for (const raw of text.split("\n")) {
+    const line = raw.trim()
+    if (!line) continue
+    if (HEADING_LINE.test(line)) {
+      blocks.push({ type: "h", items: [line.replace(HEADING_LINE, "")] })
+      continue
+    }
+    const isBullet = BULLET_LINE.test(line)
+    const content = isBullet ? line.replace(BULLET_LINE, "") : line
+    const last = blocks.at(-1)
+    // Merge only consecutive bullets into one list; headings and paragraphs always stand alone.
+    if (isBullet && last?.type === "ul") last.items.push(content)
+    else blocks.push({ type: isBullet ? "ul" : "p", items: [content] })
+  }
+
+  return (
+    <div className="mt-1.5 space-y-2">
+      {blocks.map((block, i) => {
+        if (block.type === "h") {
+          return (
+            <p
+              key={i}
+              className="text-[11px] font-semibold uppercase tracking-wide text-foreground/70"
+            >
+              {block.items[0]}
+            </p>
+          )
+        }
+        if (block.type === "ul") {
+          return (
+            <ul key={i} className="space-y-1">
+              {block.items.map((li, j) => (
+                <li
+                  key={j}
+                  className="flex gap-2 text-[13px] font-medium leading-snug text-foreground/85"
+                >
+                  <span
+                    aria-hidden
+                    className="mt-[7px] size-1 shrink-0 rounded-full bg-foreground/30"
+                  />
+                  <span className="min-w-0 break-words">{li}</span>
+                </li>
+              ))}
+            </ul>
+          )
+        }
+        return (
+          <p key={i} className="text-xs leading-relaxed text-muted-foreground">
+            {block.items[0]}
+          </p>
+        )
+      })}
+    </div>
   )
 }

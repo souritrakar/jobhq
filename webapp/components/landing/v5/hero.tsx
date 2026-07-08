@@ -88,7 +88,7 @@ export function Hero() {
 
       {/* ── signature shot ── */}
       <p className="sr-only">
-        Illustration: the JobTracker dashboard with saved jobs and pipeline
+        Illustration: the jobhq dashboard with saved jobs and pipeline
         stats, with the browser-extension drawer docked beside it capturing a
         job posting.
       </p>

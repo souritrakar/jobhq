@@ -79,6 +79,68 @@
     ].join("::");
   }
 
+  // ---- answer codec (mirror of webapp/lib/application/answer-codec.ts) --------------------
+  // How an answer travels in the single `value` string the backend stores: the multi-select
+  // family (checkbox / multi_select WITH options) is a JSON string array; everything else —
+  // text, scalars, select, radio, bare consent checkbox — is a plain string. Keep in lockstep
+  // with the webapp codec so the web form and the extension read each other's answers.
+
+  function isMultiValue(question) {
+    return (
+      (question.type === "checkbox" || question.type === "multi_select") &&
+      Array.isArray(question.options) &&
+      question.options.length > 0
+    );
+  }
+
+  // Trim ends only — inner whitespace (an essay's newlines/paragraphs) must survive intact.
+  const trimAns = (s) => String(s == null ? "" : s).trim();
+
+  /** Live answer (string | string[]) → the stored value string. Empty selection → "". */
+  function encodeAnswer(question, answer) {
+    if (isMultiValue(question)) {
+      const vals = (Array.isArray(answer) ? answer : answer ? [answer] : [])
+        .map(trimAns)
+        .filter(Boolean);
+      return vals.length ? JSON.stringify(vals) : "";
+    }
+    if (Array.isArray(answer)) return answer.map(trimAns).filter(Boolean).join(", ");
+    return trimAns(answer);
+  }
+
+  /** Stored value string → live answer shape (string, or string[] for the multi family). */
+  function decodeAnswer(question, raw) {
+    if (!isMultiValue(question)) return trimAns(raw);
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.filter((v) => typeof v === "string");
+    } catch (_) {
+      // Legacy / hand-entered: a bare string is a single selection.
+      const s = trimAns(raw);
+      return s ? [s] : [];
+    }
+    return [];
+  }
+
+  // Match local draft answers ({ key → answer }) to the SERVER's stored questions (which carry
+  // the stable ids the answers endpoint requires). Content identity (keyOf) is the bridge; a
+  // draft whose question didn't survive the save round-trip is simply dropped. Returns the
+  // PUT /api/jobs/:id/application/answers payload rows.
+  function answersForServer(serverQuestions, draftAnswers) {
+    const out = [];
+    if (!Array.isArray(serverQuestions) || !draftAnswers) return out;
+    const seen = new Set();
+    for (const q of serverQuestions) {
+      if (!q || !q.id || seen.has(q.id)) continue;
+      seen.add(q.id);
+      const key = keyOf(q);
+      if (!(key in draftAnswers)) continue;
+      out.push({ questionId: q.id, value: encodeAnswer(q, draftAnswers[key]).slice(0, 10000) });
+    }
+    return out;
+  }
+
   // Merge the page's currently-selected questions (page order) into the existing tracked
   // set: questions NOT represented on this page keep their original relative order (they
   // were picked on another sub-page/session), then the on-page picks follow in page order.
@@ -93,5 +155,14 @@
     return [...offPage, ...picks];
   }
 
-  return { toQuestion, keyOf, mergePicked, isConsentNoise };
+  return {
+    toQuestion,
+    keyOf,
+    mergePicked,
+    isConsentNoise,
+    isMultiValue,
+    encodeAnswer,
+    decodeAnswer,
+    answersForServer,
+  };
 });

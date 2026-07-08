@@ -66,7 +66,7 @@ export async function extractApplicationIndexed(
     const { result, parsed } = await runIndexedCall(
       buildIndexedQuestionsMessages(blocks, input.fields),
       QUESTIONS_RESPONSE_FORMAT,
-      "JobTracker Indexed Questions",
+      "jobhq Indexed Questions",
       maxTokens,
     )
     // A still-unparsable reply after the retry is a FAILURE (surface the retry UI) — resolving
