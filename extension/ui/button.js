@@ -28,7 +28,7 @@
     bookmark: '<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>',
     check: '<path d="M20 6 9 17l-5-5"/>',
   };
-  const TITLES = { idle: "Save to Tracker", saved: "Saved to Tracker" };
+  const TITLES = { idle: "Save to jobhq", saved: "Saved to jobhq" };
 
   let hostEl = null;
   let btnEl = null;

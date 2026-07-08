@@ -815,7 +815,7 @@
     }
     // Title only — the source host used to sit on a subline here, but it's redundant with the
     // Link field in Details, so the header stays clean (badge + title + controls).
-    const titles = el("div", { class: "titles" }, [el("h2", { text: "Save to tracker" })]);
+    const titles = el("div", { class: "titles" }, [el("h2", { text: "Save to jobhq" })]);
     const collapseBtn = iconBtn(ICON.collapse, "Collapse panel");
     const closeBtn = iconBtn(ICON.x, "Close panel");
     const head = el("div", { class: "head" }, [badge, titles, collapseBtn, closeBtn]);

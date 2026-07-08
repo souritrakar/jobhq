@@ -177,7 +177,7 @@
     b.setAttribute("aria-pressed", state === "selected" ? "true" : "false");
     b.setAttribute(
       "aria-label",
-      state === "selected" ? "Saved — click to remove" : "Save this question to reuse later",
+      state === "selected" ? "Saved. Click to remove" : "Save this question to reuse later",
     );
   }
 
