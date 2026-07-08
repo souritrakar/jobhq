@@ -7,7 +7,7 @@ import "./globals.css";
 // Preflight, breaking Turbopack's CSS-Modules purity check. See the note in globals.css.
 
 export const metadata: Metadata = {
-  title: "jobhq | Save and track job applications in one place",
+  title: "jobhq | Save and track every job application",
   description:
     "Save any job posting in one click from LinkedIn, Indeed, Greenhouse, or any careers page. jobhq captures deadlines, tracks your applications, and reminds you before postings close. Free Chrome extension.",
   keywords: [
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     "application deadline reminders",
   ],
   openGraph: {
-    title: "jobhq: save jobs in one click, track them in one place",
+    title: "jobhq: save jobs in one click, track every application",
     description:
       "Save any job from anywhere on the web in one click. Track deadlines and applications, and get reminded before postings close.",
     type: "website",
