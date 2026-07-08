@@ -7,7 +7,7 @@ import "./globals.css";
 // Preflight, breaking Turbopack's CSS-Modules purity check. See the note in globals.css.
 
 export const metadata: Metadata = {
-  title: "jobhq | Save and track every job application",
+  title: "jobhq · Save and track every job application",
   description:
     "Save any job posting in one click from LinkedIn, Indeed, Greenhouse, or any careers page. jobhq captures deadlines, tracks your applications, and reminds you before postings close. Free Chrome extension.",
   keywords: [
