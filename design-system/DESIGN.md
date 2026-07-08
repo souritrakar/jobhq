@@ -1,15 +1,21 @@
-# JobTracker — Design System
+# jobhq — Design System
 
 > **Canonical, shared style guide for the whole product** — the web app and the
 > Chrome extension. Any agent or person doing UI/UX work in this workspace reads
 > this first, then builds against [`tokens.css`](./tokens.css) (the source of
 > truth for actual values). Keep it simple; don't fork tokens into components.
+>
+> **Brand palette (2026-07 rebrand): Evergreen + Clay.** The primary is
+> evergreen `#266645` — a deep, ink-like forest green; the secondary accent is
+> clay `#ca7c4e` — a warm muted terracotta that replaced the retired
+> Sun/Butter yellow. Token *names* keep the legacy `fern`/`--sun` spellings
+> (see §2); only values changed.
 
 ---
 
 ## 1. The feel (what we're going for)
 
-JobTracker is for **younger, tech-savvy job seekers** drowning in tabs, deadlines,
+jobhq is for **younger, tech-savvy job seekers** drowning in tabs, deadlines,
 and a spreadsheet they forgot to update. The product's emotional core is *calm
 relief* — "never lose a job posting again." The UI should feel **warm, friendly,
 and quietly confident**, never corporate, sterile, or hype-y.
@@ -21,15 +27,15 @@ gradients, glassmorphism, neon-on-black, teal-accent-on-white).
 - **White canvas, cool-neutral panels.** The page background is clean white; raised
   surfaces (cards, popovers, sidebar) are a cool, very-low-chroma neutral off-white
   (faint stone/slate, hue ~248). The earlier warm cream read muddy next to white, so
-  surfaces went cool — and **fern is now the system's only warm note**, which is
-  enough. Depth reads through the faint tonal step plus a near-invisible hairline,
-  not heavy borders or shadow.
+  surfaces went cool — **evergreen is the system's single accent**, with clay as
+  the one warm note, and that is enough. Depth reads through the faint tonal step
+  plus a near-invisible hairline, not heavy borders or shadow.
 - **One separation mechanism — not container soup.** For a feed of similar items,
   default to a single flat panel + whitespace + hairline dividers (the folk/Linear
   pattern), *never* border + tinted fill + inner dividers stacked together. Reserve
   fully-bordered cards for genuinely bounded, heterogeneous objects.
-- **Fern green, not emerald/mint/teal — and rationed.** Our green is grounded and
-  leafy — deepened to "evergreen": a deep, ink-like forest green that reads
+- **Evergreen, not emerald/mint/teal — and rationed.** Our green is grounded and
+  leafy: a deep, ink-like forest green (`#266645`) that reads
   editorial, not "app-store green." Spend it only where it means something: the
   logo, the one primary action, the active nav item, the saved state, and a
   single positive signal (e.g. response rate). Let neutral do ~90% of the work;
@@ -53,8 +59,13 @@ Greenhouse, …) rather than a warm-toned widget that clashes with the host page
 
 - **Near-white / white surfaces**, not cream. Neutral-gray hairlines and
   secondary text (cool ~hue 250, very low chroma) instead of warm tones.
-- **Fern stays the single accent** — primary actions, links, focus ring, the
-  AI-prep "on" state, the toolbar badge. No second accent color.
+- **Evergreen stays the single accent** (`#266645`, hover `#1e5a3c`, tints
+  `#f0f8f3`/`#e0f2e6`) — primary actions, links, focus ring, the AI-prep "on"
+  state, the toolbar badge. No second accent color. One derived tint exists
+  outside this list: `#9ecfb4`, a light evergreen used for the chip count on
+  the dark pine chip in `extension/ui/field-picker.js` (a superseded module
+  kept on disk for revert) — light-on-dark needs a lighter green than any
+  token provides.
 - **Restrained weight.** Headings sit at `600` (not `700`); body/inputs at
   `400`. Bold is reserved for the few genuine emphases. Avoid all-caps micro
   labels.
@@ -75,7 +86,7 @@ components. Reach for the named brand tones only for intentional brand moments.
 |---|---|
 | `--background` / `--foreground` | White canvas + near-black ink text |
 | `--card` / `--popover` | Cool-neutral off-white raised panels (cards, popovers) |
-| `--primary` (**Fern**) | Primary action, links, focus, active state — rationed, the only warm note |
+| `--primary` (**Evergreen**) | Primary action, links, focus, active state — rationed, the single accent |
 | `--secondary` / `--muted` | Quiet cool surfaces (incl. row hover), secondary text |
 | `--accent` | Soft fern-tinted highlight (active nav, subtle fills) |
 | `--border` / `--input` / `--ring` | Near-invisible cool hairlines, field borders, fern focus ring |
@@ -84,6 +95,16 @@ components. Reach for the named brand tones only for intentional brand moments.
 | `--fern-50…700`, `--pine` | Evergreen brand scale (deep, ink-like green) |
 | `--clay` / `--clay-soft` / `--clay-ink` | Secondary accent — warm terracotta (highlights, second data-viz hue). `--sun` is a deprecated alias of `--clay`. |
 | `--chart-1…5` | Data viz (evergreen-led palette, clay as the lone warm hue) |
+
+**Naming vs. values (2026-07 rebrand).** Token *names* are legacy: the
+`--fern-*`/`--pine` scale and dozens of `bg-fern-100`/`text-pine` consumers
+predate the evergreen deepening, and renaming them is churn with zero visual
+gain — read "fern" as *evergreen* everywhere. The old **Sun/Butter yellow is
+retired**: `--sun` survives only as an alias of `--clay` (and the v5 landing
+archive's `--tint-butter` pair points at `--clay-soft`/`--clay-ink`) so
+archived files keep compiling. **Live code must have zero non-alias `--sun`
+consumers and no amber/mustard utilities** — every warm moment goes through
+the three clay tokens.
 
 **Status tokens.** Each pipeline stage has a soft, **low-saturation, warm-leaning**
 fill + foreground pair, so status reads as part of the paper world (not cool UI
@@ -156,11 +177,16 @@ Defined in the web app's `globals.css`; reuse, don't reinvent:
 - `.scribble` — recolor monochrome scribble SVGs to `currentColor` via masking.
 - `::selection` is fern-tinted (`--fern-100` on `--pine`).
 
-## 6a. Landing v5 marketing layer (webapp only)
+## 6a. Landing v5 marketing layer (webapp only) — ARCHIVED
 
-The marketing landing ("playful paper", 2026-07-05 spec) adds a decoration-only
-layer on top of these tokens, defined in `webapp/app/globals.css` and used
-exclusively by `webapp/components/landing/v5/`:
+The v5 marketing landing ("playful paper", 2026-07-05 spec) is superseded by
+v6 (§6b) and kept on disk only for revert. Its "butter" highlighter is retired
+product-wide: the `--tint-butter`/`--tint-butter-ink` tokens now point at
+`--clay-soft`/`--clay-ink` (and `--sun` at `--clay`) so the archive keeps
+compiling with the rebrand — don't build anything new against this section.
+It added a decoration-only layer on top of these tokens, defined in
+`webapp/app/globals.css` and used exclusively by
+`webapp/components/landing/v5/`:
 
 - **Pally** (`--font-pally`, vendored) for sticker chips, hand-written
   annotations, and the giant footer wordmark — never body copy or product UI.
@@ -189,12 +215,20 @@ rebuilt against circleback.ai / todoist.com / notion.com / kira-learning.com
 references after v5 still read as AI-generated. What changed:
 
 - **Stage palette replaces the two-color rule (landing only).** Butter is
-  retired; fern stays the ONLY accent (CTAs, links, checks). New landing-only
-  tokens in `webapp/app/globals.css`: `--stage-{peri,apricot,sage}` with
-  `-soft`/`-ink` pairs plus `--hl-apricot`. These are saturated pastel **block
-  backgrounds** (full-bleed rounded-[2rem] feature stages, the Circleback
-  register), never button/link/text accent colors, and must not leak into the
-  app or extension.
+  retired; evergreen (`--primary`) stays the ONLY accent (CTAs, links, checks).
+  Landing-only tokens in `webapp/app/globals.css`: `--stage-{peri,apricot,sage}`
+  with `-soft`/`-ink` pairs plus `--hl-apricot`. These are saturated pastel
+  **block backgrounds** (full-bleed rounded-[2rem] feature stages, the
+  Circleback register), never button/link/text accent colors, and must not
+  leak into the app or extension. The 2026-07-07 rebrand re-derived them onto
+  the brand axes: sage sits on the evergreen hue (158) and apricot/hl-apricot
+  on the clay hue (55), so every warm landing moment shares clay's hue family.
+  Two dead v4-era assets still carry off-scale greens and are documented here
+  rather than repainted: `webapp/public/landing/motif.svg` (`#5b9574`, the
+  light face of its isometric-cube pattern between evergreen `#266645` and
+  pine `#122d20`) and `webapp/components/landing/cta.tsx` (a radial
+  `oklch(0.52 0.08 158 / 0.45)` glow) — neither is imported by the live page;
+  repaint or delete them if ever revived.
 - **Mockups are believable mini-products, not skeletons.** Real strings, real
   brand logos, real `bg-status-*` chips, macOS `Window` chrome (`v6/bits.tsx`).
   Gray-bar skeleton mocks are banned; that was v5's core failure.
@@ -234,22 +268,45 @@ too animated. The register inside every product mockup is now:
 ## 7. Dark mode
 
 **Provisional.** Dark mode is currently a neutral gray baseline that does *not*
-carry the fern/paper identity (primary becomes near-white). Treat as unfinished:
-when dark mode becomes a real target, rework `.dark` in `tokens.css` to keep fern
-as primary and use a warm-dark (not pure-neutral) surface. Don't ship dark mode
-as a headline feature until then.
+carry the evergreen/paper identity (primary becomes near-white). The dark status
+tokens do sit on the light palette's hue axes (applied/interviewing on the warm
+clay hues 55–60, no mustard leftovers), but treat the whole mode as unfinished:
+when dark mode becomes a real target, rework `.dark` in `tokens.css` to keep
+evergreen as primary and use a warm-dark (not pure-neutral) surface. Don't ship
+dark mode as a headline feature until then.
 
 ## 8. Anti-slop checklist (this product)
 
 Before calling UI done, confirm it does **not**:
 
 - [ ] Lead with a purple/blue gradient hero or glassmorphic cards.
-- [ ] Use generic teal/emerald as the accent (we are **fern**, specifically).
+- [ ] Use generic teal/emerald as the accent (we are **evergreen `#266645`**,
+      specifically — and amber/mustard utilities are banned; warm moments use
+      the clay tokens).
+- [ ] Hardcode a hex/oklch accent in a component. Every color goes through a
+      token or a Tailwind utility mapped to one; a one-off literal is how the
+      same "warm" ends up as five different yellows (the pre-rebrand failure).
 - [ ] Wrap everything in nested bordered "container soup."
 - [ ] Use default system serif or unstyled `font-family`.
 - [ ] Center-align long paragraphs or use lorem-ipsum-flavored filler copy.
-- [ ] Animate everything / use spinny attention-seeking motion.
-- [ ] Ignore empty, loading, error, and focus states.
+- [ ] Use em dashes, "quirky" AI phrasing, or Title Case in user-facing copy.
+      Short declarative sentences, sentence case (the Notion/Linear register).
+      Metadata `title` separators are the one allowed em-dash.
+- [ ] Repeat the same pet phrase across a page (v6 lesson: "in one place"
+      echoed through hero H1, `<title>`, and OG title before the copy pass).
+- [ ] Animate everything / use spinny attention-seeking motion. In product
+      mockups, animate *anything* — mockups are still (§6b).
+- [ ] Give every section/card a colored icon badge. When everything is
+      highlighted nothing is: badges stay neutral, and each view spends
+      evergreen on exactly one moment (the primary action, the active nav
+      item, or a single hero panel).
+- [ ] Dress up empty states with blur glows, gradient icon tiles, rings, or
+      uppercase-tracked badges — or restate the page title inside the body
+      card. A flat accent tile and one useful sentence read designed;
+      decoration reads like compensation.
+- [ ] Ignore empty, loading, error, and focus states — and don't let a route
+      fall back to another page's skeleton: loading states mirror the real
+      page's geometry so navigation doesn't jump (Task 6 lesson).
 
 When in doubt, run the `ai-slop-check` and `polish-pass` skills (see
 [`README.md`](./README.md)).

@@ -1,7 +1,8 @@
 # Design System — how to consume & which tools to use
 
-The shared design system for JobTracker. Four files, kept deliberately simple —
-each with one job:
+The shared design system for jobhq (palette: Evergreen `#266645` primary +
+Clay `#ca7c4e` secondary — see `DESIGN.md` §2 for the naming-vs-values note).
+Four files, kept deliberately simple — each with one job:
 
 | File | What it is | Who imports it |
 |---|---|---|
@@ -40,7 +41,7 @@ Keep the same font families (Plus Jakarta Sans / Inter / Geist Mono).
 `components.json` already points at `app/globals.css` with `cssVariables: true`,
 and `tokens.css` provides every variable shadcn expects (`--background`,
 `--primary`, `--card`, `--radius`, `--radius-md`, …). So `npx shadcn add <comp>`
-works as-is and components inherit the fern identity automatically.
+works as-is and components inherit the evergreen identity automatically.
 
 **One gotcha:** when the shadcn CLI introduces a *new* token, it writes it into
 `app/globals.css` (`:root`/`.dark`). To keep one source of truth, **move any such
@@ -87,7 +88,7 @@ research/strategy work, not day-to-day component building.
 
 ### Conflict resolution
 - **`DESIGN.md` wins.** Any skill's generic advice that contradicts our committed
-  fern/warm-paper/hand-drawn identity is overridden by `DESIGN.md`.
+  evergreen/warm-paper/hand-drawn identity is overridden by `DESIGN.md`.
 - **One renderer at a time.** `frontend-design` *or* `ui-ux-pro-max` builds a given
   surface — not both. The other reviews.
 - **Process before implementation** (per Superpowers): brainstorm → direction →

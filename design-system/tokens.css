@@ -136,10 +136,10 @@
      Darker fills + light foregrounds; same warm hues, kept low-chroma. */
   --status-saved: oklch(0.28 0.04 158);
   --status-saved-foreground: oklch(0.82 0.08 158);
-  --status-applied: oklch(0.28 0.035 85);
-  --status-applied-foreground: oklch(0.84 0.07 85);
-  --status-interviewing: oklch(0.3 0.05 65);
-  --status-interviewing-foreground: oklch(0.85 0.09 70);
+  --status-applied: oklch(0.28 0.035 60);
+  --status-applied-foreground: oklch(0.84 0.07 60);
+  --status-interviewing: oklch(0.3 0.05 55);
+  --status-interviewing-foreground: oklch(0.85 0.09 55);
   --status-offer: oklch(0.3 0.05 156);
   --status-offer-foreground: oklch(0.84 0.1 156);
   --status-rejected: oklch(0.3 0.05 33);

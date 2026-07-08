@@ -195,8 +195,8 @@ checkboxes grouped by `name`, sends only labels/kinds/option-labels) and posts t
 gracefully) and returns a plan
 `{ matched: [{ questionId, fieldId, value, optionValues, isDefault, source, score }], unmatched: [{ questionId, label }] }`.
 The extension then fills each field deterministically (native value setters + dispatched events so
-React/Vue register), highlights filled fields (fern = saved answer, dashed amber = placeholder), and
-offers **Undo**; `unmatched` questions surface in an in-page result card.
+React/Vue register), reports real answers and placeholder defaults as separate counts in the result
+card, and offers **Undo**; `unmatched` questions surface there too.
 
 - **Semantic match, not string match.** `lib/server/autofill.ts` loads the questions (`getJob`) +
   answers (`getApplicationAnswers`, reloaded server-side — the request carries no answer values), then
