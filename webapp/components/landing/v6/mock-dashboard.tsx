@@ -108,7 +108,7 @@ function ColumnChip({
 export function MockDashboard({ className }: { className?: string }) {
   return (
     <Window url="app.jobhq.com" className={className}>
-      <div className="flex bg-[oklch(0.988_0.001_150)]">
+      <div className="flex bg-[oklch(0.988_0.001_158)]">
         {/* Sidebar */}
         <aside className="hidden w-[172px] shrink-0 flex-col border-r border-black/[0.05] bg-white/70 px-3 pb-3 pt-4 sm:flex">
           <span className="flex items-center gap-1.5 px-1">
@@ -116,7 +116,7 @@ export function MockDashboard({ className }: { className?: string }) {
               J
             </span>
             <span className="text-[0.78rem] font-bold text-foreground">
-              Job<span className="text-primary">Tracker</span>
+              job<span className="text-primary">hq</span>
             </span>
           </span>
           <span className="mt-3.5 flex h-7 items-center justify-center gap-1 rounded-md bg-primary text-[0.68rem] font-semibold text-primary-foreground">

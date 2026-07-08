@@ -12,7 +12,7 @@ export function Cta() {
         <div className="relative mx-auto max-w-5xl overflow-hidden rounded-[2.25rem] bg-pine px-6 py-16 text-center shadow-[0_30px_70px_-50px_rgba(20,40,25,0.6)] sm:px-12 sm:py-20">
           {/* abstract topographic contour pattern — crisp, on-theme texture */}
           <TopoLines className="pointer-events-none absolute inset-0 h-full w-full text-fern-100/20 [mask-image:radial-gradient(120%_120%_at_50%_0%,black,transparent_75%)]" />
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[radial-gradient(60%_100%_at_50%_0%,oklch(0.62_0.13_150/0.5),transparent)]" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[radial-gradient(60%_100%_at_50%_0%,oklch(0.52_0.08_158/0.45),transparent)]" />
 
           <div className="relative">
             <h2 className="mx-auto max-w-2xl font-display text-[2.1rem] font-semibold leading-[1.1] tracking-[-0.02em] text-white text-balance sm:text-[3rem]">

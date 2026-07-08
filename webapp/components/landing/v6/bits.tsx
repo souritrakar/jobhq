@@ -145,7 +145,7 @@ export function Window({
         className,
       )}
     >
-      <div className="flex h-9 items-center gap-2 border-b border-black/[0.06] bg-[oklch(0.985_0.002_150)] px-3.5">
+      <div className="flex h-9 items-center gap-2 border-b border-black/[0.06] bg-[oklch(0.985_0.002_158)] px-3.5">
         <span className="flex gap-1.5" aria-hidden>
           <i className="size-2.5 rounded-full bg-[#f6635a]" />
           <i className="size-2.5 rounded-full bg-[#f5bf4f]" />

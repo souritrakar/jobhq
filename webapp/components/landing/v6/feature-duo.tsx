@@ -49,7 +49,7 @@ function MockAutofill() {
         </p>
         <span className="shrink-0 text-[0.62rem] text-foreground/40">6 of 6 matched</span>
       </div>
-      <div className="mt-2.5 rounded-lg border border-black/[0.08] bg-[oklch(0.99_0.001_150)] px-3 py-2.5">
+      <div className="mt-2.5 rounded-lg border border-black/[0.08] bg-[oklch(0.99_0.001_158)] px-3 py-2.5">
         <p className="text-[0.74rem] leading-relaxed text-foreground/85">
           I&apos;ve followed Linear since the beta. The way the team treats
           quality as a feature is exactly how I like to build.

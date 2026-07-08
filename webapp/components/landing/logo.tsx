@@ -41,7 +41,7 @@ export function Logo({ className, markOnly = false, light = false }: LogoProps) 
             light ? "text-white" : "text-foreground",
           )}
         >
-          job<span className={light ? "text-[oklch(0.82_0.14_150)]" : "text-primary"}>hq</span>
+          job<span className={light ? "text-[oklch(0.84_0.08_158)]" : "text-primary"}>hq</span>
         </span>
       )}
     </span>
