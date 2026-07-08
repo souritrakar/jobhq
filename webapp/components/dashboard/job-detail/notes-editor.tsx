@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button"
 // so we collapse the note to a fading preview and push full editing into the modal.
 const COLLAPSE_AT = 384
 
-const PLACEHOLDER = "Jot down anything — recruiter, referral, follow-ups…"
+const PLACEHOLDER = "Jot down anything: recruiter, referral, follow-ups…"
 
 /**
  * Inline notes for a job — a private scratchpad ("recruiter is X", "referred by Y"). Notion-style:

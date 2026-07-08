@@ -3,7 +3,7 @@ import type { JobStatus } from "@prisma/client"
 // Single source of truth for a pipeline status' color, drawn from the shared status tokens
 // (design-system/tokens.css): a soft `fill` background, a strong `fg` foreground, and a `dot`
 // that matches the foreground. Reused by the status pill, the board's column bands, and the
-// saved-jobs filter tabs so a status reads the same everywhere — Applied is the same amber
+// saved-jobs filter tabs so a status reads the same everywhere — Applied is the same warm clay
 // whether it's a pill, a Kanban header, or the active "Applied" tab.
 //
 // Every value is a complete literal class string so Tailwind's JIT emits it.

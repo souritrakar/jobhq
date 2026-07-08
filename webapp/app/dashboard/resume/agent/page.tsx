@@ -10,7 +10,7 @@ export default function ResumeAgentPage() {
       title="AI Resume Agent"
       description="Let an agent tailor your resume across your saved jobs automatically."
       icon={Bot}
-      hint="An autonomous agent that adapts your resume for every application — so each one lands ready to submit."
+      hint="An autonomous agent that adapts your resume for every application, so each one lands ready to submit."
       features={[
         "Generates a tailored resume per saved job",
         "Works in the background across your whole pipeline",

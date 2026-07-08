@@ -351,7 +351,7 @@ function LinkImport({ onAddJob }: { onAddJob: (job: JobOption) => void }) {
 
       <div className="mt-2.5 flex items-center justify-between gap-3">
         <span className="min-h-4 text-[11px] text-muted-foreground" aria-live="polite">
-          {busy ? "Reading the posting — this can take up to a minute." : "We'll save it to your jobs, then select it."}
+          {busy ? "Reading the posting. This can take up to a minute." : "We'll save it to your jobs, then select it."}
         </span>
         <button
           type="submit"

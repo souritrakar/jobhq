@@ -281,7 +281,7 @@ export function InterviewDate({
 }
 
 // Color-coded interview status — each tone maps to a clear meaning: green = handled, interviewing =
-// imminent/day-of (loudest), amber = needs attention (passed), quiet = scheduled, red = error. The
+// imminent/day-of (loudest), warm clay = needs attention (passed), quiet = scheduled, red = error. The
 // day-of tone is the only one set bold + a hair larger, so urgency reads before the words do.
 const PILL_TONE = {
   today: "bg-status-interviewing text-status-interviewing-foreground text-[12.5px] font-semibold",

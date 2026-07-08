@@ -64,7 +64,7 @@ export function SavedJobsBrowser({ jobs: initialJobs }: { jobs: JobCardData[] })
           return r ? { ...j, status: r.status } : j
         }),
       )
-      setError("Couldn't save some changes — they've been reverted. Please try again.")
+      setError("Couldn't save some changes, so they've been reverted. Please try again.")
     },
   )
 
@@ -160,7 +160,7 @@ export function SavedJobsBrowser({ jobs: initialJobs }: { jobs: JobCardData[] })
       {isEmpty ? (
         <EmptyState
           title="No saved jobs yet"
-          body="Paste a job posting link to save your first one — or capture jobs from any site with the extension."
+          body="Paste a job posting link to save your first one, or capture jobs from any site with the extension."
           action={
             <ImportJobDialog
               trigger={

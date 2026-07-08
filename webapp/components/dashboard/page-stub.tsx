@@ -29,37 +29,27 @@ export function PageStub({
         <p className="text-sm text-muted-foreground">{description}</p>
       </header>
 
-      <Card className="relative isolate overflow-hidden border-dashed px-6 py-16 sm:px-12 sm:py-24">
-        {/* Soft decorative glow so the empty state reads as intentional, not unfinished. */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 -top-32 -z-10 mx-auto h-72 w-72 rounded-full bg-primary/10 blur-3xl"
-        />
-
+      <Card className="border-dashed px-6 py-16 sm:px-12 sm:py-20">
         <div className="mx-auto flex max-w-xl flex-col items-center text-center">
-          <span className="grid size-20 place-items-center rounded-3xl bg-gradient-to-br from-primary/15 to-primary/5 text-primary ring-1 ring-inset ring-primary/20">
-            <Icon className="size-10" />
+          {/* Flat accent tile — no gradient, no glow: the page header already names the feature,
+              so the card leads with the mark + the "coming soon" signal, not a second title. */}
+          <span className="grid size-16 place-items-center rounded-2xl bg-accent text-accent-foreground">
+            <Icon className="size-8" />
           </span>
 
-          <Badge
-            variant="accent"
-            className="mt-7 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-wider"
-          >
+          <Badge variant="accent" className="mt-6 px-3 py-1 text-xs font-medium">
             <Sparkles />
             Coming soon
           </Badge>
 
-          <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
-            {title}
-          </h2>
-          <p className="mt-3 max-w-md text-base text-muted-foreground">{hint}</p>
+          <p className="mt-4 max-w-md text-base font-medium text-foreground">{hint}</p>
 
           {features && features.length > 0 ? (
-            <ul className="mt-9 grid w-full gap-3 text-left sm:grid-cols-2">
+            <ul className="mt-8 grid w-full gap-3 text-left sm:grid-cols-2">
               {features.map((feature) => (
                 <li
                   key={feature}
-                  className="flex items-start gap-2.5 rounded-xl border border-border/60 bg-muted/30 px-4 py-3 text-sm"
+                  className="flex items-start gap-2.5 rounded-xl bg-muted/40 px-4 py-3 text-sm"
                 >
                   <Check className="mt-0.5 size-4 shrink-0 text-primary" />
                   <span>{feature}</span>
@@ -74,7 +64,7 @@ export function PageStub({
               <ArrowRight data-icon="inline-end" />
             </Button>
             <p className="text-xs text-muted-foreground">
-              It&apos;s live now — the rest of the resume suite is on the way.
+              It&apos;s live now. The rest of the resume suite is on the way.
             </p>
           </div>
         </div>

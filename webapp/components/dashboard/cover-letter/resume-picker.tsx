@@ -169,7 +169,7 @@ export function ResumePicker({
         <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
           <Info className="mt-px size-3.5 shrink-0" />
           <span>
-            No resumes yet — upload one ({ALLOWED_LABEL}) to generate a cover letter.
+            No resumes yet. Upload one ({ALLOWED_LABEL}) to generate a cover letter.
           </span>
         </p>
       ) : !selectedId ? (

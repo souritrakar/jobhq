@@ -253,7 +253,7 @@ export function JobResumeCard({
       ) : unreadable ? (
         <p className="flex items-start gap-1.5 text-[13px] text-muted-foreground">
           <CircleAlert className="mt-px size-3.5 shrink-0" />
-          <span>We couldn&apos;t read text from this file — a PDF or DOCX gives tailored output.</span>
+          <span>We couldn&apos;t read text from this file. A PDF or DOCX gives tailored output.</span>
         </p>
       ) : !current && items.length === 0 ? (
         <p className="text-[13px] leading-relaxed text-muted-foreground">

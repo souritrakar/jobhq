@@ -390,7 +390,7 @@ export function SettingsForm({ initial }: { initial?: Partial<ProfileSettings> }
             <Scale className="size-4.5" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="flex items-center gap-2 text-sm font-medium">
+            <span className="flex items-center gap-2 text-sm font-semibold tracking-tight">
               Voluntary self-identification
               <span className="rounded-full bg-muted px-1.5 py-0.5 text-[0.7rem] font-normal text-muted-foreground">
                 Optional
@@ -495,12 +495,14 @@ function SectionCard({
 }) {
   return (
     <Card className="p-5">
+      {/* Neutral icon badge: fern is rationed to the page's single brand moment (the avatar) and
+          the primary Save action — a fern badge on every section would rank nothing. */}
       <div className="mb-5 flex items-center gap-3">
-        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
           <Icon className="size-4.5" />
         </span>
         <div>
-          <h2 className="text-sm font-medium">{title}</h2>
+          <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
           {description && <p className="text-sm text-muted-foreground">{description}</p>}
         </div>
       </div>

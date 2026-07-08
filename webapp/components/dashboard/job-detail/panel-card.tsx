@@ -4,31 +4,22 @@ import type { LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Card } from "@/components/ui/card"
 
-// Tone drives the leading icon badge so each panel reads at a glance: fern for "yours"
-// (notes), amber for time-sensitive (reminders), neutral for quiet metadata.
-const BADGE_TONE = {
-  neutral: "bg-secondary text-muted-foreground",
-  fern: "bg-primary text-primary-foreground shadow-sm",
-  amber: "bg-status-interviewing text-status-interviewing-foreground",
-} as const
-
 /**
- * Shared chrome for the job page's side panels — a card with an icon-badged header, an optional
- * right-aligned `meta` slot (count pill, hint), and a padded body. One header pattern keeps the
- * Notes / Reminders / Tracking / Resume panels visually consistent instead of each inventing its own.
+ * Shared chrome for the job page's side panels — a card with a quiet icon-badged header, an
+ * optional right-aligned `meta` slot (count pill, hint), and a padded body. One header pattern
+ * keeps the To-do / Tracking / Resume panels visually consistent instead of each inventing its
+ * own. The badge stays neutral by design: only the Notes hero panel earns fern on this page.
  */
 export function PanelCard({
   icon: Icon,
   title,
   meta,
-  tone = "neutral",
   className,
   children,
 }: {
   icon: LucideIcon
   title: string
   meta?: ReactNode
-  tone?: keyof typeof BADGE_TONE
   className?: string
   children: ReactNode
 }) {
@@ -37,7 +28,7 @@ export function PanelCard({
   return (
     <Card className={cn(className)}>
       <div className="flex items-center gap-2.5 px-4 pt-4">
-        <span className={cn("grid size-7 shrink-0 place-items-center rounded-lg", BADGE_TONE[tone])}>
+        <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-secondary text-muted-foreground">
           <Icon className="size-4" />
         </span>
         <h2 className="text-sm font-semibold tracking-tight text-foreground">{title}</h2>

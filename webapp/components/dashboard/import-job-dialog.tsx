@@ -249,7 +249,7 @@ export function ImportJobDialog({ trigger }: { trigger: React.ReactElement }) {
             <DialogTitle>Save a job from a link</DialogTitle>
             <DialogDescription>
               Paste a job posting URL and we&apos;ll pull in the role, company, and any
-              application questions — no extension needed.
+              application questions. No extension needed.
             </DialogDescription>
 
             <div className="relative mt-4">
@@ -388,7 +388,7 @@ export function ImportJobDialog({ trigger }: { trigger: React.ReactElement }) {
               Add the job posting
             </DialogTitle>
             <DialogDescription>
-              That link looks like an application page — we found the questions but not the role
+              That link looks like an application page. We found the questions but not the role
               itself. Paste the main job posting URL to finish saving.
             </DialogDescription>
 

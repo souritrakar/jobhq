@@ -32,7 +32,7 @@ const FIELDS = [
   {
     name: "whyRole",
     label: "Why do you want this role?",
-    placeholder: "Speak freely — the assistant will organize it here.",
+    placeholder: "Speak freely. The assistant will organize it here.",
     type: "textarea",
   },
   {
@@ -84,7 +84,7 @@ function Playground() {
         </h1>
         <p className="mt-1 text-sm text-zinc-500">
           Click <span className="font-medium">Start voice</span> (or the floating mic),
-          speak your answers, and watch the fields fill in. Save anytime — even a partial
+          speak your answers, and watch the fields fill in. Save anytime, even a partial
           answer.
         </p>
       </header>
@@ -170,7 +170,7 @@ function Playground() {
             <p className="text-sm font-medium text-zinc-700">Live transcript</p>
             <div className="mt-2 max-h-80 space-y-2 overflow-y-auto">
               {transcript.length === 0 ? (
-                <p className="text-xs text-zinc-400">Nothing yet — start speaking.</p>
+                <p className="text-xs text-zinc-400">Nothing yet. Start speaking.</p>
               ) : (
                 transcript.map((entry, i) => (
                   <div
@@ -218,7 +218,7 @@ function StatusPill({
     color = "bg-red-100 text-red-700";
   } else if (!isReady || state.isConnecting) {
     label = "Connecting…";
-    color = "bg-amber-100 text-amber-700";
+    color = "bg-clay-soft text-clay-ink";
   } else if (state.isListening) {
     label = "Listening";
     color = "bg-emerald-100 text-emerald-700";

@@ -34,7 +34,7 @@ import type { Reminder, ReminderType } from "@/lib/reminders/types"
 // The feed is grouped by *urgency*, not by when a reminder was made — the only question the list
 // answers is "what's due, and how soon?". Each bucket owns a header tone, and the per-row due chip
 // borrows the same hue so a glance down the right edge ranks the whole list by pressure. Color is
-// spent only where it means "act": red for overdue, amber for today; everything calmer reads quiet.
+// spent only where it means "act": red for overdue, warm clay for today; everything calmer reads quiet.
 const DUE_GROUPS: {
   key: DueBucket
   label: string
@@ -42,7 +42,7 @@ const DUE_GROUPS: {
   header: string
 }[] = [
   { key: "overdue", label: "Overdue", header: "text-destructive" },
-  { key: "today", label: "Today", header: "text-amber-700 dark:text-amber-400" },
+  { key: "today", label: "Today", header: "text-clay-ink dark:text-clay" },
   { key: "tomorrow", label: "Tomorrow", header: "text-muted-foreground/70" },
   { key: "thisWeek", label: "This week", header: "text-muted-foreground/70" },
   { key: "later", label: "Later", header: "text-muted-foreground/70" },
@@ -491,7 +491,7 @@ function DueChip({
 
   if (bucket === "today") {
     return (
-      <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-amber-500/15 px-2 py-0.5 text-[13px] font-medium tabular-nums text-amber-700 dark:text-amber-400">
+      <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-clay-soft px-2 py-0.5 text-[13px] font-medium tabular-nums text-clay-ink dark:bg-clay/15 dark:text-clay">
         <Clock className="size-3.5 shrink-0" />
         {label}
       </span>

@@ -149,8 +149,8 @@ export function TodoCard({
             <button
               type="button"
               disabled={draft.trim().length === 0}
-              aria-label="Remind me — pick a date"
-              title="Remind me — pick a date"
+              aria-label="Remind me: pick a date"
+              title="Remind me: pick a date"
               className={cn(
                 "grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground/60 transition hover:bg-muted hover:text-foreground focus-visible:outline-none disabled:pointer-events-none disabled:opacity-40",
                 open && "bg-muted text-foreground",
@@ -224,7 +224,7 @@ function TodoRow({
             <button
               type="button"
               aria-label={`Remind me about "${title}"`}
-              title="Remind me — pick a date"
+              title="Remind me: pick a date"
               className={cn(
                 "grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground/50 opacity-0 transition hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none group-hover:opacity-100",
                 open && "bg-muted text-foreground opacity-100",

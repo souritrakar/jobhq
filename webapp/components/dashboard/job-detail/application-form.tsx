@@ -47,9 +47,9 @@ export function ApplicationForm({
             {flagged > 0 && (
               <>
                 <span aria-hidden>·</span>
-                {/* Flagged count carries the same gold star as the per-question marker, so the
+                {/* Flagged count carries the same clay star as the per-question marker, so the
                     summary visually matches what the user starred below. */}
-                <span className="inline-flex items-center gap-1 font-medium text-[oklch(0.48_0.11_85)]">
+                <span className="inline-flex items-center gap-1 font-medium text-clay-ink">
                   <Star className="size-3 fill-current" />
                   {flagged} flagged
                 </span>

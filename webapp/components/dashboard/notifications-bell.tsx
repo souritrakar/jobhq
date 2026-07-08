@@ -16,7 +16,7 @@ import { Menu } from "@/components/dashboard/job-detail/menu"
 
 // Each notification kind carries a semantic mark: an icon so the *type* of nudge is legible before
 // the text is read, and a restrained tint that reuses the app's existing urgency language — fern
-// (brand) for a reminder to act, amber for a time-pressing interview, calm muted for a digest
+// (brand) for a reminder to act, warm clay for a time-pressing interview, calm muted for a digest
 // roundup. Color is spent only to rank, never to decorate.
 const KIND_MARK: Record<
   NotificationKind,
@@ -25,7 +25,7 @@ const KIND_MARK: Record<
   reminder: { Icon: Clock, tint: "bg-primary/10 text-primary" },
   interview: {
     Icon: CalendarClock,
-    tint: "bg-amber-500/12 text-amber-600 dark:text-amber-400",
+    tint: "bg-clay-soft text-clay-ink dark:bg-clay/15 dark:text-clay",
   },
   digest: { Icon: Briefcase, tint: "bg-muted text-muted-foreground" },
 }

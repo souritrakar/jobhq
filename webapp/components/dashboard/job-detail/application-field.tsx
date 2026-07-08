@@ -131,7 +131,7 @@ function FieldShell({
         className={cn(
           "mt-0.5 grid size-9 shrink-0 place-items-center rounded-[30%]",
           question.flagged
-            ? "bg-[var(--sun)]/15 text-[oklch(0.48_0.11_85)]"
+            ? "bg-clay-soft text-clay-ink"
             : "bg-accent text-accent-foreground",
         )}
       >
@@ -150,7 +150,7 @@ function FieldShell({
               )}
             </label>
             {question.flagged && (
-              <p className="mt-1 inline-flex items-center gap-1 text-[11.5px] font-medium text-[oklch(0.48_0.11_85)]">
+              <p className="mt-1 inline-flex items-center gap-1 text-[11.5px] font-medium text-clay-ink">
                 <Star className="size-3 fill-current" />
                 Flagged
               </p>
@@ -326,7 +326,7 @@ function FieldStatus({
   if (dirty) {
     return (
       <p className="mt-1.5 inline-flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
-        <span aria-hidden className="size-1.5 rounded-full bg-[oklch(0.65_0.13_75)]" />
+        <span aria-hidden className="size-1.5 rounded-full bg-clay" />
         Unsaved
       </p>
     )

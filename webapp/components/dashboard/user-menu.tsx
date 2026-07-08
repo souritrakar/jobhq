@@ -26,7 +26,7 @@ export function UserMenu({
   return (
     <Popover>
       <PopoverTrigger
-        aria-label={`${name} — account menu`}
+        aria-label={`Account menu for ${name}`}
         className={cn(
           "grid size-9 cursor-pointer place-items-center rounded-full transition-all duration-200 hover:-translate-y-0.5 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
           className,

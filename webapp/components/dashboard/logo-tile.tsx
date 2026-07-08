@@ -9,7 +9,7 @@ const TINTS = [
   "bg-emerald-500/10 text-emerald-700 dark:bg-emerald-400/12 dark:text-emerald-300",
   "bg-sky-500/10 text-sky-700 dark:bg-sky-400/12 dark:text-sky-300",
   "bg-violet-500/10 text-violet-700 dark:bg-violet-400/12 dark:text-violet-300",
-  "bg-amber-500/12 text-amber-700 dark:bg-amber-400/12 dark:text-amber-300",
+  "bg-clay/12 text-clay-ink dark:bg-clay/15 dark:text-clay",
   "bg-rose-500/10 text-rose-700 dark:bg-rose-400/12 dark:text-rose-300",
   "bg-teal-500/10 text-teal-700 dark:bg-teal-400/12 dark:text-teal-300",
 ]

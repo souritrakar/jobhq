@@ -274,7 +274,7 @@ export function CoverLetterGenerator({
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-tight">Cover Letter</h1>
         <p className="text-sm text-muted-foreground">
-          Generate a tailored, human-sounding cover letter for any saved job — then edit and export it.
+          Generate a tailored, human-sounding cover letter for any saved job, then edit and export it.
         </p>
       </header>
 
@@ -310,7 +310,7 @@ export function CoverLetterGenerator({
                   instructions.length >= INSTRUCTIONS_MAX
                     ? "text-destructive"
                     : instructions.length > INSTRUCTIONS_MAX - 100
-                      ? "text-amber-600"
+                      ? "text-clay-ink"
                       : "text-muted-foreground",
                 )}
               >
