@@ -33,7 +33,7 @@ export function MockPopup({ className }: { className?: string }) {
         <span className="grid size-5 place-items-center rounded-md bg-primary text-[0.6rem] font-bold text-primary-foreground">
           J
         </span>
-        <span className="text-[0.8rem] font-semibold text-foreground">Save to tracker</span>
+        <span className="text-[0.8rem] font-semibold text-foreground">Save to jobhq</span>
         <span className="ml-auto flex gap-2 text-[0.68rem] text-foreground/40">
           <span className="border-b-2 border-primary pb-0.5 font-medium text-foreground">Details</span>
           <span>Application</span>

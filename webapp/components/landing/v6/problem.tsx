@@ -31,12 +31,12 @@ export function Problem() {
       <Reveal className="mx-auto max-w-3xl text-center">
         <h2 className="font-display text-[1.9rem] font-bold leading-[1.15] tracking-[-0.025em] text-foreground sm:text-[2.5rem]">
           Right now your job search lives in{" "}
-          <Underline>40 tabs</Underline>, three apps, and one{" "}
-          <Underline>guilty spreadsheet</Underline>.
+          <Underline>40 tabs</Underline>, a notes app, and a{" "}
+          <Underline>spreadsheet</Underline> you stopped updating.
         </h2>
         <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
           None of them talk to each other, and the deadline you cared about is
-          in whichever one you didn&apos;t open.
+          in the one you didn&apos;t open.
         </p>
       </Reveal>
     </section>

@@ -27,7 +27,7 @@ export function Closer() {
               </a>
             </div>
             <p className="mt-4 text-[0.85rem] text-white/60">
-              Takes about 20 seconds. The spreadsheet won&apos;t miss you.
+              Free while in beta. Installing takes about 20 seconds.
             </p>
           </div>
         </div>

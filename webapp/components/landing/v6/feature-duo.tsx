@@ -77,8 +77,8 @@ export function FeatureDuo() {
               Every question, captured
             </h2>
             <p className="mt-3 max-w-sm text-[0.94rem] leading-relaxed text-foreground/70">
-              The application form is detected and filed with the job, before
-              you close the tab.
+              jobhq detects the application form and saves its questions with
+              the job, before you close the tab.
             </p>
             <div className="mt-7">
               <MockQuestions />
@@ -89,7 +89,7 @@ export function FeatureDuo() {
         <Reveal delay={110} className="min-w-0">
           <div className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl px-8 pb-9 pt-9 [background:var(--stage-sage)] sm:px-10 sm:pt-11">
             <h2 className="font-display text-[1.45rem] font-bold leading-[1.12] tracking-[-0.02em] text-foreground sm:text-[1.7rem]">
-              Answer once, reuse forever
+              Stop retyping the same answers
             </h2>
             <p className="mt-3 max-w-sm text-[0.94rem] leading-relaxed text-foreground/70">
               On the next application, the extension fills your saved answers

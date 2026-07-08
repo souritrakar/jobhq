@@ -69,12 +69,12 @@ export function FeatureExtension() {
             <div className="px-8 pb-4 pt-10 sm:px-12 sm:pt-14 lg:pb-14">
               <SectionLabel ink="var(--stage-peri-ink)">The extension</SectionLabel>
               <h2 className="mt-2.5 font-display text-[1.8rem] font-bold leading-[1.1] tracking-[-0.025em] text-foreground sm:text-[2.3rem]">
-                Catches jobs where they happen
+                Save the job without leaving the page
               </h2>
               <p className="mt-4 max-w-md text-[0.98rem] leading-relaxed text-foreground/70">
-                It lives in your browser, right on the posting. LinkedIn, a
-                Greenhouse form, a careers page, a link a friend dropped in
-                Discord. One click files the whole thing.
+                The extension sits on the posting itself, whether that&apos;s
+                LinkedIn, Indeed, a Greenhouse form, or a careers page. Click
+                save and the job lands on your board, details included.
               </p>
               <ul className="mt-6 flex flex-col gap-2.5">
                 {[

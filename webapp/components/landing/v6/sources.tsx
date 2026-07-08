@@ -36,7 +36,7 @@ export function Sources() {
         </div>
       </div>
       <p className="mt-6 px-5 text-center text-[0.85rem] text-muted-foreground">
-        ...and any other page with a job on it. If it renders, it saves.
+        ...and any other page with a job on it.
       </p>
     </section>
   );

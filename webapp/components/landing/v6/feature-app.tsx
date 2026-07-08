@@ -127,8 +127,7 @@ function ReminderCards() {
         </div>
       </div>
       <p className="px-1 text-[0.72rem] leading-snug text-foreground/50">
-        Reminders reach you by email, in the app, or in the extension.
-        Wherever you&apos;ll actually see them.
+        Reminders arrive by email, in the app, and in the extension.
       </p>
     </div>
   );
@@ -142,12 +141,11 @@ export function FeatureApp() {
           <div className="max-w-2xl">
             <SectionLabel ink="var(--stage-sage-ink)">The web app</SectionLabel>
             <h2 className="mt-2.5 font-display text-[1.8rem] font-bold leading-[1.1] tracking-[-0.025em] text-foreground sm:text-[2.3rem]">
-              Then it all lives in one calm place
+              Every saved job gets its own page
             </h2>
             <p className="mt-4 max-w-lg text-[0.98rem] leading-relaxed text-foreground/70">
-              Every saved job becomes a page that keeps itself honest:
-              deadlines, drafts, to-dos, and the reminders that make sure you
-              show up on time.
+              Interview dates, to-dos, notes, and cover letter drafts stay
+              with the job. Reminders go out before deadlines and interviews.
             </p>
           </div>
 

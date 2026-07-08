@@ -20,15 +20,16 @@ export function Hero() {
       <div className="relative mx-auto max-w-6xl">
         <Reveal className="mx-auto max-w-3xl text-center">
           <h1 className="font-display text-[2.6rem] font-black leading-[1.04] tracking-[-0.03em] text-foreground text-balance sm:text-6xl">
-            Never lose a{" "}
+            Save jobs in{" "}
             <span className="whitespace-nowrap">
-              <Hl>job posting</Hl>
-            </span>{" "}
-            again.
+              <Hl>one click</Hl>
+            </span>
+            . Track them all in one place.
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg">
-            One click saves the role, deadline, and application questions.
-            jobhq remembers everything and nags you before it matters.
+            jobhq pulls the title, salary, deadline, and application questions
+            straight from the posting. It tracks each application and reminds
+            you before interviews and due dates.
           </p>
           <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
             <ChromeStoreButton size="lg" />
