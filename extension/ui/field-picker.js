@@ -42,7 +42,7 @@
       border-radius: 999px; pointer-events: auto; cursor: pointer; padding: 0; overflow: hidden;
       display: inline-flex; align-items: center; justify-content: flex-start;
       background: #ffffff; border: 1.5px solid #266645; color: #266645; opacity: 0.6;
-      box-shadow: 0 1px 3px rgba(26, 43, 34, 0.16);
+      box-shadow: 0 1px 3px rgba(18, 45, 32, 0.16);
       transition: opacity .16s ease, box-shadow .16s ease, background .16s ease, color .16s ease,
         padding .2s ease, border-color .16s ease; }
     .jtp-badge .jtp-ico { flex: 0 0 auto; width: ${BADGE - 2}px; height: ${BADGE}px;
@@ -52,7 +52,7 @@
       font-size: 12.5px; font-weight: 600; letter-spacing: .01em;
       transition: max-width .22s ease, opacity .16s ease; }
     .jtp-badge.near, .jtp-badge:hover, .jtp-badge:focus-visible { opacity: 1; padding-right: 12px;
-      box-shadow: 0 4px 12px rgba(26, 43, 34, 0.22); }
+      box-shadow: 0 4px 12px rgba(18, 45, 32, 0.22); }
     .jtp-badge.near .jtp-label, .jtp-badge:hover .jtp-label, .jtp-badge:focus-visible .jtp-label {
       max-width: 130px; opacity: 1; }
     .jtp-badge.working { cursor: default; opacity: 1; }

@@ -272,7 +272,7 @@
       .jt-title{font-size:18px;font-weight:700;letter-spacing:-0.022em;line-height:1.25;}
       .jt-company{font-size:13.5px;font-weight:500;color:var(--ink-2);}
 
-      /* ---- empty-important-field warnings (amber, reuses the star hue) ---- */
+      /* ---- empty-important-field warnings (clay, reuses the star hue) ---- */
       /* Wraps an identity input so its blank-field marker can sit at the trailing edge. */
       .di-wrap{position:relative;display:flex;align-items:center;}
       .di-wrap .di{flex:1 1 auto;min-width:0;}
@@ -515,7 +515,7 @@
       .status:not(:empty){padding:10px 16px 0;}
       .status.ok{color:var(--accent-ink);font-weight:600;} .status.ok a{color:inherit;}
       .status.err{color:var(--danger);font-weight:600;}
-      /* Pre-save warning (blank important fields). Amber, with the alert glyph inline. */
+      /* Pre-save warning (blank important fields). Clay, with the alert glyph inline. */
       .status.warn{color:var(--star-ink);font-weight:600;display:flex;align-items:flex-start;gap:6px;}
       .status.warn svg{width:15px;height:15px;flex:0 0 auto;margin-top:1px;}
 
@@ -614,7 +614,7 @@
     return b;
   }
 
-  // A small amber "this field is empty" marker shown beside an important field that's blank
+  // A small clay "this field is empty" marker shown beside an important field that's blank
   // (title / company / description). Hidden by default; toggled by updateFieldWarnings().
   // A section eyebrow with a small leading glyph, e.g. ✎ Your notes / ☑ To-do.
   function eyebrowHead(iconPaths, text) {
@@ -823,7 +823,7 @@
     // ---- Details: identity + properties ----
     const title = { input: el("input", { class: "di jt-title", type: "text", value: current.title || "", placeholder: "Add a job title" }) };
     const company = { input: el("input", { class: "di jt-company", type: "text", value: current.company || "", placeholder: "Company" }) };
-    // Blank-field markers (amber). updateFieldWarnings() shows/hides them as the fields fill.
+    // Blank-field markers (clay). updateFieldWarnings() shows/hides them as the fields fill.
     const titleWarn = warnIcon("No job title yet — add one so this is easy to find later");
     const companyWarn = warnIcon("No company yet — add the hiring company");
     const identity = el("div", { class: "identity" }, [
@@ -2180,7 +2180,7 @@
       if (items.length === 2) return items[0] + " or " + items[1];
       return items.slice(0, -1).join(", ") + ", or " + items[items.length - 1];
     }
-    // Toggle the per-field amber markers, and keep any active "Save anyway" warning in sync as the
+    // Toggle the per-field clay markers, and keep any active "Save anyway" warning in sync as the
     // user fills fields — clearing it (and restoring the normal Save button) once nothing's missing.
     function updateFieldWarnings() {
       const missing = importantMissing();

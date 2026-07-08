@@ -32,7 +32,7 @@
   };
 
   const SVGNS = "http://www.w3.org/2000/svg";
-  // lucide-style geometry (24×24). A star marks a question flagged for review; it fills amber when
+  // lucide-style geometry (24×24). A star marks a question flagged for review; it fills clay when
   // active. link marks url fields. (Name kept as FLAG_PATHS — it's the review-marker glyph.)
   const FLAG_PATHS =
     '<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>';
@@ -73,7 +73,7 @@
 
   // A per-question flag toggle. Mutates q.flagged in place and notifies via onChange so the
   // modal can re-persist (the cached questions are what the save payload reads). The filled
-  // amber flag carries the "review this later" meaning.
+  // clay flag carries the "review this later" meaning.
   function flagButton(q, onChange) {
     const btn = el("button", { type: "button", class: "appflag" });
     function sync() {
@@ -494,13 +494,13 @@
          the web app. Sits between the header and the grid. */
       .apppane .apphint{margin:0 0 14px;font-size:12px;line-height:1.45;color:var(--ink-3);}
 
-      /* Flagged for review: a filled amber flag + a subtle 2px amber left border. No background
+      /* Flagged for review: a filled clay flag + a subtle 2px clay left border. No background
          tint — the flag and border alone carry the meaning. */
       .apppane .appfield.flagged{border-left-color:var(--star);}
 
       /* Flag toggle: 32px click target, 16px icon, vertically aligned with the label's first
          line. Hidden until the field is hovered/focused (or already flagged) so the resting
-         form stays quiet; fills amber when flagged. */
+         form stays quiet; fills clay when flagged. */
       .apppane .appflag{flex:0 0 auto;display:flex;align-items:center;justify-content:center;
         width:32px;height:32px;margin:-7px -7px -7px 0;padding:0;border:none;background:none;
         cursor:pointer;border-radius:7px;color:var(--ink-3);opacity:0;
