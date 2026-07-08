@@ -103,16 +103,16 @@
      deliberately avoids lit gradient stages — do not reach for these in v5;
      delete this block if/when v4 is removed. */
   /* One consistent gradient language for every product mockup / abstract-UI
-     illustration (the way aiapply.co reuses its purple→orange wash). Built only
-     from our tokens: fern green + sun gold + pine, on warm paper. Use
-     `.brand-surface` as the card backdrop and float abstract UI on top. The
-     `-warm` / `-cool` variants shift the emphasis so adjacent cards differ
-     without breaking the system. */
-  /* Each card = one rich, deep fern diagonal (our brand green), with a soft
-     gloss highlight top-left for the "lit" aiapply/grammarly look. Deep enough
-     that the white mockups floating on top pop. Single-hue per card = clean,
-     never muddy. -cool leans cooler/lime, -warm adds a sun-gold glow corner —
-     all still fern-dominant. */
+     illustration. Rebranded to quiet single-hue evergreen lightness ramps
+     (hue ~156–162, chroma ≤0.085) — no multi-hue sweeps, no gold corners.
+     Use `.brand-surface` as the card backdrop and float abstract UI on top;
+     the variants shift the ramp so adjacent cards differ without breaking
+     the system. */
+  /* Each card = one evergreen diagonal ramp (light → deep along the same hue),
+     with a soft gloss highlight top-left for the "lit" look. Deep enough that
+     the white mockups floating on top pop. -cool sits a few hue degrees
+     cooler (160–162) at slightly lower chroma; -warm sits a touch warmer
+     (156–158) with a pale evergreen glow corner; base is the middle path. */
   .brand-surface {
     background:
       radial-gradient(85% 65% at 16% 6%, rgba(255, 255, 255, 0.5), transparent 58%),
