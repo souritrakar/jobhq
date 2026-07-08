@@ -223,12 +223,17 @@ references after v5 still read as AI-generated. What changed:
   leak into the app or extension. The 2026-07-07 rebrand re-derived them onto
   the brand axes: sage sits on the evergreen hue (158) and apricot/hl-apricot
   on the clay hue (55), so every warm landing moment shares clay's hue family.
-  Two dead v4-era assets still carry off-scale greens and are documented here
-  rather than repainted: `webapp/public/landing/motif.svg` (`#5b9574`, the
-  light face of its isometric-cube pattern between evergreen `#266645` and
-  pine `#122d20`) and `webapp/components/landing/cta.tsx` (a radial
-  `oklch(0.52 0.08 158 / 0.45)` glow) — neither is imported by the live page;
-  repaint or delete them if ever revived.
+  Two dead v4-era assets were repainted onto the brand axis anyway (bec7045)
+  and keep one documented residue each; neither is imported by the live page:
+  `webapp/public/landing/motif.svg` now uses evergreen `#266645` and pine
+  `#122d20` for two faces of its isometric-cube pattern, with `#5b9574` (an
+  untokenized mid-green that replaced the old `#67c07c`) as the light face;
+  `webapp/components/landing/cta.tsx`'s radial glow sits on-axis at
+  `oklch(0.52 0.08 158 / 0.45)` and its only leftover is a `text-sun`
+  underline, which resolves to clay via the alias. One more documented
+  exception for no-mustard greps: the repo-root `landing_assets/uuunion.svg`
+  is an unreferenced v4-era stash still carrying `#348F4F`/`#F1C45E` — kept
+  as-is, not repainted.
 - **Mockups are believable mini-products, not skeletons.** Real strings, real
   brand logos, real `bg-status-*` chips, macOS `Window` chrome (`v6/bits.tsx`).
   Gray-bar skeleton mocks are banned; that was v5's core failure.
@@ -291,7 +296,8 @@ Before calling UI done, confirm it does **not**:
 - [ ] Center-align long paragraphs or use lorem-ipsum-flavored filler copy.
 - [ ] Use em dashes, "quirky" AI phrasing, or Title Case in user-facing copy.
       Short declarative sentences, sentence case (the Notion/Linear register).
-      Metadata `title` separators are the one allowed em-dash.
+      Em dashes appear in no user-facing string; metadata `title` strings use
+      the middle-dot convention ("Page · jobhq").
 - [ ] Repeat the same pet phrase across a page (v6 lesson: "in one place"
       echoed through hero H1, `<title>`, and OG title before the copy pass).
 - [ ] Animate everything / use spinny attention-seeking motion. In product
