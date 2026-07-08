@@ -46,10 +46,11 @@
      everything hand-made (stickers, scribbles, wordmark) and butter for
      highlight swipes / deadline warmth. No third tint — restraint IS the
      identity. Each tint ships with an -ink pair that clears AA for labels. */
-  --tint-fern: oklch(0.955 0.035 148);
-  --tint-fern-ink: oklch(0.42 0.09 152);
-  --tint-butter: oklch(0.962 0.055 95);
-  --tint-butter-ink: oklch(0.45 0.09 80);
+  --tint-fern: oklch(0.955 0.035 158);
+  --tint-fern-ink: oklch(0.42 0.09 158);
+  /* Butter yellow is retired; this tint now points at the clay pair. */
+  --tint-butter: var(--clay-soft);
+  --tint-butter-ink: var(--clay-ink);
 
   /* ── Landing v6 stage palette ("notion+todoist for jobs") ────────────────
      Fern remains the ONLY accent (CTAs, links, checks). These are STAGE tints:
@@ -60,13 +61,13 @@
   --stage-peri: oklch(0.845 0.062 278); /* periwinkle block (extension) */
   --stage-peri-soft: oklch(0.945 0.026 278);
   --stage-peri-ink: oklch(0.4 0.1 278);
-  --stage-apricot: oklch(0.9 0.058 55); /* apricot block (questions/deadline warmth) */
+  --stage-apricot: oklch(0.9 0.058 55); /* apricot block (questions/deadline warmth) — harmonized with clay */
   --stage-apricot-soft: oklch(0.962 0.028 55);
-  --stage-apricot-ink: oklch(0.47 0.105 45);
-  --stage-sage: oklch(0.91 0.045 150); /* sage block (autofill/app) */
-  --stage-sage-soft: oklch(0.958 0.024 150);
-  --stage-sage-ink: oklch(0.4 0.085 152);
-  --hl-apricot: oklch(0.92 0.075 60); /* headline highlighter swipe */
+  --stage-apricot-ink: oklch(0.47 0.105 50);
+  --stage-sage: oklch(0.91 0.045 158); /* sage block (autofill/app) */
+  --stage-sage-soft: oklch(0.958 0.024 158);
+  --stage-sage-ink: oklch(0.4 0.085 158);
+  --hl-apricot: oklch(0.92 0.075 55); /* headline highlighter swipe — harmonized with clay */
 }
 
 @custom-variant dark (&:is(.dark *));
@@ -115,23 +116,23 @@
   .brand-surface {
     background:
       radial-gradient(85% 65% at 16% 6%, rgba(255, 255, 255, 0.5), transparent 58%),
-      linear-gradient(150deg, oklch(0.78 0.14 151) 0%, oklch(0.64 0.15 153) 52%, oklch(0.5 0.13 158) 100%);
+      linear-gradient(150deg, oklch(0.7 0.075 157) 0%, oklch(0.54 0.08 158) 52%, oklch(0.4 0.075 160) 100%);
   }
   .brand-surface-cool {
     background:
       radial-gradient(85% 65% at 16% 6%, rgba(255, 255, 255, 0.5), transparent 58%),
-      linear-gradient(150deg, oklch(0.8 0.13 156) 0%, oklch(0.66 0.15 145) 50%, oklch(0.55 0.14 132) 100%);
+      linear-gradient(150deg, oklch(0.74 0.07 160) 0%, oklch(0.58 0.075 161) 50%, oklch(0.44 0.07 162) 100%);
   }
   .brand-surface-warm {
     background:
-      radial-gradient(80% 70% at 88% 12%, color-mix(in oklch, var(--sun) 80%, white) 0%, transparent 52%),
-      linear-gradient(150deg, oklch(0.78 0.14 150) 0%, oklch(0.64 0.15 152) 55%, oklch(0.52 0.13 158) 100%);
+      radial-gradient(80% 70% at 88% 12%, color-mix(in oklch, oklch(0.7 0.075 157) 60%, white) 0%, transparent 52%),
+      linear-gradient(150deg, oklch(0.72 0.08 156) 0%, oklch(0.56 0.085 157) 55%, oklch(0.42 0.08 158) 100%);
   }
   /* Deep pine variant for dark mockup chrome (e.g. reminder/CTA panels). */
   .brand-surface-deep {
     background:
-      radial-gradient(90% 80% at 12% 0%, oklch(0.5 0.13 158) 0%, transparent 60%),
-      linear-gradient(150deg, oklch(0.36 0.07 158) 0%, oklch(0.26 0.05 160) 100%);
+      radial-gradient(90% 80% at 12% 0%, oklch(0.4 0.08 158) 0%, transparent 60%),
+      linear-gradient(150deg, oklch(0.34 0.07 159) 0%, oklch(0.24 0.05 161) 100%);
   }
   /* Calm, neutral inset that holds a product mockup — the antidote to the
      saturated "vibe-coded" gradient stages. Soft paper depth + hairline frame,
@@ -144,14 +145,14 @@
      (the one bold thing, à la Typefully's single glowing bento cell). */
   .glow-cell {
     background:
-      radial-gradient(85% 70% at 16% 0%, oklch(0.55 0.13 158 / 0.55), transparent 58%),
-      radial-gradient(75% 80% at 102% 104%, oklch(0.64 0.14 150 / 0.4), transparent 55%),
-      linear-gradient(158deg, oklch(0.3 0.06 158), oklch(0.21 0.045 162));
+      radial-gradient(85% 70% at 16% 0%, oklch(0.5 0.08 158 / 0.55), transparent 58%),
+      radial-gradient(75% 80% at 102% 104%, oklch(0.58 0.075 156 / 0.4), transparent 55%),
+      linear-gradient(158deg, oklch(0.28 0.045 160), oklch(0.2 0.035 162));
   }
-  /* Sun accent rule — a short gold underline used under asymmetric headings
+  /* Clay accent rule — a short warm underline used under asymmetric headings
      in place of a kicker chip. */
   .accent-rule {
-    background: linear-gradient(90deg, var(--sun), color-mix(in oklch, var(--sun) 30%, transparent));
+    background: linear-gradient(90deg, var(--clay), color-mix(in oklch, var(--clay) 30%, transparent));
   }
   /* Faint dotted-paper texture for section backdrops */
   .paper-dots {

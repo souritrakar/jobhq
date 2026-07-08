@@ -26,9 +26,10 @@
   --popover: oklch(0.986 0 0);
   --popover-foreground: oklch(0.21 0.012 155);
 
-  /* Fern — a grounded, friendly leaf green (NOT the cliché emerald/mint/teal) */
-  --primary: oklch(0.58 0.13 150);
-  --primary-foreground: oklch(0.99 0.01 145);
+  /* Fern — deepened to "evergreen": grounded, ink-like forest green (NOT the
+     cliché emerald/mint/teal, and no longer bright app-store green) */
+  --primary: oklch(0.46 0.085 158);
+  --primary-foreground: oklch(0.985 0.005 160);
 
   /* Secondary / muted surfaces — neutral greys a touch deeper than cards (no hue tint) */
   --secondary: oklch(0.968 0 0);
@@ -37,45 +38,53 @@
   /* Secondary text — neutral gray. Kept at L 0.47 so 13px metadata still clears WCAG AA
      (~4.6:1) on the card / white surfaces. */
   --muted-foreground: oklch(0.47 0 0);
-  --accent: oklch(0.93 0.04 145);
-  --accent-foreground: oklch(0.33 0.06 155);
+  --accent: oklch(0.945 0.02 158);
+  --accent-foreground: oklch(0.33 0.055 160);
   --destructive: oklch(0.58 0.2 25);
   /* Hairlines, deliberately near-invisible (neutral) — separation comes from whitespace, not a
      visible gray line. `--input` is a touch stronger so fields keep their affordance. */
   --border: oklch(0.922 0 0);
   --input: oklch(0.903 0 0);
-  --ring: oklch(0.58 0.13 150);
+  --ring: oklch(0.46 0.085 158);
 
   /* Pipeline status — LOW-saturation, warm-leaning fill + readable foreground pairs, so
      they sit in the paper world (not cool UI blues/ambers). The foreground also drives the
-     leading dot. Consumed via the `bg-status-*` / `text-status-*-foreground` utilities. */
-  --status-saved: oklch(0.95 0.018 150);
-  --status-saved-foreground: oklch(0.45 0.07 152);
-  --status-applied: oklch(0.95 0.02 85);
-  --status-applied-foreground: oklch(0.47 0.065 80);
-  --status-interviewing: oklch(0.94 0.03 65);
+     leading dot. Consumed via the `bg-status-*` / `text-status-*-foreground` utilities.
+     Green-family stages (saved/offer) sit on the evergreen hue axis; warm stages
+     (applied/interviewing) lean toward clay instead of the old yellow-mustard. */
+  --status-saved: oklch(0.95 0.018 158);
+  --status-saved-foreground: oklch(0.45 0.07 158);
+  --status-applied: oklch(0.95 0.02 60);
+  --status-applied-foreground: oklch(0.47 0.065 60);
+  --status-interviewing: oklch(0.94 0.03 55);
   --status-interviewing-foreground: oklch(0.48 0.085 55);
-  --status-offer: oklch(0.93 0.03 155);
-  --status-offer-foreground: oklch(0.43 0.09 154);
+  --status-offer: oklch(0.93 0.03 156);
+  --status-offer-foreground: oklch(0.43 0.09 156);
   --status-rejected: oklch(0.95 0.022 35);
   --status-rejected-foreground: oklch(0.5 0.1 33);
   --status-archived: oklch(0.95 0.004 90);
   --status-archived-foreground: oklch(0.52 0.01 110);
 
   /* Supporting brand tones */
-  --fern-50: oklch(0.97 0.025 145);
-  --fern-100: oklch(0.93 0.05 145);
-  --fern-600: oklch(0.52 0.13 150);
-  --fern-700: oklch(0.43 0.11 152);
-  --pine: oklch(0.3 0.06 158);
-  --sun: oklch(0.84 0.13 85);
+  --fern-50: oklch(0.972 0.012 158);
+  --fern-100: oklch(0.945 0.025 158);
+  --fern-600: oklch(0.42 0.08 158);
+  --fern-700: oklch(0.36 0.065 160);
+  --pine: oklch(0.27 0.04 162);
+  /* Clay — warm muted terracotta, the secondary accent replacing Sun/Butter yellow.
+     Not a button color; evergreen remains the only action color. `--sun` is kept as a
+     deprecated alias so any not-yet-migrated consumer still resolves. */
+  --clay: oklch(0.66 0.115 50);
+  --clay-soft: oklch(0.945 0.028 55);
+  --clay-ink: oklch(0.46 0.095 45);
+  --sun: var(--clay);
 
-  /* Data viz */
-  --chart-1: oklch(0.58 0.13 150);
-  --chart-2: oklch(0.7 0.1 145);
-  --chart-3: oklch(0.43 0.11 152);
-  --chart-4: oklch(0.84 0.13 85);
-  --chart-5: oklch(0.3 0.06 158);
+  /* Data viz — evergreen-led, clay as the lone warm hue */
+  --chart-1: oklch(0.46 0.085 158);
+  --chart-2: oklch(0.62 0.07 155);
+  --chart-3: oklch(0.36 0.065 160);
+  --chart-4: oklch(0.66 0.115 50);
+  --chart-5: oklch(0.27 0.04 162);
 
   /* Geometry — one base radius drives the whole scale */
   --radius: 0.85rem;
@@ -93,12 +102,12 @@
      touch lighter than --secondary so the neutral active-row fill still reads on it. */
   --sidebar: oklch(0.989 0 0);
   --sidebar-foreground: oklch(0.21 0.012 155);
-  --sidebar-primary: oklch(0.58 0.13 150);
-  --sidebar-primary-foreground: oklch(0.99 0.01 145);
-  --sidebar-accent: oklch(0.93 0.04 145);
-  --sidebar-accent-foreground: oklch(0.33 0.06 155);
+  --sidebar-primary: oklch(0.46 0.085 158);
+  --sidebar-primary-foreground: oklch(0.985 0.005 160);
+  --sidebar-accent: oklch(0.945 0.02 158);
+  --sidebar-accent-foreground: oklch(0.33 0.055 160);
   --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.58 0.13 150);
+  --sidebar-ring: oklch(0.46 0.085 158);
 }
 
 .dark {
@@ -110,8 +119,8 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
+  --primary: oklch(0.78 0.07 158);
+  --primary-foreground: oklch(0.22 0.03 160);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
@@ -125,14 +134,14 @@
 
   /* Status — provisional dark values (dark mode itself is provisional, see DESIGN.md §7).
      Darker fills + light foregrounds; same warm hues, kept low-chroma. */
-  --status-saved: oklch(0.28 0.04 152);
-  --status-saved-foreground: oklch(0.82 0.08 152);
+  --status-saved: oklch(0.28 0.04 158);
+  --status-saved-foreground: oklch(0.82 0.08 158);
   --status-applied: oklch(0.28 0.035 85);
   --status-applied-foreground: oklch(0.84 0.07 85);
   --status-interviewing: oklch(0.3 0.05 65);
   --status-interviewing-foreground: oklch(0.85 0.09 70);
-  --status-offer: oklch(0.3 0.05 155);
-  --status-offer-foreground: oklch(0.84 0.1 154);
+  --status-offer: oklch(0.3 0.05 156);
+  --status-offer-foreground: oklch(0.84 0.1 156);
   --status-rejected: oklch(0.3 0.05 33);
   --status-rejected-foreground: oklch(0.82 0.1 33);
   --status-archived: oklch(0.3 0.005 110);
@@ -145,8 +154,8 @@
   --chart-5: oklch(0.269 0 0);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.78 0.07 158);
+  --sidebar-primary-foreground: oklch(0.22 0.03 160);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);

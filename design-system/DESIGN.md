@@ -29,9 +29,14 @@ gradients, glassmorphism, neon-on-black, teal-accent-on-white).
   pattern), *never* border + tinted fill + inner dividers stacked together. Reserve
   fully-bordered cards for genuinely bounded, heterogeneous objects.
 - **Fern green, not emerald/mint/teal — and rationed.** Our green is grounded and
-  leafy. Spend it only where it means something: the logo, the one primary action,
-  the active nav item, the saved state, and a single positive signal (e.g. response
-  rate). Let neutral do ~90% of the work; status carries the rest of the meaning.
+  leafy — deepened to "evergreen": a deep, ink-like forest green that reads
+  editorial, not "app-store green." Spend it only where it means something: the
+  logo, the one primary action, the active nav item, the saved state, and a
+  single positive signal (e.g. response rate). Let neutral do ~90% of the work;
+  status carries the rest of the meaning. **Clay** (warm muted terracotta) is
+  the secondary accent — rarer still, never a button color, used for the
+  second data-viz hue and small warm moments (replaces the old Sun/Butter
+  yellow; `--sun` remains a deprecated alias).
 - **Hand-drawn line art** (scribbles, underlines, sparkles) adds humanity. Used
   sparingly as accent (one or two real moments per screen), never as
   decoration-for-decoration's-sake.
@@ -76,8 +81,9 @@ components. Reach for the named brand tones only for intentional brand moments.
 | `--border` / `--input` / `--ring` | Near-invisible cool hairlines, field borders, fern focus ring |
 | `--destructive` | Errors / destructive actions only |
 | `--status-{saved,applied,interviewing,offer,rejected,archived}` (+ `-foreground`) | Pipeline status fill + readable text (the fg also drives the leading dot) |
-| `--fern-50…700`, `--pine`, `--sun` | Brand scale + a warm sun accent for highlights |
-| `--chart-1…5` | Data viz (fern-led palette) |
+| `--fern-50…700`, `--pine` | Evergreen brand scale (deep, ink-like green) |
+| `--clay` / `--clay-soft` / `--clay-ink` | Secondary accent — warm terracotta (highlights, second data-viz hue). `--sun` is a deprecated alias of `--clay`. |
+| `--chart-1…5` | Data viz (evergreen-led palette, clay as the lone warm hue) |
 
 **Status tokens.** Each pipeline stage has a soft, **low-saturation, warm-leaning**
 fill + foreground pair, so status reads as part of the paper world (not cool UI

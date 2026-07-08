@@ -48,6 +48,9 @@
   --color-fern-700: var(--fern-700);
   --color-pine: var(--pine);
   --color-sun: var(--sun);
+  --color-clay: var(--clay);
+  --color-clay-soft: var(--clay-soft);
+  --color-clay-ink: var(--clay-ink);
 
   /* Pipeline status — fill + foreground per stage (foreground also drives the dot) */
   --color-status-saved: var(--status-saved);
