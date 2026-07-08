@@ -27,3 +27,4 @@ npm-debug.log*
 
 # External reference repos (mined for code, not part of our app)
 reference/
+.superpowers/
