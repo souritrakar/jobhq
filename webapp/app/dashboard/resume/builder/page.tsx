@@ -2,7 +2,7 @@ import { Sparkles } from "lucide-react"
 
 import { PageStub } from "@/components/dashboard/page-stub"
 
-export const metadata = { title: "AI Resume Builder — jobhq" }
+export const metadata = { title: "AI Resume Builder · jobhq" }
 
 export default function ResumeBuilderPage() {
   return (

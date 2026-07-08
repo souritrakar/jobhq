@@ -34,9 +34,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   try {
     const { id } = await params
     const job = await getJob(await getServerUserId(), id)
-    return { title: `${job.title} — jobhq` }
+    return { title: `${job.title} · jobhq` }
   } catch {
-    return { title: "Job — jobhq" }
+    return { title: "Job · jobhq" }
   }
 }
 

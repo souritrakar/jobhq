@@ -6,7 +6,7 @@ import { countOpenReminders } from "@/lib/server/reminders"
 export const dynamic = "force-dynamic"
 
 export const metadata = {
-  title: "Dashboard — jobhq",
+  title: "Dashboard · jobhq",
 }
 
 export default async function DashboardLayout({

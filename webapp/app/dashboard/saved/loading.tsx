@@ -14,20 +14,26 @@ export default function SavedJobsLoading() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="h-3.5 w-14 rounded bg-foreground/10" />
+
+      {/* Same masonry pack as the loaded list (columns + break-inside-avoid wrappers) so the
+          layout doesn't reflow from a uniform grid into columns when the cards arrive. */}
+      <div className="columns-1 gap-4 sm:columns-2 xl:columns-3">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="rounded-xl border border-border bg-background p-5">
-            <div className="flex items-start gap-3">
-              <div className="size-9 shrink-0 rounded-[30%] bg-foreground/10" />
-              <div className="min-w-0 flex-1">
-                <div className="h-4 w-4/5 rounded bg-foreground/10" />
-                <div className="mt-2 h-3 w-2/5 rounded bg-foreground/10" />
+          <div key={i} className="mb-3 break-inside-avoid">
+            <div className="rounded-xl border border-border bg-background p-5">
+              <div className="flex items-start gap-3">
+                <div className="size-9 shrink-0 rounded-[30%] bg-foreground/10" />
+                <div className="min-w-0 flex-1">
+                  <div className="h-4 w-4/5 rounded bg-foreground/10" />
+                  <div className="mt-2 h-3 w-2/5 rounded bg-foreground/10" />
+                </div>
               </div>
-            </div>
-            <div className="mt-4 h-3.5 w-1/2 rounded bg-foreground/10" />
-            <div className="mt-4 flex items-center justify-between">
-              <div className="h-3 w-16 rounded bg-foreground/10" />
-              <div className="h-3 w-12 rounded bg-foreground/10" />
+              <div className="mt-4 h-3.5 w-1/2 rounded bg-foreground/10" />
+              <div className="mt-4 flex items-center justify-between">
+                <div className="h-3 w-16 rounded bg-foreground/10" />
+                <div className="h-3 w-12 rounded bg-foreground/10" />
+              </div>
             </div>
           </div>
         ))}

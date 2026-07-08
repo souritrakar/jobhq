@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils"
 // Low-contrast, single-hue tints for the initial tile — a company always lands on the same
 // hue, so a long list stays scannable by color, not just text. Kept deliberately muted: the
 // tile is wayfinding, not an accent. (Fern is reserved for the brand's real accent moments.)
+// Clay uses `bg-clay/12`, not `bg-clay-soft`, on purpose: every slot here is a 10-12% tint of
+// its hue so the six tiles share one visual weight; the solid soft token would break the rhythm.
 const TINTS = [
   "bg-emerald-500/10 text-emerald-700 dark:bg-emerald-400/12 dark:text-emerald-300",
   "bg-sky-500/10 text-sky-700 dark:bg-sky-400/12 dark:text-sky-300",

@@ -2,7 +2,7 @@ import { Bot } from "lucide-react"
 
 import { PageStub } from "@/components/dashboard/page-stub"
 
-export const metadata = { title: "AI Resume Agent — jobhq" }
+export const metadata = { title: "AI Resume Agent · jobhq" }
 
 export default function ResumeAgentPage() {
   return (

@@ -4,7 +4,7 @@ import { listResumes } from "@/lib/server/resumes"
 import { CoverLetterGenerator } from "@/components/dashboard/cover-letter/cover-letter-generator"
 import type { JobOption } from "@/components/dashboard/cover-letter/job-picker"
 
-export const metadata = { title: "Cover Letter — jobhq" }
+export const metadata = { title: "Cover Letter · jobhq" }
 
 // The generator needs a live list of the user's saved jobs (and any imported mid-session) and their
 // uploaded resumes, so it's rendered fresh per request. Both lists are fetched in parallel and are

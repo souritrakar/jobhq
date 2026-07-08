@@ -6,7 +6,7 @@ import { AuthShell } from "@/components/auth/auth-shell"
 import { SignInForm } from "./sign-in-form"
 
 export const dynamic = "force-dynamic"
-export const metadata = { title: "Sign in — jobhq" }
+export const metadata = { title: "Sign in · jobhq" }
 
 export default async function SignInPage() {
   // Already signed in? Don't flash a login form — send them to the app.
