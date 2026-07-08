@@ -41,7 +41,7 @@
     .jtp-badge { position: absolute; height: ${BADGE}px; min-width: ${BADGE}px; box-sizing: border-box;
       border-radius: 999px; pointer-events: auto; cursor: pointer; padding: 0; overflow: hidden;
       display: inline-flex; align-items: center; justify-content: flex-start;
-      background: #ffffff; border: 1.5px solid #3f9b6a; color: #3f9b6a; opacity: 0.6;
+      background: #ffffff; border: 1.5px solid #266645; color: #266645; opacity: 0.6;
       box-shadow: 0 1px 3px rgba(26, 43, 34, 0.16);
       transition: opacity .16s ease, box-shadow .16s ease, background .16s ease, color .16s ease,
         padding .2s ease, border-color .16s ease; }
@@ -57,8 +57,8 @@
       max-width: 130px; opacity: 1; }
     .jtp-badge.working { cursor: default; opacity: 1; }
     .jtp-badge.working .jtp-ico svg { animation: jtp-spin .7s linear infinite; }
-    .jtp-badge.selected { opacity: 1; background: #3f9b6a; border-color: #2f7b53; color: #ffffff;
-      box-shadow: 0 2px 8px rgba(47, 123, 83, 0.32);
+    .jtp-badge.selected { opacity: 1; background: #266645; border-color: #1e5a3c; color: #ffffff;
+      box-shadow: 0 2px 8px rgba(30, 90, 60, 0.32);
       animation: jtp-pop .28s cubic-bezier(.32,1.6,.4,1); }
     .jtp-badge.unpicked { animation: jtp-shrink .24s ease; }
     .jtp-badge.hidden { opacity: 0; pointer-events: none; }
@@ -66,14 +66,14 @@
     /* Mode chip — carries discoverability so the idle badges can stay quiet. */
     .jtp-chip { position: fixed; left: 16px; bottom: 16px; z-index: 1; pointer-events: none;
       display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px;
-      background: #1a2b22; color: #eaf3ee; font-size: 12.5px; font-weight: 500; line-height: 1;
-      box-shadow: 0 4px 16px rgba(26, 43, 34, 0.28); max-width: min(340px, 90vw);
+      background: #122d20; color: #f0f8f3; font-size: 12.5px; font-weight: 500; line-height: 1;
+      box-shadow: 0 4px 16px rgba(18, 45, 32, 0.28); max-width: min(340px, 90vw);
       transition: opacity .2s ease; }
     .jtp-chip .jtp-chip-dot { width: 16px; height: 16px; border-radius: 50%; flex: 0 0 auto;
-      background: #ffffff; border: 1.5px solid #3f9b6a; color: #3f9b6a;
+      background: #ffffff; border: 1.5px solid #266645; color: #266645;
       display: inline-flex; align-items: center; justify-content: center; }
     .jtp-chip .jtp-chip-dot svg { width: 10px; height: 10px; display: block; }
-    .jtp-chip .jtp-chip-count { font-weight: 600; color: #8fe0b3; white-space: nowrap; }
+    .jtp-chip .jtp-chip-count { font-weight: 600; color: #9ecfb4; white-space: nowrap; }
 
     @keyframes jtp-spin { to { transform: rotate(360deg); } }
     @keyframes jtp-pop { 0% { transform: scale(.7); } 60% { transform: scale(1.14); } 100% { transform: scale(1); } }

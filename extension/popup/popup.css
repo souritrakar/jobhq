@@ -20,22 +20,22 @@
   --background: oklch(0.985 0.002 250);
   --foreground: oklch(0.28 0.015 250);
   --card: oklch(1 0 0);
-  --primary: oklch(0.58 0.13 150);
-  --primary-foreground: oklch(0.99 0.01 145);
-  --primary-hover: oklch(0.52 0.13 150);
+  --primary: oklch(0.46 0.085 158);
+  --primary-foreground: oklch(0.985 0.005 160);
+  --primary-hover: oklch(0.42 0.08 158);
   --secondary: oklch(0.97 0.003 250);
   --muted-foreground: oklch(0.55 0.012 250);
-  --accent: oklch(0.95 0.035 150);
-  --accent-foreground: oklch(0.43 0.09 152);
+  --accent: oklch(0.945 0.02 158);
+  --accent-foreground: oklch(0.33 0.055 160);
   --border: oklch(0.91 0.004 250);
-  --ring: oklch(0.58 0.13 150);
+  --ring: oklch(0.46 0.085 158);
   --destructive: oklch(0.58 0.2 25);
 
   /* status accents — subtle tinted pills */
   --st-gray-bg: oklch(0.96 0.003 250);   --st-gray-fg: oklch(0.5 0.012 250);
   --st-blue-bg: oklch(0.95 0.03 240);    --st-blue-fg: oklch(0.48 0.12 250);
-  --st-fern-bg: oklch(0.95 0.035 150);   --st-fern-fg: oklch(0.43 0.09 152);
-  --st-amber-bg: oklch(0.95 0.05 80);    --st-amber-fg: oklch(0.5 0.1 70);
+  --st-fern-bg: oklch(0.945 0.02 158);   --st-fern-fg: oklch(0.33 0.055 160);
+  --st-amber-bg: oklch(0.95 0.028 55);   --st-amber-fg: oklch(0.5 0.095 48);
   --st-red-bg: oklch(0.95 0.03 25);      --st-red-fg: oklch(0.52 0.15 25);
 
   --font: "Satoshi", "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;

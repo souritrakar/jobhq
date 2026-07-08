@@ -97,29 +97,29 @@
         --ink:oklch(0.27 0.015 250);
         --ink-2:oklch(0.45 0.012 250);
         --ink-3:oklch(0.585 0.01 250);
-        --accent:oklch(0.58 0.13 150);
-        --accent-press:oklch(0.52 0.13 150);
-        --accent-ink:oklch(0.46 0.1 152);
-        --accent-bg:oklch(0.965 0.022 150);
-        --accent-fg:oklch(0.99 0.01 145);
+        --accent:oklch(0.46 0.085 158);
+        --accent-press:oklch(0.42 0.08 158);
+        --accent-ink:oklch(0.33 0.055 160);
+        --accent-bg:oklch(0.965 0.018 158);
+        --accent-fg:oklch(0.985 0.005 160);
         --danger:oklch(0.55 0.16 25);
         --danger-bg:oklch(0.965 0.018 25);
-        /* Star / "flagged for review" — warm amber, distinct from the fern accent and
+        /* Star / "flagged for review" — warm clay, distinct from the evergreen accent and
            the red danger so "important" reads as its own semantic. */
-        --star:oklch(0.74 0.14 75);
-        --star-ink:oklch(0.56 0.12 70);
+        --star:oklch(0.66 0.115 50);
+        --star-ink:oklch(0.52 0.1 48);
         /* Pipeline-status colours — a soft fill + a strong ink/dot per stage. Kept in lockstep
            with the web app's status tokens (design-system/tokens.css light values) so a status
            reads the same in the panel as on the board and the job page. */
-        --status-saved:oklch(0.95 0.018 150); --status-saved-ink:oklch(0.45 0.07 152);
-        --status-applied:oklch(0.95 0.02 85); --status-applied-ink:oklch(0.47 0.065 80);
-        --status-interviewing:oklch(0.94 0.03 65); --status-interviewing-ink:oklch(0.48 0.085 55);
-        --status-offer:oklch(0.93 0.03 155); --status-offer-ink:oklch(0.43 0.09 154);
+        --status-saved:oklch(0.95 0.018 158); --status-saved-ink:oklch(0.45 0.07 158);
+        --status-applied:oklch(0.95 0.02 60); --status-applied-ink:oklch(0.47 0.065 60);
+        --status-interviewing:oklch(0.94 0.03 55); --status-interviewing-ink:oklch(0.48 0.085 55);
+        --status-offer:oklch(0.93 0.03 156); --status-offer-ink:oklch(0.43 0.09 156);
         --status-rejected:oklch(0.95 0.022 35); --status-rejected-ink:oklch(0.5 0.1 33);
         --status-archived:oklch(0.95 0.004 90); --status-archived-ink:oklch(0.52 0.01 110);
         --r1:6px; --r2:8px; --r3:12px; --r4:16px;
         --shadow-panel:-10px 0 30px oklch(0.2 0.02 250 / .08);
-        --ring:0 0 0 2px oklch(0.58 0.13 150 / .2);
+        --ring:0 0 0 2px oklch(0.46 0.085 158 / .2);
       }`;
   }
 
@@ -548,7 +548,7 @@
         justify-content:center;text-align:center;gap:8px;padding:36px 28px;}
       .success .check{display:flex;align-items:center;justify-content:center;width:68px;height:68px;
         border-radius:999px;margin-bottom:10px;background:var(--accent-bg);color:var(--accent);
-        box-shadow:0 0 0 8px oklch(0.58 0.13 150 / .06);}
+        box-shadow:0 0 0 8px oklch(0.46 0.085 158 / .06);}
       .success .check svg{width:34px;height:34px;stroke-width:2.5;}
       .success h3{margin:0;font-size:18px;font-weight:700;letter-spacing:-0.02em;color:var(--ink);}
       .success p{margin:0;font-size:13px;line-height:1.5;max-width:260px;color:var(--ink-2);}

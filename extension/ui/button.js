@@ -17,10 +17,10 @@
   const HOST_ID = "jobtracker-save-host";
   const SVGNS = "http://www.w3.org/2000/svg";
   const TOKENS = {
-    primary: "oklch(0.58 0.13 150)",
-    primaryHover: "oklch(0.52 0.13 150)",
-    primaryFg: "oklch(0.99 0.01 145)",
-    ring: "oklch(0.58 0.13 150)",
+    primary: "oklch(0.46 0.085 158)",
+    primaryHover: "oklch(0.42 0.08 158)",
+    primaryFg: "oklch(0.985 0.005 160)",
+    ring: "oklch(0.46 0.085 158)",
     shadow: "0 4px 14px oklch(0.28 0.02 250 / 0.20)",
   };
   // lucide-style line icons, drawn at currentColor.

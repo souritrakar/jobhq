@@ -530,7 +530,7 @@ function safeHostname(url) {
 }
 
 function updateBadge(count) {
-  chrome.action.setBadgeBackgroundColor({ color: "#3f9b6a" }); // fern
+  chrome.action.setBadgeBackgroundColor({ color: "#266645" }); // evergreen
   chrome.action.setBadgeText({ text: count ? String(count) : "" });
 }
 

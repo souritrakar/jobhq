@@ -22,7 +22,7 @@
 
   const DRAG_THRESHOLD = 5; // px of movement before a press becomes a drag (below it's a click)
   const CLIMB = 4; // how far to climb from the drop point looking for a hidden file input
-  const OK_COLOR = "#3f9d5f";
+  const OK_COLOR = "#266645";
 
   // Set a File on a native <input type=file> the way a real pick/drop does: a DataTransfer carries
   // the file, then native input+change fire so the page's framework (React, etc.) reacts.
