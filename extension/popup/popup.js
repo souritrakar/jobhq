@@ -177,7 +177,7 @@ openBtn.addEventListener("click", async () => {
     }
     btnLabel.textContent = "Can't open on this page";
   } catch (_) {
-    btnLabel.textContent = "Couldn't open — try again";
+    btnLabel.textContent = "Couldn't open. Try again.";
   } finally {
     openBtn.disabled = false;
     setTimeout(() => { btnLabel.textContent = "Save this tab"; }, 2200);

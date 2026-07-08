@@ -371,7 +371,7 @@
           class: "jt-todo-act jt-todo-convert",
           type: "button",
           "aria-label": `Remind me about "${t.title}"`,
-          title: "Remind me — pick a date",
+          title: "Remind me: pick a date",
         });
         convert.append(icon(ICON.bellPlus));
         convert.addEventListener("click", () => {
@@ -419,8 +419,8 @@
     const bell = el("button", {
       class: "jt-todo-bell",
       type: "button",
-      "aria-label": "Remind me — pick a date",
-      title: "Remind me — pick a date",
+      "aria-label": "Remind me: pick a date",
+      title: "Remind me: pick a date",
     });
     bell.append(icon(ICON.bell));
 

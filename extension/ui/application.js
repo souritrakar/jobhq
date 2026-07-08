@@ -327,7 +327,7 @@
     const btn = el("button", {
       type: "button",
       class: "appdismiss",
-      title: "Remove — not part of this application",
+      title: "Remove: not part of this application",
       "aria-label": "Remove this question",
     });
     btn.append(icon(X_PATHS));
@@ -366,7 +366,7 @@
       return { control: ta, setValue: (v) => { if (!isFocused(ta)) ta.value = asText(v); } };
     }
     if (type === "file") {
-      return valueDisplay("Choose the file on the page — its name shows here.", true);
+      return valueDisplay("Choose the file on the page. Its name shows here.", true);
     }
     if (FREE_TEXT_SINGLE.has(type)) {
       const built = textControl(q, id);
@@ -394,7 +394,7 @@
     const stepTag = offPage
       ? el("span", {
           class: "appstep",
-          title: "Captured on another page or step of this application — edits stay in the panel",
+          title: "Captured on another page or step of this application. Edits stay in the panel.",
           text: "Other step",
         })
       : null;

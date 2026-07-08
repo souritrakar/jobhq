@@ -824,8 +824,8 @@
     const title = { input: el("input", { class: "di jt-title", type: "text", value: current.title || "", placeholder: "Add a job title" }) };
     const company = { input: el("input", { class: "di jt-company", type: "text", value: current.company || "", placeholder: "Company" }) };
     // Blank-field markers (clay). updateFieldWarnings() shows/hides them as the fields fill.
-    const titleWarn = warnIcon("No job title yet — add one so this is easy to find later");
-    const companyWarn = warnIcon("No company yet — add the hiring company");
+    const titleWarn = warnIcon("No job title yet. Add one so this is easy to find later.");
+    const companyWarn = warnIcon("No company yet. Add the hiring company.");
     const identity = el("div", { class: "identity" }, [
       el("div", { class: "di-wrap" }, [title.input, titleWarn]),
       el("div", { class: "di-wrap" }, [company.input, companyWarn]),
@@ -956,7 +956,7 @@
     const descClamp = el("div", { class: "desc-clamp" }, [descBox]);
     const descMore = el("button", { class: "desc-more", type: "button", text: "Show more" });
     descMore.style.display = "none";
-    const descWarn = warnIcon("No description captured — saved jobs are far more useful with one");
+    const descWarn = warnIcon("No description captured. Saved jobs are far more useful with one.");
     const descWrap = el("div", { class: "desc-wrap" }, [
       el("div", { class: "eyebrow-row" }, [el("span", { class: "eyebrow", text: "Description" }), descWarn]),
       descClamp,
@@ -1162,7 +1162,7 @@
         kind: "blank",
         iconPaths: ICON.clipboard,
         title: "Watching for application questions",
-        body: "Open the application form on this page — its fields appear here automatically, and whatever you type on the page is captured live.",
+        body: "Open the application form on this page. Its fields appear here automatically, and whatever you type on the page is captured live.",
       });
     }
 
@@ -1326,7 +1326,7 @@
           card.append(
             el("p", {
               class: "afresult-sub",
-              text: `${s.def} filled with a placeholder default — review before submitting.`,
+              text: `${s.def} filled with a placeholder default. Review before submitting.`,
             }),
           );
         if (s.failedCount)
@@ -1470,7 +1470,7 @@
       const clearBtn = el("button", {
         class: "appclear",
         type: "button",
-        title: "Clear all — save no application questions for this job",
+        title: "Clear all: save no application questions for this job",
       });
       clearBtn.append(el("span", { text: "Clear all" }));
       clearBtn.addEventListener("click", () => {
@@ -1689,7 +1689,7 @@
       resumeDocs.forEach((doc) => docList.append(docRow(doc)));
       if (!resumeDocs.length) {
         docList.append(
-          el("div", { class: "docempty", text: "No documents yet — upload one to drag it onto applications." }),
+          el("div", { class: "docempty", text: "No documents yet. Upload one to drag it onto applications." }),
         );
       }
       // Quiet ghost "upload" row at the foot of the same surface.
@@ -1777,7 +1777,7 @@
         el("div", { class: "doc-hint" }, [
           icon(ICON.upload),
           el("span", {
-            text: "Drag a document onto a file-upload field on the page to attach it — or download it.",
+            text: "Drag a document onto a file-upload field on the page to attach it, or download it.",
           }),
         ]),
         docList,
@@ -1985,9 +1985,9 @@
             const go = el("button", {
               class: "dx-re dx-hintbtn",
               type: "button",
-              title: "This page also has an application form — extract its questions",
+              title: "This page also has an application form. Extract its questions.",
             });
-            go.append(icon(ICON.sparkles), el("span", { text: "Form detected — pick questions" }));
+            go.append(icon(ICON.sparkles), el("span", { text: "Form detected: pick questions" }));
             go.addEventListener("click", (e) => {
               e.stopPropagation();
               selectTab("app");
