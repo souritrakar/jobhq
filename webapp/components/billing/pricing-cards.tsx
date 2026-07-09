@@ -17,12 +17,19 @@ import { PLAN_IDS, PLAN_META, PRO_PRICE, type PlanId } from "@/lib/billing/plans
  */
 export function PricingCards({ serverPlan }: { serverPlan: PlanId }) {
   const router = useRouter()
-  const { data, attach, openCustomerPortal, refetch } = useCustomer()
+  // `AutumnProvider` sets `refetchOnWindowFocus: false` on its QueryClient by default; opt back in
+  // here so a tab left open self-corrects when the user refocuses it after upgrading/cancelling in
+  // another tab (see docs/BILLING.md "Other tabs").
+  const { data, attach, openCustomerPortal, refetch } = useCustomer({
+    queryOptions: { refetchOnWindowFocus: true },
+  })
   const [busy, setBusy] = useState(false)
 
-  // Client-derived plan: does an active, non-add-on subscription reference the Pro plan?
+  // Client-derived plan: does an active, non-add-on subscription reference the Pro plan? (No trials
+  // are configured, so the SDK's CustomerStatus enum never emits "trialing" — a scheduled-cancel Pro
+  // stays "active" until period end, which is exactly what we want to treat as Pro here.)
   const clientIsPro = data?.subscriptions?.some(
-    (s) => s.planId === PLAN_IDS.pro && (s.status === "active" || s.status === "trialing"),
+    (s) => s.planId === PLAN_IDS.pro && s.status === "active",
   )
   // Trust the client only once its data has actually ARRIVED. `isLoading` flips false on both
   // success AND error; on a failed useCustomer() fetch `data` stays undefined, so falling back to

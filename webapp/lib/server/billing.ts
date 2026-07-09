@@ -20,7 +20,13 @@ import { PRO_FEATURE_ID, type PlanId } from "@/lib/billing/plans"
 
 // One SDK instance per process. If the key is missing the SDK still constructs; calls then error
 // and our fail-closed/open handling treats the user as Free — the app keeps working.
-const autumn = new Autumn({ secretKey: env.AUTUMN_SECRET_KEY })
+//
+// `failOpen: false` disables the SDK's own fail-open behavior for `check` (enabled by default),
+// which otherwise swallows network errors/5xxs from Autumn and resolves a synthetic
+// `{ allowed: true }` instead of throwing. That would silently unlock Pro for everyone during an
+// Autumn outage. With it disabled, those failures propagate as thrown errors, which `isPro`'s
+// try/catch below turns into `false` — i.e. actually fail-closed.
+const autumn = new Autumn({ secretKey: env.AUTUMN_SECRET_KEY, failOpen: false })
 
 /** Authoritative "is this user on Pro?" — fail-closed to false on any error. */
 export async function isPro(userId: string): Promise<boolean> {
