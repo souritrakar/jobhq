@@ -17,7 +17,7 @@ import { PLAN_IDS, PLAN_META, PRO_PRICE, type PlanId } from "@/lib/billing/plans
  */
 export function PricingCards({ serverPlan }: { serverPlan: PlanId }) {
   const router = useRouter()
-  const { data, attach, openCustomerPortal, refetch, isLoading } = useCustomer()
+  const { data, attach, openCustomerPortal, refetch } = useCustomer()
   const [busy, setBusy] = useState(false)
 
   // Client-derived plan: does an active, non-add-on subscription reference the Pro plan?
