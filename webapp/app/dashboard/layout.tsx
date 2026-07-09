@@ -1,5 +1,8 @@
+import { AutumnProvider } from "autumn-js/react"
+
 import { DashboardShell } from "@/components/dashboard/dashboard-shell"
 import { getSessionUser } from "@/lib/auth/current-user"
+import { getPlan } from "@/lib/server/billing"
 import { listNotifications, unreadCount } from "@/lib/server/notifications"
 import { countOpenReminders } from "@/lib/server/reminders"
 
@@ -17,20 +20,24 @@ export default async function DashboardLayout({
   // Gate + identity in one read: redirects to sign-in when unauthenticated, and bridges the Neon
   // Auth user into our local `users` table so downstream userId FKs are satisfied (see docs/AUTH.md).
   const user = await getSessionUser()
-  const [notifications, unread, openReminders] = await Promise.all([
+  const [notifications, unread, openReminders, plan] = await Promise.all([
     listNotifications(user.id, { limit: 20 }),
     unreadCount(user.id),
     countOpenReminders(user.id),
+    getPlan(user.id),
   ])
 
   return (
-    <DashboardShell
-      user={{ name: user.name?.trim() || user.email, email: user.email }}
-      initialNotifications={notifications}
-      initialUnread={unread}
-      openReminders={openReminders}
-    >
-      {children}
-    </DashboardShell>
+    <AutumnProvider>
+      <DashboardShell
+        user={{ name: user.name?.trim() || user.email, email: user.email }}
+        plan={plan}
+        initialNotifications={notifications}
+        initialUnread={unread}
+        openReminders={openReminders}
+      >
+        {children}
+      </DashboardShell>
+    </AutumnProvider>
   )
 }

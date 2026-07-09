@@ -9,6 +9,7 @@ import {
   Bookmark,
   Bot,
   ChevronDown,
+  CreditCard,
   FileText,
   Files,
   House,
@@ -29,6 +30,7 @@ import { ImportJobDialog } from "@/components/dashboard/import-job-dialog"
 import { NotificationsBell } from "@/components/dashboard/notifications-bell"
 import { UserMenu } from "@/components/dashboard/user-menu"
 import type { NotificationDto } from "@/lib/notifications/types"
+import type { PlanId } from "@/lib/billing/plans"
 
 /** The signed-in user's display fields, threaded from the dashboard layout's session read. */
 export type ShellUser = { name: string; email: string }
@@ -38,6 +40,7 @@ const NAV = [
   { href: "/dashboard/saved", label: "Jobs", icon: Bookmark },
   { href: "/dashboard/reminders", label: "Reminders", icon: Bell },
   { href: "/dashboard/documents", label: "Documents", icon: Files },
+  { href: "/dashboard/billing", label: "Billing", icon: CreditCard },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ] as const
 
@@ -181,12 +184,14 @@ function SidebarBody({
 export function DashboardShell({
   children,
   user,
+  plan,
   initialNotifications,
   initialUnread,
   openReminders,
 }: {
   children: React.ReactNode
   user: ShellUser
+  plan: PlanId
   initialNotifications: NotificationDto[]
   initialUnread: number
   openReminders: number
@@ -215,7 +220,7 @@ export function DashboardShell({
           >
             <BookOpen className="size-[18px]" />
           </Link>
-          <UserMenu name={user.name} email={user.email} />
+          <UserMenu name={user.name} email={user.email} plan={plan} />
           <Button
             variant="ghost"
             size="icon"
@@ -265,7 +270,7 @@ export function DashboardShell({
           >
             <BookOpen className="size-[18px]" />
           </Link>
-          <UserMenu name={user.name} email={user.email} />
+          <UserMenu name={user.name} email={user.email} plan={plan} />
         </div>
         <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8">{children}</div>
       </main>

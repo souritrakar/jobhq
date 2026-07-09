@@ -1,12 +1,14 @@
 "use client"
 
 import Link from "next/link"
-import { LogOut, Settings } from "lucide-react"
+import { CreditCard, LogOut, Settings } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Avatar } from "@/components/ui/avatar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { PlanBadge } from "@/components/billing/plan-badge"
 import { signOutAction } from "@/lib/auth/actions"
+import type { PlanId } from "@/lib/billing/plans"
 
 /**
  * The account menu — the dashboard profile avatar is now a real trigger: clicking it opens a
@@ -17,10 +19,12 @@ import { signOutAction } from "@/lib/auth/actions"
 export function UserMenu({
   name,
   email,
+  plan,
   className,
 }: {
   name: string
   email: string
+  plan: PlanId
   className?: string
 }) {
   return (
@@ -39,12 +43,22 @@ export function UserMenu({
         <div className="flex items-center gap-2.5 p-3">
           <Avatar name={name} className="size-9" />
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-foreground">{name}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="truncate text-sm font-medium text-foreground">{name}</p>
+              <PlanBadge plan={plan} />
+            </div>
             <p className="truncate text-xs text-muted-foreground">{email}</p>
           </div>
         </div>
 
         <div className="flex flex-col border-t border-border p-1">
+          <Link
+            href="/dashboard/billing"
+            className="flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm text-foreground transition-colors hover:bg-muted"
+          >
+            <CreditCard className="size-4 opacity-80" />
+            Manage plan
+          </Link>
           <Link
             href="/dashboard/settings"
             className="flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm text-foreground transition-colors hover:bg-muted"
