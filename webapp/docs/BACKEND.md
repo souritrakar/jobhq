@@ -580,6 +580,13 @@ verification + Google. Full details in [`AUTH.md`](AUTH.md). The single seam is 
 ⚠️ The `x-user-id` / `DEV_USER_ID` fallback is a **dev-only** seam (never honored in production) and
 is **not secure** — it's there for the extension, which is out of scope for this auth iteration.
 
+## Billing
+
+Subscription billing (freemium **Free**/**Pro**) runs on **Autumn** (over Stripe), keyed on the same
+`users.id`. Autumn — not Neon — is the source of truth for subscription state; gating is server-side
+and live via `lib/server/billing.ts` (`isPro`/`getPlan`/`requirePro`). Full details in
+[`BILLING.md`](BILLING.md).
+
 ## CORS
 
 `lib/api/cors.ts` echoes an allowed `Origin`. In development any
