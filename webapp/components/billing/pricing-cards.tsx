@@ -24,7 +24,11 @@ export function PricingCards({ serverPlan }: { serverPlan: PlanId }) {
   const clientIsPro = data?.subscriptions?.some(
     (s) => s.planId === PLAN_IDS.pro && (s.status === "active" || s.status === "trialing"),
   )
-  const plan: PlanId = isLoading ? serverPlan : clientIsPro ? "pro" : "free"
+  // Trust the client only once its data has actually ARRIVED. `isLoading` flips false on both
+  // success AND error; on a failed useCustomer() fetch `data` stays undefined, so falling back to
+  // `serverPlan` (not "free") keeps a real Pro user from being shown the upgrade CTA. Self-heals on
+  // the next focus-refetch. Gating is server-side regardless — this only governs which CTA shows.
+  const plan: PlanId = data ? (clientIsPro ? "pro" : "free") : serverPlan
 
   // Returning from Stripe Checkout (successUrl carries ?checkout=success): refresh BOTH the client
   // cache and the server components (badge) so Pro shows everywhere immediately.
