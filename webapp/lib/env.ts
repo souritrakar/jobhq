@@ -201,6 +201,12 @@ const envSchema = z.object({
   // deployed origin; in local dev it must be a publicly reachable tunnel OR the Upstash QStash dev
   // server (see scripts/curl/README.md), since QStash cannot reach a bare localhost.
   APP_URL: z.string().url().default("http://localhost:3100"),
+
+  // Autumn (useautumn.com) billing — freemium Free/Pro on the connected Stripe sandbox.
+  // Server-side ONLY: the secret key must never ship in the extension/client bundle. The Autumn
+  // customer id is our Neon Auth users.id; subscription state lives in Autumn, not Neon. Optional
+  // so the app still boots without billing configured (gates then fail-closed → everyone is Free).
+  AUTUMN_SECRET_KEY: z.string().optional(),
 })
 
 function loadEnv() {
