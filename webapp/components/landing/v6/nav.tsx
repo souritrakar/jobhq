@@ -19,7 +19,7 @@ const FOCUS =
  * v6 floating pill nav. The scrolled "haze" state is driven purely by the CSS
  * scroll-driven animation in globals.css (.site-header), no JS scroll listener.
  */
-export function Nav() {
+export function Nav({ authed = false }: { authed?: boolean }) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -55,13 +55,13 @@ export function Nav() {
 
         <div className="hidden items-center gap-1.5 md:flex">
           <a
-            href="/dashboard"
+            href={authed ? "/dashboard" : "/auth/sign-in"}
             className={cn(
               "rounded-full px-4 py-2 text-sm font-semibold text-foreground/80 transition-colors hover:bg-secondary hover:text-foreground",
               FOCUS,
             )}
           >
-            Open the web app
+            {authed ? "Open app" : "Log in"}
           </a>
           <ChromeStoreButton size="sm" />
         </div>
@@ -111,14 +111,14 @@ export function Nav() {
           ))}
           <div className="mt-2 flex flex-col gap-2">
             <a
-              href="/dashboard"
+              href={authed ? "/dashboard" : "/auth/sign-in"}
               onClick={() => setOpen(false)}
               className={cn(
                 "rounded-full border border-border px-4 py-2.5 text-center text-sm font-semibold text-foreground transition-colors hover:bg-secondary",
                 FOCUS,
               )}
             >
-              Open the web app
+              {authed ? "Open app" : "Log in"}
             </a>
             <ChromeStoreButton className="w-full justify-center" onClick={() => setOpen(false)} />
           </div>

@@ -5,7 +5,7 @@ import { Reveal } from "../reveal";
    Background is a single same-hue lightness ramp (fern-700 → pine, hues
    160–162), no glow blobs — the Linear register: the color IS the surface. */
 
-export function Closer() {
+export function Closer({ authed = false }: { authed?: boolean }) {
   return (
     <footer className="px-5 pb-8">
       <Reveal className="mx-auto max-w-6xl">
@@ -20,10 +20,10 @@ export function Closer() {
                 className="bg-white text-[color:var(--pine)] shadow-none ring-0 hover:bg-white/90 hover:shadow-none active:shadow-none"
               />
               <a
-                href="/dashboard"
+                href={authed ? "/dashboard" : "/auth/sign-up"}
                 className="inline-flex h-13 cursor-pointer items-center justify-center rounded-full border border-white/25 px-7 text-base font-semibold text-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/10 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
               >
-                Open the web app
+                {authed ? "Open app" : "Sign up free"}
               </a>
             </div>
             <p className="mt-4 text-[0.85rem] text-white/60">

@@ -7,12 +7,19 @@ import { FeatureDuo } from "@/components/landing/v6/feature-duo";
 import { FeatureApp } from "@/components/landing/v6/feature-app";
 import { Faq } from "@/components/landing/v6/faq";
 import { Closer } from "@/components/landing/v6/closer";
+import { getOptionalSessionUser } from "@/lib/auth/current-user";
 
 /* Landing v6 — "notion+todoist for jobs": pastel product stages holding
    believable mini-product mockups (the Circleback/Todoist register).
    v5 remains in components/landing/v5/ for revert. */
 
-export default function Home() {
+// The primary CTA depends on the session cookie (authed vs signed-out copy/href),
+// so this page can't be statically cached.
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const authed = Boolean(await getOptionalSessionUser());
+
   return (
     <>
       <a
@@ -21,9 +28,9 @@ export default function Home() {
       >
         Skip to content
       </a>
-      <Nav />
+      <Nav authed={authed} />
       <main id="content" className="flex-1">
-        <Hero />
+        <Hero authed={authed} />
         <Sources />
         <Problem />
         <FeatureExtension />
@@ -31,7 +38,7 @@ export default function Home() {
         <FeatureApp />
         <Faq />
       </main>
-      <Closer />
+      <Closer authed={authed} />
     </>
   );
 }
