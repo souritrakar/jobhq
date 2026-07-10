@@ -137,6 +137,14 @@ describe("checkFeature", () => {
     check.mockResolvedValueOnce({ allowed: true })
     expect(await checkFeature("u1", "ai_answer_drafting")).toBe(true)
   })
+  it("returns false when not allowed (blocked)", async () => {
+    check.mockResolvedValueOnce({ allowed: false })
+    expect(await checkFeature("u1", "ai_answer_drafting")).toBe(false)
+  })
+  it("reads the { data: { allowed } } envelope shape too", async () => {
+    check.mockResolvedValueOnce({ data: { allowed: true } })
+    expect(await checkFeature("u1", "ai_answer_drafting")).toBe(true)
+  })
   it("throws BillingUnavailableError on error (fail-closed)", async () => {
     check.mockRejectedValueOnce(new Error("down"))
     await expect(checkFeature("u1", "ai_answer_drafting")).rejects.toBeInstanceOf(BillingUnavailableError)
