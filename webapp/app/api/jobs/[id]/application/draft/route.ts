@@ -1,8 +1,11 @@
 import type { NextRequest } from "next/server"
 
 import { getUserId } from "@/lib/auth/current-user"
+import { ApiError } from "@/lib/api/errors"
 import { ok, preflight, withRoute } from "@/lib/api/route"
+import { AI_DRAFTING_FEATURE_ID } from "@/lib/billing/plans"
 import { draftApplicationAnswer } from "@/lib/server/answer-draft"
+import { BillingUnavailableError, checkFeature } from "@/lib/server/billing"
 import { draftAnswerSchema } from "@/lib/validations/application-answer"
 
 // One non-streaming model call. It's short, but give it headroom over a default function budget so
@@ -19,6 +22,18 @@ export const POST = withRoute(async (req: NextRequest, { params }: Ctx) => {
   const userId = await getUserId(req)
   const { id } = await params
   const { questionId } = draftAnswerSchema.parse(await req.json())
+
+  let allowed: boolean
+  try {
+    allowed = await checkFeature(userId, AI_DRAFTING_FEATURE_ID)
+  } catch (e) {
+    if (e instanceof BillingUnavailableError)
+      throw new ApiError("SERVICE_UNAVAILABLE", "Billing is temporarily unavailable. Please try again.")
+    throw e
+  }
+  if (!allowed)
+    throw new ApiError("PAYMENT_REQUIRED", "AI answer drafting is a Pro feature. Upgrade to draft answers.")
+
   const draft = await draftApplicationAnswer(userId, id, questionId)
   return ok(draft)
 })
