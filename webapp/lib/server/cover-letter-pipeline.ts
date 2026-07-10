@@ -289,14 +289,26 @@ export function coverLetterStream(
         // Belt-and-suspenders: runPipeline is written not to throw, but if it ever does we still end
         // with a clean error event rather than a truncated, terminal-event-less stream.
         console.error("[cover-letter-pipeline] unexpected error:", err)
-        controller.enqueue(
-          encoder.encode(
-            encodeEvent({ t: "error", code: "GENERATION_FAILED", message: GENERATION_FAILED_MESSAGE }),
-          ),
-        )
+        try {
+          controller.enqueue(
+            encoder.encode(
+              encodeEvent({ t: "error", code: "GENERATION_FAILED", message: GENERATION_FAILED_MESSAGE }),
+            ),
+          )
+        } catch {
+          // The client already cancelled the stream — nothing left to deliver the error event to.
+        }
       } finally {
-        controller.close()
+        // Fire the settlement hook FIRST and unconditionally: it drives the billing refund, and must
+        // run even if the client already cancelled the stream (which makes controller.close() below
+        // throw "Invalid state: Controller is already closed"). If close() ran first and threw, this
+        // hook would never fire and a cancelled generation would silently burn a paid reservation.
         opts.onSettled?.(sawLetter)
+        try {
+          controller.close()
+        } catch {
+          // Already closed/cancelled by the client — nothing to close.
+        }
       }
     },
   })

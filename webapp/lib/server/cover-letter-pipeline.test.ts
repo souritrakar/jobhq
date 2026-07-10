@@ -263,6 +263,42 @@ describe("coverLetterStream — onSettled outcome hook", () => {
   })
 })
 
+describe("coverLetterStream — client cancellation mid-stream", () => {
+  it("calls onSettled(false) exactly once when the client cancels before a letter is emitted", async () => {
+    // Regression test: a client abort (tab close / fetch abort) mid-generation used to make
+    // controller.close() throw "Invalid state: Controller is already closed" INSIDE the finally
+    // block, before onSettled ran — silently burning the user's reserved generation with no refund.
+    const onSettled = vi.fn()
+    let resolveSettled: () => void
+    const settled = new Promise<void>((resolve) => {
+      resolveSettled = resolve
+    })
+    const deps = makeDeps({
+      generate: vi.fn(async () => {
+        // Give the test a window to cancel the reader before the pipeline reaches the letter event.
+        await new Promise((resolve) => setTimeout(resolve, 20))
+        return CLEAN_DRAFT
+      }),
+    })
+    const stream = coverLetterStream(prepared, {
+      config: ENABLED,
+      deps,
+      onSettled: (delivered) => {
+        onSettled(delivered)
+        resolveSettled()
+      },
+    })
+
+    const reader = stream.getReader()
+    // Simulate an abort before any event — including the letter — is read.
+    await reader.cancel()
+    await settled
+
+    expect(onSettled).toHaveBeenCalledOnce()
+    expect(onSettled).toHaveBeenCalledWith(false)
+  })
+})
+
 describe("runPipeline — generation errors", () => {
   it("maps a rate-limit to a busy message without leaking specifics", async () => {
     const deps = makeDeps({
