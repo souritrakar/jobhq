@@ -1,15 +1,26 @@
 /**
  * Browser-side helpers for the job detail page's application form: saving a question's answer and
  * AI-drafting one. Both speak the API's `{ data } | { error }` envelope (see docs/BACKEND.md) and
- * throw a plain Error with the server's message on failure, so the field can show it inline.
+ * throw an `ApiError` carrying the server's message + error code on failure, so the field can show
+ * it inline and branch on the code (e.g. PAYMENT_REQUIRED vs a plain transient failure).
  */
 
 type Envelope<T> = { data?: T; error?: { code: string; message: string } }
 
+/** An API failure, preserving the server's `{ code, message }` so callers can branch (e.g. 402). */
+export class ApiError extends Error {
+  code?: string
+  constructor(message: string, code?: string) {
+    super(message)
+    this.name = "ApiError"
+    this.code = code
+  }
+}
+
 async function unwrap<T>(res: Response): Promise<T> {
   const body = (await res.json().catch(() => null)) as Envelope<T> | null
   if (!res.ok || !body?.data) {
-    throw new Error(body?.error?.message ?? "Something went wrong. Try again.")
+    throw new ApiError(body?.error?.message ?? "Something went wrong. Try again.", body?.error?.code)
   }
   return body.data
 }

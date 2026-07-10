@@ -1,6 +1,8 @@
 "use client"
 
 import { useMemo, useRef, useState } from "react"
+import Link from "next/link"
+import { useCustomer } from "autumn-js/react"
 import {
   Check,
   CircleAlert,
@@ -28,6 +30,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { displayCompany } from "@/components/dashboard/logo-tile"
 import { JobPicker, type JobOption } from "@/components/dashboard/cover-letter/job-picker"
 import { ResumePicker } from "@/components/dashboard/cover-letter/resume-picker"
+import { FREE_GENERATIONS, GENERATIONS_FEATURE_ID } from "@/lib/billing/plans"
 
 type Status = "idle" | "generating" | "done" | "error"
 
@@ -152,7 +155,16 @@ export function CoverLetterGenerator({
   // vs a POLICY block (safety/intent/refusal/validation), where re-running the same input just fails
   // again — those show no "Try again", guiding the user to edit their instructions instead.
   const [errorRetryable, setErrorRetryable] = useState(false)
+  // Set only for a 402 (PAYMENT_REQUIRED) — the free-tier generation limit was hit. Distinct from
+  // `error`: it's not a failure to retry, it's a gate the user can lift by upgrading.
+  const [upgrade, setUpgrade] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+
+  // Display-only: how many of the free monthly generations are left. Never used to gate the
+  // request client-side — the server is the sole source of truth and returns 402 when it's spent.
+  const { data: customerData } = useCustomer()
+  const remaining = customerData?.balances?.[GENERATIONS_FEATURE_ID]?.remaining
+  const showRemaining = typeof remaining === "number" && Number.isFinite(remaining)
 
   const selectedJob = jobs.find((j) => j.id === selectedJobId) ?? null
   const isGenerating = status === "generating"
@@ -160,8 +172,16 @@ export function CoverLetterGenerator({
 
   // Set the error state, tagging whether a plain retry makes sense.
   function showError(message: string, retryable: boolean) {
+    setUpgrade(null)
     setError(message)
     setErrorRetryable(retryable)
+    setStatus("error")
+  }
+
+  // The free-tier limit was hit (402 PAYMENT_REQUIRED) — show the distinct upgrade CTA, not a retry.
+  function showUpgrade(message: string) {
+    setError(null)
+    setUpgrade(message)
     setStatus("error")
   }
 
@@ -178,6 +198,7 @@ export function CoverLetterGenerator({
 
     setStatus("generating")
     setError(null)
+    setUpgrade(null)
     setLetter("")
     // Pre-generation: the server runs the input gates first. Show a GENERIC "getting ready" state, not
     // "Drafting…", until the server's first `drafting` event confirms generation has actually begun.
@@ -197,10 +218,17 @@ export function CoverLetterGenerator({
 
       // A pre-stream failure comes back as the standard JSON `{ error }` envelope. A BAD_REQUEST is a
       // guardrail/validation block (safety, off-task intent, unreadable résumé) — not retryable as-is;
-      // anything else (rate limit, internal) is transient.
+      // anything else (rate limit, internal) is transient. PAYMENT_REQUIRED (402, free-tier limit hit)
+      // is its own case — never retryable, and shown as an upgrade prompt, not a plain error.
       if (!res.ok || !res.body) {
         const body = await res.json().catch(() => null)
-        showError(body?.error?.message ?? DEFAULT_ERROR, isRetryableCode(body?.error?.code))
+        const code: string | undefined = body?.error?.code
+        const message: string = body?.error?.message ?? DEFAULT_ERROR
+        if (code === "PAYMENT_REQUIRED") {
+          showUpgrade(message)
+        } else {
+          showError(message, isRetryableCode(code))
+        }
         return
       }
 
@@ -238,7 +266,14 @@ export function CoverLetterGenerator({
           } else if (ev.t === "error") {
             // A clean, specific, server-mapped message. Policy blocks (UNCLEAN/SAFETY) aren't
             // retryable as-is; transient ones (rate limit, timeout, generation failed) are.
-            showError(ev.message, isRetryableCode(ev.code))
+            // PAYMENT_REQUIRED can't actually reach here today (the meter is reserved before the
+            // stream opens, so it always arrives via the pre-stream branch above) but is handled the
+            // same way here for parity, in case that ever changes.
+            if (ev.code === "PAYMENT_REQUIRED") {
+              showUpgrade(ev.message)
+            } else {
+              showError(ev.message, isRetryableCode(ev.code))
+            }
             sawTerminal = true
             await reader.cancel().catch(() => {})
             break outer
@@ -272,7 +307,17 @@ export function CoverLetterGenerator({
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Cover Letter</h1>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight">Cover Letter</h1>
+          {/* Display-only nicety, hidden entirely for Pro/unlimited (where `remaining` is absent or
+              not a finite number) — the server is what actually gates generation, this is just a
+              heads-up so the 402 doesn't come as a surprise. */}
+          {showRemaining && (
+            <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+              {remaining} of {FREE_GENERATIONS} left this month
+            </span>
+          )}
+        </div>
         <p className="text-sm text-muted-foreground">
           Generate a tailored, human-sounding cover letter for any saved job, then edit and export it.
         </p>
@@ -379,6 +424,7 @@ export function CoverLetterGenerator({
           status={status}
           error={error}
           errorRetryable={errorRetryable}
+          upgrade={upgrade}
           letter={letter}
           isGenerating={isGenerating}
           phase={phase}
@@ -416,6 +462,7 @@ function OutputPanel({
   status,
   error,
   errorRetryable,
+  upgrade,
   letter,
   isGenerating,
   phase,
@@ -427,6 +474,7 @@ function OutputPanel({
   status: Status
   error: string | null
   errorRetryable: boolean
+  upgrade: string | null
   letter: string
   isGenerating: boolean
   phase: ClientPhase | null
@@ -483,7 +531,21 @@ function OutputPanel({
         </div>
       </div>
 
-      {status === "error" && !letter ? (
+      {status === "error" && upgrade ? (
+        // Distinct from the plain error state below: the primary accent + a Sparkles mark and an
+        // actual upgrade CTA, not red error text — this isn't a failure, it's a gate to lift.
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-12 text-center">
+          <span className="grid size-11 place-items-center rounded-full bg-primary/10 text-primary">
+            <Sparkles className="size-5" />
+          </span>
+          <p className="text-sm font-medium text-foreground">Upgrade to keep generating</p>
+          <p className="max-w-sm text-sm text-muted-foreground">{upgrade}</p>
+          <Button type="button" size="lg" className="mt-1 gap-2" render={<Link href="/dashboard/billing" />}>
+            <Sparkles className="size-4" />
+            Upgrade to Pro
+          </Button>
+        </div>
+      ) : status === "error" && !letter ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-12 text-center">
           <span className="grid size-11 place-items-center rounded-full bg-destructive/10 text-destructive">
             <CircleAlert className="size-5" />

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useId, useRef, useState, type ReactNode } from "react"
+import Link from "next/link"
 import {
   Check,
   ChevronsUpDown,
@@ -14,7 +15,7 @@ import {
 
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
-import { draftAnswer } from "@/lib/application/client"
+import { ApiError, draftAnswer } from "@/lib/application/client"
 import { decodeMultiValue, encodeMultiValue } from "@/lib/application/answer-codec"
 import { canAiDraft, FIELD_META, type StoredQuestion } from "./questions"
 
@@ -181,6 +182,8 @@ function TextEntryField({ question, jobId, hasResume, value, onChange, dirty }: 
 
   const [drafting, setDrafting] = useState(false)
   const [draftError, setDraftError] = useState<string | null>(null)
+  // Set only for a 402 (PAYMENT_REQUIRED) — a distinct "Pro feature" upgrade prompt, not a plain error.
+  const [draftUpgrade, setDraftUpgrade] = useState<string | null>(null)
 
   const draftAbortRef = useRef<AbortController | null>(null)
   const mountedRef = useRef(true)
@@ -207,6 +210,7 @@ function TextEntryField({ question, jobId, hasResume, value, onChange, dirty }: 
 
     setDrafting(true)
     setDraftError(null)
+    setDraftUpgrade(null)
     try {
       const { value: drafted } = await draftAnswer(jobId, question.id, controller.signal)
       if (!mountedRef.current) return
@@ -217,6 +221,10 @@ function TextEntryField({ question, jobId, hasResume, value, onChange, dirty }: 
         setDraftError("This is taking longer than expected. Please try again.")
       } else if (controller.signal.aborted) {
         return // superseded by a newer draft or unmount — that path owns the UI
+      } else if (err instanceof ApiError && err.code === "PAYMENT_REQUIRED") {
+        // Not a failure to retry — the feature is gated behind Pro. SERVICE_UNAVAILABLE (503) and
+        // everything else fall through to the plain retryable error message below.
+        setDraftUpgrade(err.message)
       } else {
         setDraftError(err instanceof Error ? err.message : "Couldn't draft an answer. Try again.")
       }
@@ -274,7 +282,7 @@ function TextEntryField({ question, jobId, hasResume, value, onChange, dirty }: 
         />
       )}
 
-      <FieldStatus drafting={drafting} error={draftError} dirty={dirty} />
+      <FieldStatus drafting={drafting} error={draftError} upgrade={draftUpgrade} dirty={dirty} />
     </FieldShell>
   )
 }
@@ -302,16 +310,39 @@ function DraftSkeleton({ textarea }: { textarea: boolean }) {
   )
 }
 
-/** The status line under a text field: a draft error, the drafting hint, or a quiet "unsaved" mark. */
+/**
+ * The status line under a text field: an upgrade prompt (Pro-gated draft), a draft error, the
+ * drafting hint, or a quiet "unsaved" mark.
+ */
 function FieldStatus({
   drafting,
   error,
+  upgrade,
   dirty,
 }: {
   drafting: boolean
   error: string | null
+  upgrade?: string | null
   dirty?: boolean
 }) {
+  // Visually distinct from a plain error: the clay accent + a Pro/Sparkles mark and an actual link,
+  // not red error text — this isn't a failure, it's a gate the user can act on immediately.
+  if (upgrade) {
+    return (
+      <p className="mt-1.5 flex items-start gap-1.5 rounded-md bg-clay-soft px-2 py-1.5 text-[11.5px] font-medium text-clay-ink">
+        <Sparkles className="mt-px size-3.5 shrink-0" />
+        <span>
+          {upgrade}{" "}
+          <Link
+            href="/dashboard/billing"
+            className="underline underline-offset-2 hover:text-clay-ink/80"
+          >
+            Upgrade to Pro
+          </Link>
+        </span>
+      </p>
+    )
+  }
   if (error) {
     return (
       <p className="mt-1.5 flex items-start gap-1.5 text-[11.5px] text-destructive">
