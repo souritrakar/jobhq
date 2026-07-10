@@ -265,7 +265,13 @@ export async function* runPipeline(
  */
 export function coverLetterStream(
   prepared: PreparedCoverLetter,
-  opts: { config?: PipelineConfig; deps?: PipelineDeps } = {},
+  opts: {
+    config?: PipelineConfig
+    deps?: PipelineDeps
+    /** Called exactly once when the stream finishes; `delivered` is true iff a `{t:"letter"}` event
+     * was emitted. Generic on purpose — the pipeline knows nothing about billing (see route). */
+    onSettled?: (delivered: boolean) => void
+  } = {},
 ): ReadableStream<Uint8Array> {
   const config = opts.config ?? resolvePipelineConfig()
   const deps = opts.deps ?? realDeps()
@@ -273,8 +279,10 @@ export function coverLetterStream(
 
   return new ReadableStream<Uint8Array>({
     async start(controller) {
+      let sawLetter = false
       try {
         for await (const event of runPipeline(prepared, config, deps)) {
+          if (event.t === "letter") sawLetter = true
           controller.enqueue(encoder.encode(encodeEvent(event)))
         }
       } catch (err) {
@@ -288,6 +296,7 @@ export function coverLetterStream(
         )
       } finally {
         controller.close()
+        opts.onSettled?.(sawLetter)
       }
     },
   })

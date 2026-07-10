@@ -221,6 +221,48 @@ describe("coverLetterStream — end-to-end wire (route encode → client decode)
   })
 })
 
+describe("coverLetterStream — onSettled outcome hook", () => {
+  it("calls onSettled(true) exactly once when a letter is delivered", async () => {
+    const onSettled = vi.fn()
+    const stream = coverLetterStream(prepared, {
+      config: ENABLED,
+      deps: makeDeps(),
+      onSettled,
+    })
+
+    const reader = stream.getReader()
+    for (;;) {
+      const { done } = await reader.read()
+      if (done) break
+    }
+
+    expect(onSettled).toHaveBeenCalledOnce()
+    expect(onSettled).toHaveBeenCalledWith(true)
+  })
+
+  it("calls onSettled(false) exactly once when the stream ends in a terminal error", async () => {
+    const onSettled = vi.fn()
+    const stream = coverLetterStream(prepared, {
+      config: ENABLED,
+      deps: makeDeps({
+        generate: vi.fn(async () => {
+          throw new ApiError("INTERNAL", "boom")
+        }),
+      }),
+      onSettled,
+    })
+
+    const reader = stream.getReader()
+    for (;;) {
+      const { done } = await reader.read()
+      if (done) break
+    }
+
+    expect(onSettled).toHaveBeenCalledOnce()
+    expect(onSettled).toHaveBeenCalledWith(false)
+  })
+})
+
 describe("runPipeline — generation errors", () => {
   it("maps a rate-limit to a busy message without leaking specifics", async () => {
     const deps = makeDeps({
