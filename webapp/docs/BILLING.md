@@ -27,16 +27,17 @@ source of gating truth.
 
 ## Concepts (Autumn)
 
-- **Feature** — something you can gate/meter. We have one: a **boolean** feature `pro`, granted only
-  by the Pro plan. `check({ featureId: "pro" })` is THE gate.
+- **Feature** — something you can gate/meter. We have three:
+  - **`pro`** (boolean) — the generic "is this a paying customer" flag (badge, `requirePro`, pro-demo).
+  - **`generations`** (metered, consumable) — the shared AI-generation meter. Free: **8/month**
+    (`reset: { interval: "month" }`); Pro: **unlimited**.
+  - **`ai_answer_drafting`** (boolean) — Pro-only AI answer drafting for application questions.
 - **Plan** — a pricing tier. `free` (no price, `autoEnable: true` → auto-assigned to every new
   customer, re-activates if Pro is cancelled) and `pro` ($20/mo). Both share `group: "main"` so they
   replace each other on upgrade/downgrade.
 - **Customer** — identified by our own id. **`customerId ≡ users.id`.** No extra ids to store.
 
-Today **Free and Pro grant the same real product access.** The `pro` feature only records "is this a
-paying customer" — the machinery (checkout, gating, rerouting, UI) is fully in place so that
-demarcating specific Pro-only capabilities later is a config change, not a re-architecture.
+See **Metered gating** below for how the meters are enforced.
 
 ## Where it lives
 
@@ -129,10 +130,55 @@ npx atmn pull      # pull remote plans back into autumn.config.ts
 Stripe test mode is connected inside the Autumn dashboard. The app boots without the key — gates then
 fail-closed (everyone is Free), so local non-billing work is unaffected.
 
+## Metered gating
+
+The pricing model, enforced **server-side** at each feature's route seam (keyed on the route's
+authenticated `userId`, secret key only; `useCustomer()` on the client is display-only):
+
+| Capability | Free | Pro | Seam |
+|---|---|---|---|
+| **AI generations** (cover letter; résumé when it exists) | **8 / month** (resets) | unlimited | `/api/cover-letter` |
+| **AI answer drafting** (application questions) | blocked | unlimited | `/api/jobs/[id]/application/draft` |
+| Extraction, detection, tasks, reminders, notes, context.dev import | unlimited | unlimited | — |
+
+**Seam API** (`lib/server/billing.ts`):
+- `reserveGeneration(userId)` → `{ allowed, remaining }`. Atomic **check-and-reserve**
+  (`check({ featureId: "generations", requiredBalance: 1, sendEvent: true })`) — deducts up front so
+  concurrent requests can't both slip past an 8/8 limit (cost safety). Pro (unlimited) → always
+  allowed, no deduction. **Fail-closed:** throws `BillingUnavailableError` on any Autumn error.
+- `refundGeneration(userId)` → best-effort `track({ value: -1 })`, **never throws**.
+- `checkFeature(userId, featureId)` → boolean; **fail-closed** (throws `BillingUnavailableError`).
+
+**Cover-letter flow** (`app/api/cover-letter/route.ts`): reserve **after** the cheap pre-gates
+(`prepareCoverLetter`, so validation/safety failures never charge) and **before** the stream opens.
+The pipeline reports a generic outcome via `coverLetterStream(prepared, { onSettled })`; the route
+**refunds** when no letter was delivered — including on **client abort** mid-stream (the `onSettled`
+hook runs in a `finally` before a guarded `controller.close()`, so a torn-down stream still refunds).
+
+**AI-drafting flow** (`app/api/jobs/[id]/application/draft/route.ts`): `checkFeature(userId,
+"ai_answer_drafting")` before the model call.
+
+**Error contract → UI:** a gate returns the standard `{ error: { code, message } }` envelope with
+- **`PAYMENT_REQUIRED` (402)** — limit hit / Pro-only → the client shows a distinct **Upgrade** CTA to
+  `/dashboard/billing` (non-retryable).
+- **`SERVICE_UNAVAILABLE` (503)** — Autumn unreachable → a normal **retryable** error (never a
+  misleading "upgrade" for a Pro user during an outage).
+The cover-letter UI also shows "**N of 8 left this month**" from `useCustomer().data?.balances?.generations?.remaining` (hidden for Pro/unlimited).
+
+Why reserve-then-refund (not check-then-track): reserving atomically closes the concurrency hole (a
+user firing N parallel requests can't all pass an 8/8 gate → protects cost); the refund keeps it fair
+when no artifact is produced. A hard crash between reserve and completion may leak 1 count — an
+accepted trade for a paywall (errs toward charging, not toward free generations).
+
+**Config push:** the metered `pro` plan is versioned; on a real launch push with
+`--plan-intents '{"pro":"create_version"}'` + a migration draft. Sandbox setup used `update_current`.
+
 ## Deferred (YAGNI)
 
-- **Per-feature Pro demarcation / metering.** Today Free ≡ Pro in real access. When we cap a capability,
-  add a metered feature to `autumn.config.ts` and a `check({ featureId })` at that feature's seam.
+- **Fair-usage rate limiting.** The plan limits above are enforced; per-abuse/cost caps beyond them
+  (e.g. throttling a heavy Pro user) are a later layer.
+- **Résumé generation meter.** `app/dashboard/resume/*` are UI-only today; when a résumé-generation
+  backend exists, gate it with the SAME `generations` meter (`reserveGeneration`/`refundGeneration`).
 - **Webhook read-model.** If per-request `check()` latency ever matters, mirror Autumn's `billingUpdated`
   webhook into a Neon **display cache** (never the gating source). Verify the webhook signature.
 - **Extension billing UI.** The extension shares this backend; server gates already protect it. Its own
