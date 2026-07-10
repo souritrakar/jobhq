@@ -4,8 +4,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 // `vi.mock` factories are hoisted above this module's own top-level declarations, so any variable
 // they close over must itself be declared inside `vi.hoisted` (plain `const check = vi.fn()` here
 // would hit the temporal dead zone when the factory runs).
-const { check, redirect, autumnCtor } = vi.hoisted(() => ({
+const { check, track, redirect, autumnCtor } = vi.hoisted(() => ({
   check: vi.fn(),
+  track: vi.fn(),
   // requirePro calls next/navigation redirect; make it throw a recognizable sentinel so we can assert.
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`)
@@ -18,15 +19,24 @@ vi.mock("autumn-js", () => ({
   // "is not a constructor" when invoked with `new`, so this must be a `function` expression.
   Autumn: vi.fn().mockImplementation(function (options: unknown) {
     autumnCtor(options)
-    return { check }
+    return { check, track }
   }),
 }))
 vi.mock("next/navigation", () => ({ redirect: (url: string) => redirect(url) }))
 
-import { getPlan, isPro, requirePro } from "@/lib/server/billing"
+import {
+  BillingUnavailableError,
+  checkFeature,
+  getPlan,
+  isPro,
+  refundGeneration,
+  reserveGeneration,
+  requirePro,
+} from "@/lib/server/billing"
 
 beforeEach(() => {
   check.mockReset()
+  track.mockReset()
   redirect.mockClear()
   process.env.AUTUMN_SECRET_KEY = "am_sk_test_x"
 })
@@ -86,5 +96,49 @@ describe("requirePro", () => {
     check.mockResolvedValueOnce({ allowed: true })
     await expect(requirePro("u1")).resolves.toBeUndefined()
     expect(redirect).not.toHaveBeenCalled()
+  })
+})
+
+describe("reserveGeneration", () => {
+  it("returns allowed + remaining on the flat shape", async () => {
+    check.mockResolvedValueOnce({ allowed: true, balance: { remaining: 7 } })
+    expect(await reserveGeneration("u1")).toEqual({ allowed: true, remaining: 7 })
+    expect(check).toHaveBeenCalledWith({
+      customerId: "u1",
+      featureId: "generations",
+      requiredBalance: 1,
+      sendEvent: true,
+    })
+  })
+  it("reads the { data: { allowed, balance } } envelope", async () => {
+    check.mockResolvedValueOnce({ data: { allowed: false, balance: { remaining: 0 } } })
+    expect(await reserveGeneration("u1")).toEqual({ allowed: false, remaining: 0 })
+  })
+  it("throws BillingUnavailableError when Autumn throws (fail-closed)", async () => {
+    check.mockRejectedValueOnce(new Error("down"))
+    await expect(reserveGeneration("u1")).rejects.toBeInstanceOf(BillingUnavailableError)
+  })
+})
+
+describe("refundGeneration", () => {
+  it("tracks a -1 refund", async () => {
+    track.mockResolvedValueOnce({})
+    await refundGeneration("u1")
+    expect(track).toHaveBeenCalledWith({ customerId: "u1", featureId: "generations", value: -1 })
+  })
+  it("never throws even if track fails", async () => {
+    track.mockRejectedValueOnce(new Error("down"))
+    await expect(refundGeneration("u1")).resolves.toBeUndefined()
+  })
+})
+
+describe("checkFeature", () => {
+  it("returns true when allowed", async () => {
+    check.mockResolvedValueOnce({ allowed: true })
+    expect(await checkFeature("u1", "ai_answer_drafting")).toBe(true)
+  })
+  it("throws BillingUnavailableError on error (fail-closed)", async () => {
+    check.mockRejectedValueOnce(new Error("down"))
+    await expect(checkFeature("u1", "ai_answer_drafting")).rejects.toBeInstanceOf(BillingUnavailableError)
   })
 })
