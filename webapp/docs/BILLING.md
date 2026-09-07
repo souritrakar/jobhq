@@ -15,11 +15,11 @@ Stripe/Autumn and read **live** on every gate.
 Why this is the right call for a public SaaS paywall:
 
 - **Un-bypassable.** There is no DB field to forge — a compromised or tampered database cannot grant
-  Pro. The answer always comes from Autumn, verified against Stripe's payment record.
+ Pro. The answer always comes from Autumn, verified against Stripe's payment record.
 - **No drift.** The app can never disagree with what Stripe actually billed.
 - **No cross-tab / stale-session races.** Nothing writes subscription state into our DB, so there is
-  no read-modify-write to race on. The authoritative check is a live, idempotent read; upgrading in
-  one tab is reflected in every other tab's *next server render* automatically.
+ no read-modify-write to race on. The authoritative check is a live, idempotent read; upgrading in
+ one tab is reflected in every other tab's *next server render* automatically.
 
 The trade-off (a live Autumn call per gate) is cheap and worth it. If it ever isn't, the upgrade path
 is a webhook-fed read-model — see "Deferred" below — but that would be a **display cache**, never the
@@ -28,13 +28,13 @@ source of gating truth.
 ## Concepts (Autumn)
 
 - **Feature** — something you can gate/meter. We have three:
-  - **`pro`** (boolean) — the generic "is this a paying customer" flag (badge, `requirePro`, pro-demo).
-  - **`generations`** (metered, consumable) — the shared AI-generation meter. Free: **8/month**
-    (`reset: { interval: "month" }`); Pro: **unlimited**.
-  - **`ai_answer_drafting`** (boolean) — Pro-only AI answer drafting for application questions.
+ - **`pro`** (boolean) — the generic "is this a paying customer" flag (badge, `requirePro`, pro-demo).
+ - **`generations`** (metered, consumable) — the shared AI-generation meter. Free: **8/month**
+ (`reset: { interval: "month" }`); Pro: **unlimited**.
+ - **`ai_answer_drafting`** (boolean) — Pro-only AI answer drafting for application questions.
 - **Plan** — a pricing tier. `free` (no price, `autoEnable: true` → auto-assigned to every new
-  customer, re-activates if Pro is cancelled) and `pro` ($20/mo). Both share `group: "main"` so they
-  replace each other on upgrade/downgrade.
+ customer, re-activates if Pro is cancelled) and `pro` ($20/mo). Both share `group: "main"` so they
+ replace each other on upgrade/downgrade.
 - **Customer** — identified by our own id. **`customerId ≡ users.id`.** No extra ids to store.
 
 See **Metered gating** below for how the meters are enforced.
@@ -55,36 +55,54 @@ See **Metered gating** below for how the meters are enforced.
 ## The server gate — `lib/server/billing.ts`
 
 The single server entry point. Every call reads Autumn **live**, keyed on the caller's authenticated
-`users.id`. The client `useCustomer()` hook is **display-only and must never be trusted** for an
+`users.id`. The client `useCustomer` hook is **display-only and must never be trusted** for an
 access decision.
 
 - `isPro(userId)` → `boolean`. **Fails CLOSED** (`false`) on any Autumn error — an outage can never
-  *unlock* Pro. Reads the `check` result defensively (`{ allowed }` and `{ data: { allowed } }` both
-  handled) so an SDK shape change degrades to "not Pro" rather than throwing.
+ *unlock* Pro. Reads the `check` result defensively (`{ allowed }` and `{ data: { allowed } }` both
+ handled) so an SDK shape change degrades to "not Pro" rather than throwing.
 - `getPlan(userId)` → `"free" | "pro"`. **Fails OPEN** to `"free"` — an outage must not break the app
-  for paying users either; the worst case is a Pro user briefly sees the Free badge.
+ for paying users either; the worst case is a Pro user briefly sees the Free badge.
 - `requirePro(userId)` — `redirect("/dashboard/billing")` when not Pro. Use it to gate a server
-  route/action.
+ route/action.
 
 ## Customer identity — `app/api/autumn/[...all]/route.ts`
 
 `autumnHandler({ identify })` mounts the `/api/autumn/*` endpoints the client hook calls. `identify`
 is the **trust boundary**: the Autumn customer id is always the signed-in user's id, read server-side
-from the Neon Auth session cookie via `getOptionalSessionUser()` — **never** from the request body or
+from the Neon Auth session cookie via `getOptionalSessionUser` — **never** from the request body or
 a client-supplied header. Unauthenticated → no customer. A user can only ever act as themselves.
 
 ## Client + UI
 
 - `AutumnProvider` (from `autumn-js/react`) wraps the **dashboard subtree** (in the dashboard layout,
-  not root) — the authed surface only. `useCustomer()` on first authed load auto-creates the Autumn
-  customer and enables Free.
+ not root) — the authed surface only. `useCustomer` on first authed load auto-creates the Autumn
+ customer and enables Free.
 - **Plan badge** ("Free"/"Pro") in the account menu is SSR'd from `getPlan(user.id)` in the dashboard
-  layout (already `dynamic = "force-dynamic"`), so it's correct on first paint and re-reads on every
-  navigation.
+ layout (already `dynamic = "force-dynamic"`), so it's correct on first paint and re-reads on every
+ navigation.
 - **Billing page** `/dashboard/billing` (`force-dynamic`): Free/Pro cards. Upgrade →
-  `attach({ planId: "pro", successUrl })` → Stripe Checkout (test card `4242 4242 4242 4242`). Manage
-  → `openCustomerPortal({ returnUrl })` (Stripe portal). Buttons disable while in-flight
-  (no double-submit).
+ `attach({ planId: "pro", successUrl })` → Stripe Checkout (test card `4242 4242 4242 4242`). Manage
+ → `openCustomerPortal({ returnUrl })` (Stripe portal). Buttons disable while in-flight
+ (no double-submit).
+
+## Cancelling — scheduled-cancel state
+
+Cancelling in the Stripe portal does **not** end Pro immediately: Stripe sets
+`cancel_at_period_end`, so the subscription stays `status: "active"` (and Autumn keeps returning
+`allowed` for `pro`) until the paid period runs out. This is correct — the user keeps what they paid
+for. `isPro`/`getPlan` therefore still report Pro, the badge still says Pro, and gating is unchanged
+until period end, when Autumn stops returning `allowed`, `free` auto-re-enables (`autoEnable: true`),
+and everything drops to Free automatically. No app-side state to flip.
+
+Because the *entitlement* is intentionally unchanged, the only thing to fix was the **display**: an
+identical "Pro / Manage plan" card gave no hint you'd cancelled. `pricing-cards.tsx` now reads the
+Pro subscription's `canceledAt` (set once a cancel is scheduled) and, when present, shows
+"**Cancels {date} — Pro stays active until then, no further charge.**" using
+`expiresAt ?? currentPeriodEnd` for the date, and relabels the button "Manage or resume". Display-only
+(client `useCustomer` data) — no gating logic touched. The account-menu badge is SSR'd from
+`getPlan` and stays "Pro"; teaching it the scheduled-cancel state would need `getPlan` to surface
+the cancel flag too (deferred — the billing card is where "Manage plan" lives).
 
 ## Routing & access
 
@@ -96,20 +114,20 @@ a client-supplied header. Unauthenticated → no customer. A user can only ever 
 | `/dashboard/pro-demo` | → sign-in | **→ `/dashboard/billing`** | ✅ |
 
 Auth is guarded by `proxy.ts` (matches `/dashboard/*`). **Pro** gating is enforced in the page/server
-layer via `requirePro()`, co-located with the Autumn read — not in the middleware.
+layer via `requirePro`, co-located with the Autumn read — not in the middleware.
 
 ## Upgrade refresh & cross-tab consistency
 
 - **Server is always authoritative and live** — no stored flag to go stale.
 - **Auth session ⟂ subscription** — upgrading doesn't mutate the auth cookie, so there is no "stale
-  session" for auth; only the client *display* cache can lag.
+ session" for auth; only the client *display* cache can lag.
 - **Upgrading tab:** Stripe Checkout returns to `/dashboard/billing?checkout=success` → the page calls
-  `refetch()` + `router.refresh()` (and strips the query param) → Pro shows immediately (badge,
-  billing page, gated routes). Upgrades are immediate in Autumn.
+ `refetch` + `router.refresh` (and strips the query param) → Pro shows immediately (badge,
+ billing page, gated routes). Upgrades are immediate in Autumn.
 - **Other tabs:** any gated server action re-checks live (security is unaffected); for display, the
-  `useCustomer()` query refetches on window focus, so refocusing a stale tab corrects it. On a failed
-  `useCustomer()` fetch the cards fall back to the SSR `serverPlan` (not "free"), so a Pro user is
-  never shown the upgrade CTA due to a transient error.
+ `useCustomer` query refetches on window focus, so refocusing a stale tab corrects it. On a failed
+ `useCustomer` fetch the cards fall back to the SSR `serverPlan` (not "free"), so a Pro user is
+ never shown the upgrade CTA due to a transient error.
 
 ## Config & ops (`autumn.config.ts` + `atmn` CLI)
 
@@ -120,20 +138,20 @@ kept in sync by hand.
 
 ```bash
 cd webapp
-npx atmn login     # one-time browser auth (picks org, writes keys to .env)
-npx atmn push      # push local config → Autumn sandbox (default)
-npx atmn push -p   # push to production (prompts; --yes to skip)
-npx atmn pull      # pull remote plans back into autumn.config.ts
+npx atmn login # one-time browser auth (picks org, writes keys to .env)
+npx atmn push # push local config → Autumn sandbox (default)
+npx atmn push -p # push to production (prompts; --yes to skip)
+npx atmn pull # pull remote plans back into autumn.config.ts
 ```
 
-`AUTUMN_SECRET_KEY` (server-only; validated `.optional()` in `lib/env.ts`) holds the sandbox key.
+`AUTUMN_SECRET_KEY` (server-only; validated `.optional` in `lib/env.ts`) holds the sandbox key.
 Stripe test mode is connected inside the Autumn dashboard. The app boots without the key — gates then
 fail-closed (everyone is Free), so local non-billing work is unaffected.
 
 ## Metered gating
 
 The pricing model, enforced **server-side** at each feature's route seam (keyed on the route's
-authenticated `userId`, secret key only; `useCustomer()` on the client is display-only):
+authenticated `userId`, secret key only; `useCustomer` on the client is display-only):
 
 | Capability | Free | Pro | Seam |
 |---|---|---|---|
@@ -143,27 +161,41 @@ authenticated `userId`, secret key only; `useCustomer()` on the client is displa
 
 **Seam API** (`lib/server/billing.ts`):
 - `reserveGeneration(userId)` → `{ allowed, remaining }`. Atomic **check-and-reserve**
-  (`check({ featureId: "generations", requiredBalance: 1, sendEvent: true })`) — deducts up front so
-  concurrent requests can't both slip past an 8/8 limit (cost safety). Pro (unlimited) → always
-  allowed, no deduction. **Fail-closed:** throws `BillingUnavailableError` on any Autumn error.
+ (`check({ featureId: "generations", requiredBalance: 1, sendEvent: true })`) — deducts up front so
+ concurrent requests can't both slip past an 8/8 limit (cost safety). Pro (unlimited) → always
+ allowed, no deduction. **Fail-closed:** throws `BillingUnavailableError` on any Autumn error.
 - `refundGeneration(userId)` → best-effort `track({ value: -1 })`, **never throws**.
 - `checkFeature(userId, featureId)` → boolean; **fail-closed** (throws `BillingUnavailableError`).
+- `getGenerationsUsage(userId)` → `{ plan, generations: { unlimited, remaining, included } }` for
+ **display only**. A **read-only peek** — `check({ featureId: "generations", requiredBalance: 1 })`
+ with **no `sendEvent`**, so it never deducts (Pro short-circuits to `unlimited`, no peek). **Fail-open**
+ to `remaining: null` (the caller just hides the indicator). Exposed at `GET /api/billing/usage` for
+ the extension; the webapp reads the same numbers client-side via `useCustomer`.
 
 **Cover-letter flow** (`app/api/cover-letter/route.ts`): reserve **after** the cheap pre-gates
 (`prepareCoverLetter`, so validation/safety failures never charge) and **before** the stream opens.
 The pipeline reports a generic outcome via `coverLetterStream(prepared, { onSettled })`; the route
 **refunds** when no letter was delivered — including on **client abort** mid-stream (the `onSettled`
-hook runs in a `finally` before a guarded `controller.close()`, so a torn-down stream still refunds).
+hook runs in a `finally` before a guarded `controller.close`, so a torn-down stream still refunds).
 
 **AI-drafting flow** (`app/api/jobs/[id]/application/draft/route.ts`): `checkFeature(userId,
 "ai_answer_drafting")` before the model call.
 
 **Error contract → UI:** a gate returns the standard `{ error: { code, message } }` envelope with
 - **`PAYMENT_REQUIRED` (402)** — limit hit / Pro-only → the client shows a distinct **Upgrade** CTA to
-  `/dashboard/billing` (non-retryable).
+ `/dashboard/billing` (non-retryable).
 - **`SERVICE_UNAVAILABLE` (503)** — Autumn unreachable → a normal **retryable** error (never a
-  misleading "upgrade" for a Pro user during an outage).
-The cover-letter UI also shows "**N of 8 left this month**" from `useCustomer().data?.balances?.generations?.remaining` (hidden for Pro/unlimited).
+ misleading "upgrade" for a Pro user during an outage).
+The cover-letter UI also shows "**N of 8 left this month**" from `useCustomer.data?.balances?.generations?.remaining` (hidden for Pro/unlimited).
+
+**Extension parity (cover letter).** The Chrome extension's Resume tab generates cover letters through
+the *same* `/api/cover-letter` endpoint, so the 8/mo meter is enforced identically. Because only the
+service worker can reach the API cross-origin, the content script sends `GENERATE_COVER_LETTER` to
+`background.js`, which **reads the NDJSON stream to completion** and returns the terminal result
+(round-trip — chrome messaging is one request → one response; no streamed phases). A 402 surfaces as
+`{ ok:false, code:"PAYMENT_REQUIRED" }` → the drawer shows the same **Upgrade to Pro** card, linking
+to `/dashboard/billing`. The remaining-generations pill reads `GET /api/billing/usage` via
+`GET_USAGE`. Design: the design spec.
 
 Why reserve-then-refund (not check-then-track): reserving atomically closes the concurrency hole (a
 user firing N parallel requests can't all pass an 8/8 gate → protects cost); the refund keeps it fair
@@ -175,11 +207,16 @@ accepted trade for a paywall (errs toward charging, not toward free generations)
 
 ## Deferred (YAGNI)
 
-- **Fair-usage rate limiting.** The plan limits above are enforced; per-abuse/cost caps beyond them
-  (e.g. throttling a heavy Pro user) are a later layer.
+- **Fair-usage rate limiting — DONE.** Per-user / per-IP abuse & cost caps across every
+ paid seam now sit *underneath* this billing meter (Upstash Redis; `lib/server/ratelimit.ts`). See
+ **[`RATE_LIMITING.md`](RATE_LIMITING.md)**. Notably AI job/application extraction now carries a
+ fair-use daily cap (**20/day Free, 40/day Pro**) on top of being otherwise "unlimited", and
+ document storage has a per-user stock cap (25 files/100 MB Free, 100/500 MB Pro). Those limits are
+ system-framed (429 + Retry-After), not upgrade prompts — only the `generations` meter here is a
+ real paywall.
 - **Résumé generation meter.** `app/dashboard/resume/*` are UI-only today; when a résumé-generation
-  backend exists, gate it with the SAME `generations` meter (`reserveGeneration`/`refundGeneration`).
-- **Webhook read-model.** If per-request `check()` latency ever matters, mirror Autumn's `billingUpdated`
-  webhook into a Neon **display cache** (never the gating source). Verify the webhook signature.
+ backend exists, gate it with the SAME `generations` meter (`reserveGeneration`/`refundGeneration`).
+- **Webhook read-model.** If per-request `check` latency ever matters, mirror Autumn's `billingUpdated`
+ webhook into a Neon **display cache** (never the gating source). Verify the webhook signature.
 - **Extension billing UI.** The extension shares this backend; server gates already protect it. Its own
-  billing surface (and real auth, replacing the dev `x-user-id` seam) come with extension auth.
+ billing surface (and real auth, replacing the dev `x-user-id` seam) come with extension auth.
